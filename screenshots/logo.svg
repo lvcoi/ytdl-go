@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1e1e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2d2d2d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="playGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff0000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="downloadGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d9ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0088cc;stop-opacity:1" />
+    </linearGradient>
+    <style>
+      .logo-text { 
+        fill: #ffffff; 
+        font-family: 'Arial', 'Helvetica', sans-serif; 
+        font-weight: bold; 
+        font-size: 18px;
+      }
+      .logo-subtext { 
+        fill: #00d9ff; 
+        font-family: 'Courier New', monospace; 
+        font-size: 12px; 
+        font-weight: bold;
+      }
+    </style>
+  </defs>
+  
+  <!-- Background rounded rectangle -->
+  <rect width="150" height="150" rx="15" fill="url(#bgGradient)"/>
+  
+  <!-- YouTube play button inspired shape -->
+  <g transform="translate(45, 30)">
+    <!-- Rounded rectangle background for play button -->
+    <rect x="0" y="0" width="60" height="42" rx="8" fill="url(#playGradient)"/>
+    <!-- Play triangle -->
+    <polygon points="20,10 20,32 45,21" fill="white"/>
+  </g>
+  
+  <!-- Download arrow -->
+  <g transform="translate(75, 85)">
+    <!-- Arrow stem -->
+    <rect x="-4" y="0" width="8" height="25" rx="2" fill="url(#downloadGradient)"/>
+    <!-- Arrow head -->
+    <polygon points="0,30 -10,18 10,18" fill="url(#downloadGradient)"/>
+  </g>
+  
+  <!-- Text -->
+  <text class="logo-text" x="75" y="125" text-anchor="middle">ytdl</text>
+  <text class="logo-subtext" x="75" y="140" text-anchor="middle">- go -</text>
+</svg>

@@ -1,6 +1,6 @@
 # ytdl-go 📺
 
-![ytdl-go logo](https://via.placeholder.com/150x150/1e1e1e/ffffff?text=ytdl-go)
+![ytdl-go logo](screenshots/logo.svg)
 
 ## A powerful yt-dlp-style downloader written in Go
 
@@ -72,21 +72,21 @@ git clone https://github.com/yourusername/ytdl-go.git
 cd ytdl-go
 ```
 
-![Clone repository](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Git+Clone+Output+Example)
+![Clone repository](screenshots/01-git-clone.svg)
 
 ```bash
 # Build the binary
 go build -o ytdl-go ./cmd/ytdl-go
 ```
 
-![Build output](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Go+Build+Output+Example)
+![Build output](screenshots/02-go-build.svg)
 
 ```bash
 # Optional: Install to system path
 go install ./cmd/ytdl-go
 ```
 
-![Install output](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Go+Install+Output+Example)
+![Install output](screenshots/03-go-install.svg)
 
 ### 🏗️ Build with custom cache locations
 
@@ -99,7 +99,7 @@ go mod tidy   # downloads dependencies
 go build ./cmd/ytdl-go
 ```
 
-![Custom cache build](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Custom+Cache+Build+Example)
+![Custom cache build](screenshots/04-custom-cache.svg)
 
 ## 📖 Usage
 
@@ -110,21 +110,21 @@ go build ./cmd/ytdl-go
 ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Video download](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Video+Download+Progress+Example)
+![Video download](screenshots/05-video-download.svg)
 
 ```bash
 # Download audio-only
 ytdl-go --audio https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Audio download](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Audio+Download+Progress+Example)
+![Audio download](screenshots/06-audio-download.svg)
 
 ```bash
 # Get video metadata without downloading
 ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Metadata output example](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Metadata+JSON+Output+Example)
+![Metadata output example](screenshots/07-metadata-info.svg)
 
 ### 🎨 Output customization
 
@@ -133,21 +133,21 @@ ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
 ytdl-go -o "downloads/{title}.{ext}" https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Custom output download](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Custom+Output+Download+Example)
+![Custom output download](screenshots/08-custom-output.svg)
 
 ```bash
 # Include artist in filename
 ytdl-go -o "{artist} - {title}.{ext}" https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Artist in filename](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Artist+Filename+Example)
+![Artist in filename](screenshots/09-artist-filename.svg)
 
 ```bash
 # Download with quality indicator
 ytdl-go -o "{title} [{quality}].{ext}" https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Quality indicator example](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Quality+Indicator+Example)
+![Quality indicator example](screenshots/10-quality-indicator.svg)
 
 ### 📚 Playlist downloads
 
@@ -156,28 +156,28 @@ ytdl-go -o "{title} [{quality}].{ext}" https://www.youtube.com/watch?v=BaW_jenoz
 ytdl-go "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 ```
 
-![Playlist download progress](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Playlist+Download+Progress+Example)
+![Playlist download progress](screenshots/11-playlist-download.svg)
 
 ```bash
 # Download playlist with custom structure
 ytdl-go -o "downloads/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 ```
 
-![Custom playlist structure](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Custom+Playlist+Structure+Example)
+![Custom playlist structure](screenshots/12-custom-playlist.svg)
 
 ```bash
 # Download playlist as audio-only with artist folders
 ytdl-go --audio -o "music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 ```
 
-![Audio playlist with folders](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Audio+Playlist+Folders+Example)
+![Audio playlist with folders](screenshots/13-audio-playlist-folders.svg)
 
 ```bash
 # YouTube Music playlists (automatically converted)
 ytdl-go --audio -o "music/{artist}/{title}.{ext}" "https://music.youtube.com/playlist?list=PLxUALHb15RSAPuTLY-05OageBIuHAOwJm"
 ```
 
-![YouTube Music conversion](https://via.placeholder.com/800x400/1e1e1e/ffffff?Text=YouTube+Music+URL+Conversion+Example)
+![YouTube Music conversion](screenshots/14-youtube-music.svg)
 
 ### ⚙️ Advanced options
 
@@ -186,21 +186,21 @@ ytdl-go --audio -o "music/{artist}/{title}.{ext}" "https://music.youtube.com/pla
 ytdl-go --quiet https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Quiet mode output](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Quiet+Mode+Output+Example)
+![Quiet mode output](screenshots/15-quiet-mode.svg)
 
 ```bash
 # Custom timeout
 ytdl-go --timeout 10m https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Custom timeout example](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Custom+Timeout+Example)
+![Custom timeout example](screenshots/16-custom-timeout.svg)
 
 ```bash
 # Multiple URLs
 ytdl-go https://www.youtube.com/watch?v=video1 https://www.youtube.com/watch?v=video2
 ```
 
-![Multiple URLs download](https://via.placeholder.com/800x400/1e1e1e/ffffff?text=Multiple+URLs+Download+Example)
+![Multiple URLs download](screenshots/17-multiple-urls.svg)
 
 ## 📊 Command Line Options
 
