@@ -1,4 +1,4 @@
-module yt-dlgo
+module ytdl-go
 
 go 1.23.0
 
