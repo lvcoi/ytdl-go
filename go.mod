@@ -1,4 +1,4 @@
-module ytdl-go
+module github.com/lvcoi/ytdl-go
 
 go 1.23.0
 

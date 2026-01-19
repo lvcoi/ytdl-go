@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"ytdl-go/internal/downloader"
+	"github.com/lvcoi/ytdl-go/internal/downloader"
 )
 
 func main() {

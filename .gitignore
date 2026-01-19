@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+ytdl-go
 ytdl-go.exe
 # Test binary, built with `go test -c`
 *.test
