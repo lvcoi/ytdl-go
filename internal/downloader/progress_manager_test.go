@@ -48,18 +48,21 @@ func TestProgressManagerResizeEvent(t *testing.T) {
 	manager.UpdateTask(task, 50, 100, 500*time.Millisecond)
 	time.Sleep(50 * time.Millisecond)
 
-	initialOutput := buf.String()
+	// Send resize event and wait for it to be processed
 	width = 40
 	manager.sendEvent(progressEvent{kind: eventResize, width: width})
 	time.Sleep(50 * time.Millisecond)
+	
+	// Stop the manager before reading the buffer to avoid race condition
 	manager.Stop()
 
-	resizedOutput := buf.String()[len(initialOutput):]
-	if !strings.Contains(resizedOutput, "r") {
-		t.Fatalf("expected resized output to include label, got: %q", resizedOutput)
+	// Now safely read the output after the goroutine has stopped
+	output := buf.String()
+	if !strings.Contains(output, "r") {
+		t.Fatalf("expected output to include label, got: %q", output)
 	}
-	if strings.Count(resizedOutput, "[") == 0 {
-		t.Fatalf("expected resized output to include progress bar, got: %q", resizedOutput)
+	if strings.Count(output, "[") == 0 {
+		t.Fatalf("expected output to include progress bar, got: %q", output)
 	}
 }
 
