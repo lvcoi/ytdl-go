@@ -16,6 +16,7 @@ func main() {
 	flag.StringVar(&opts.OutputTemplate, "o", "{title}.{ext}", "output path or template (supports {title}, {artist}, {album}, {id}, {ext}, {quality}, {playlist_title}, {playlist_id}, {index}, {count})")
 	flag.BoolVar(&opts.AudioOnly, "audio", false, "download best available audio only")
 	flag.BoolVar(&opts.InfoOnly, "info", false, "print video metadata as JSON without downloading")
+	flag.BoolVar(&opts.ListFormats, "list-formats", false, "list available formats without downloading")
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
 	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {bar} {bytes} {rate} {eta}\")")

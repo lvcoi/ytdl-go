@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/kkdai/youtube/v2"
@@ -25,6 +26,7 @@ type Options struct {
 	OutputTemplate string
 	AudioOnly      bool
 	InfoOnly       bool
+	ListFormats    bool
 	Quiet          bool
 	Timeout        time.Duration
 	ProgressLayout string
@@ -75,6 +77,9 @@ func IsReported(err error) bool {
 
 // Process fetches metadata, selects the best matching format, and downloads it.
 func Process(ctx context.Context, url string, opts Options) error {
+	if err := validateURL(url); err != nil {
+		return err
+	}
 	progressManager := newProgressManager(opts)
 	if progressManager != nil {
 		progressManager.Start(ctx)
@@ -93,7 +98,10 @@ func Process(ctx context.Context, url string, opts Options) error {
 	client := newClient(opts)
 	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
-		return fmt.Errorf("fetching metadata: %w", err)
+		return wrapAccessError(fmt.Errorf("fetching metadata: %w", err))
+	}
+	if opts.ListFormats {
+		return printFormats(video)
 	}
 	if opts.InfoOnly {
 		return printInfo(video)
@@ -124,6 +132,55 @@ func newClient(opts Options) *youtube.Client {
 	}
 }
 
+func validateURL(input string) error {
+	parsed, err := url.Parse(input)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("invalid URL: unsupported scheme %q", parsed.Scheme)
+	}
+	if parsed.Host == "" {
+		return errors.New("invalid URL: missing host")
+	}
+	return nil
+}
+
+func wrapAccessError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if isRestrictedAccess(err) {
+		return fmt.Errorf("restricted access: %w", err)
+	}
+	return err
+}
+
+func isRestrictedAccess(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	restrictedMarkers := []string{
+		"private",
+		"sign in",
+		"login",
+		"members only",
+		"premium",
+		"copyright",
+		"unavailable",
+		"age-restricted",
+		"age restricted",
+		"not available",
+	}
+	for _, marker := range restrictedMarkers {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer) error {
 	savedClient := youtube.DefaultClient
 	defer func() {
@@ -134,9 +191,12 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	playlistClient := newClient(opts)
 	playlist, err := playlistClient.GetPlaylistContext(ctx, url)
 	if err != nil {
-		return fmt.Errorf("fetching playlist: %w", err)
+		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
+	if opts.ListFormats {
+		return errors.New("format listing is not supported for playlists")
+	}
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
 	}
@@ -625,6 +685,33 @@ func printInfo(video *youtube.Video) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(payload)
+}
+
+func printFormats(video *youtube.Video) error {
+	return writeFormats(os.Stdout, video)
+}
+
+func writeFormats(output io.Writer, video *youtube.Video) error {
+	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(writer, "itag\tquality\tquality_label\tmime_type\text\tbitrate\tchannels\tresolution\tsize")
+	for _, f := range video.Formats {
+		resolution := ""
+		if f.Width > 0 && f.Height > 0 {
+			resolution = fmt.Sprintf("%dx%d", f.Width, f.Height)
+		}
+		fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\n",
+			f.ItagNo,
+			f.Quality,
+			f.QualityLabel,
+			f.MimeType,
+			mimeToExt(f.MimeType),
+			bitrateForFormat(&f),
+			f.AudioChannels,
+			resolution,
+			f.ContentLength,
+		)
+	}
+	return writer.Flush()
 }
 
 func printPlaylistInfo(playlist *youtube.Playlist) error {

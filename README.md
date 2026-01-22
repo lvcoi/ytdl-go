@@ -38,6 +38,7 @@
 ## ✨ Features
 
 - **Metadata extraction** - `--info` prints detailed metadata (formats included) as pretty JSON
+- **Format listing** - `--list-formats` prints available formats without downloading
 - **Audio-only downloads** - `--audio` grabs the best audio-only format; otherwise downloads best progressive
 - **Playlist support** - Playlist URLs are expanded and downloaded entry by entry with progress tracking
 - **YouTube Music compatibility** - Automatically converts `music.youtube.com` URLs to regular YouTube URLs
@@ -135,6 +136,11 @@ ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
 
 ![Metadata output example](screenshots/07-metadata-info.svg)
 
+```bash
+# List available formats without downloading
+ytdl-go --list-formats https://www.youtube.com/watch?v=BaW_jenozKc
+```
+
 ### 🎨 Output customization
 
 ```bash
@@ -218,6 +224,7 @@ ytdl-go https://www.youtube.com/watch?v=video1 https://www.youtube.com/watch?v=v
 | `-o` | `{title}.{ext}` | Output path or template with supported placeholders |
 | `-audio` | `false` | Download best available audio-only format |
 | `-info` | `false` | Print video metadata as JSON without downloading |
+| `-list-formats` | `false` | List available formats without downloading |
 | `-quiet` | `false` | Suppress progress output (errors still shown) |
 | `-timeout` | `3m` | Per-request timeout (e.g., 30s, 5m, 1h) |
 
