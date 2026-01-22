@@ -65,6 +65,8 @@ func (p *progressWriter) Finish() {
 	}
 	p.finished = true
 	p.print()
+	// Move to next line after finishing
+	fmt.Fprint(os.Stderr, "\n")
 }
 
 func (p *progressWriter) NewLine() {
