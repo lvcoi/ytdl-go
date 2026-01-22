@@ -27,6 +27,8 @@ type Options struct {
 	InfoOnly       bool
 	Quiet          bool
 	Timeout        time.Duration
+	ProgressLayout string
+	LogLevel       string
 }
 
 type outputContext struct {
@@ -73,7 +75,12 @@ func IsReported(err error) bool {
 
 // Process fetches metadata, selects the best matching format, and downloads it.
 func Process(ctx context.Context, url string, opts Options) error {
-	printer := newPrinter(opts)
+	progressManager := newProgressManager(opts)
+	if progressManager != nil {
+		progressManager.Start(ctx)
+		defer progressManager.Stop()
+	}
+	printer := newPrinter(opts, progressManager)
 
 	// Convert YouTube Music URLs to regular YouTube URLs
 	url = ConvertMusicURL(url)
@@ -147,9 +154,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		}
 	}
 
-	if !opts.Quiet {
-		fmt.Fprintf(os.Stderr, "playlist: %s (%d videos)\n", playlist.Title, len(playlist.Videos))
-	}
+	printer.Log(LogInfo, fmt.Sprintf("playlist: %s (%d videos)", playlist.Title, len(playlist.Videos)))
 
 	youtube.DefaultClient = youtube.AndroidClient
 	videoClient := newClient(opts)
@@ -266,12 +271,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 	written, err := copyWithContext(ctx, writer, stream)
 	if err != nil {
 		if isUnexpectedStatus(err, http.StatusForbidden) {
-			if progress != nil {
-				progress.NewLine()
-			}
-			if !opts.Quiet {
-				fmt.Fprintln(os.Stderr, "warning: 403 from chunked download, retrying with single request")
-			}
+			printer.Log(LogWarn, "warning: 403 from chunked download, retrying with single request")
 			if _, seekErr := file.Seek(0, 0); seekErr != nil {
 				return result, fmt.Errorf("retry failed: %w", seekErr)
 			}

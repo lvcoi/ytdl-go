@@ -18,6 +18,8 @@ func main() {
 	flag.BoolVar(&opts.InfoOnly, "info", false, "print video metadata as JSON without downloading")
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
+	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {bar} {bytes} {rate} {eta}\")")
+	flag.StringVar(&opts.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
 	flag.Parse()
 
 	urls := flag.Args()
