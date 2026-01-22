@@ -81,12 +81,6 @@ func (p *Printer) ItemResult(prefix string, result downloadResult, err error) {
 		return
 	}
 
-	if result.hadProgress {
-		if p.manager == nil {
-			p.clearLine()
-		}
-	}
-
 	statusText := "OK"
 	statusColor := colorGreen
 	detail := fmt.Sprintf("%s %s", padLeft(humanBytes(result.bytes), 9), result.outputPath)
@@ -113,7 +107,15 @@ func (p *Printer) ItemResult(prefix string, result downloadResult, err error) {
 	}
 	detail = truncateText(detail, maxDetail)
 
-	fmt.Fprintf(os.Stderr, "%s %s %s\n", prefix, status, detail)
+	message := fmt.Sprintf("%s %s %s", prefix, status, detail)
+	if p.manager != nil {
+		p.manager.Log(LogInfo, message)
+	} else {
+		if result.hadProgress {
+			p.clearLine()
+		}
+		fmt.Fprintln(os.Stderr, message)
+	}
 }
 
 func (p *Printer) ItemSkipped(prefix, reason string) {
@@ -125,7 +127,12 @@ func (p *Printer) ItemSkipped(prefix, reason string) {
 	if maxDetail < 0 {
 		maxDetail = 0
 	}
-	fmt.Fprintf(os.Stderr, "%s %s %s\n", prefix, status, truncateText(reason, maxDetail))
+	message := fmt.Sprintf("%s %s %s", prefix, status, truncateText(reason, maxDetail))
+	if p.manager != nil {
+		p.manager.Log(LogInfo, message)
+	} else {
+		fmt.Fprintln(os.Stderr, message)
+	}
 }
 
 func (p *Printer) Summary(total, ok, failed, skipped int, bytes int64) {

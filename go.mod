@@ -4,7 +4,10 @@ go 1.24.0
 
 toolchain go1.24.3
 
-require github.com/kkdai/youtube/v2 v2.10.5
+require (
+	github.com/kkdai/youtube/v2 v2.10.5
+	golang.org/x/term v0.39.0
+)
 
 require (
 	github.com/bitly/go-simplejson v0.5.1 // indirect
@@ -13,6 +16,5 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20250208200701-d0013a598941 // indirect
 	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 )
