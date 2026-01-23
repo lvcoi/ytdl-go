@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -62,5 +63,43 @@ func TestWriteFormats(t *testing.T) {
 	}
 	if !strings.Contains(output, "720p") {
 		t.Fatalf("expected format row in output, got: %q", output)
+	}
+}
+
+func TestIsRestrictedAccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		errMsg     string
+		wantResult bool
+	}{
+		{name: "nil error", errMsg: "", wantResult: false},
+		{name: "private video", errMsg: "This video is private", wantResult: true},
+		{name: "sign in required", errMsg: "Please sign in to view", wantResult: true},
+		{name: "login required", errMsg: "Login required", wantResult: true},
+		{name: "members only", errMsg: "This content is members only", wantResult: true},
+		{name: "premium content", errMsg: "Premium subscription required", wantResult: true},
+		{name: "copyright restriction", errMsg: "Copyright claim by owner", wantResult: true},
+		{name: "unavailable", errMsg: "This video is unavailable", wantResult: true},
+		{name: "age-restricted with hyphen", errMsg: "This video is age-restricted", wantResult: true},
+		{name: "age restricted without hyphen", errMsg: "This video is age restricted", wantResult: true},
+		{name: "not available", errMsg: "Video not available in your country", wantResult: true},
+		{name: "case insensitive - PRIVATE", errMsg: "PRIVATE VIDEO", wantResult: true},
+		{name: "case insensitive - MiXeD", errMsg: "MeMbErS OnLy", wantResult: true},
+		{name: "network error", errMsg: "network timeout", wantResult: false},
+		{name: "generic error", errMsg: "something went wrong", wantResult: false},
+		{name: "false positive - availability", errMsg: "check availability", wantResult: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var err error
+			if test.errMsg != "" {
+				err = fmt.Errorf("%s", test.errMsg)
+			}
+			result := isRestrictedAccess(err)
+			if result != test.wantResult {
+				t.Fatalf("isRestrictedAccess(%v) = %v, want %v", err, result, test.wantResult)
+			}
+		})
 	}
 }
