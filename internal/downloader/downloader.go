@@ -77,9 +77,6 @@ func IsReported(err error) bool {
 
 // Process fetches metadata, selects the best matching format, and downloads it.
 func Process(ctx context.Context, url string, opts Options) error {
-	if err := validateURL(url); err != nil {
-		return err
-	}
 	progressManager := newProgressManager(opts)
 	if progressManager != nil {
 		progressManager.Start(ctx)
@@ -91,7 +88,16 @@ func Process(ctx context.Context, url string, opts Options) error {
 	url = ConvertMusicURL(url)
 
 	if looksLikePlaylist(url) {
+		if playlistIDRegex.MatchString(url) {
+			return processPlaylist(ctx, url, opts, printer)
+		}
+		if err := validateURL(url); err != nil {
+			return err
+		}
 		return processPlaylist(ctx, url, opts, printer)
+	}
+	if err := validateURL(url); err != nil {
+		return err
 	}
 
 	youtube.DefaultClient = youtube.AndroidClient
@@ -133,6 +139,9 @@ func newClient(opts Options) *youtube.Client {
 }
 
 func validateURL(input string) error {
+	if playlistIDRegex.MatchString(input) {
+		return nil
+	}
 	parsed, err := url.Parse(input)
 	if err != nil {
 		return fmt.Errorf("invalid URL: %w", err)
@@ -168,7 +177,8 @@ func isRestrictedAccess(err error) bool {
 		"members only",
 		"premium",
 		"copyright",
-		"unavailable",
+		"video unavailable",
+		"content unavailable",
 		"age-restricted",
 		"age restricted",
 		"not available",
