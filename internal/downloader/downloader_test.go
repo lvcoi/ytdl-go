@@ -16,7 +16,7 @@ func TestValidateURL(t *testing.T) {
 	}{
 		{name: "valid https", input: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", wantErr: false},
 		{name: "valid http", input: "http://example.com/video.mp4", wantErr: false},
-		{name: "missing scheme", input: "www.youtube.com/watch?v=dQw4w9WgXcQ", wantErr: true},
+		{name: "empty scheme", input: "www.youtube.com/watch?v=dQw4w9WgXcQ", wantErr: true},
 		{name: "missing host", input: "https:///video", wantErr: true},
 		{name: "unsupported scheme", input: "ftp://example.com/video", wantErr: true},
 	}
