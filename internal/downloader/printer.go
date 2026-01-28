@@ -171,14 +171,11 @@ func (p *Printer) ItemResult(prefix string, result downloadResult, err error) {
 	detail = truncateText(detail, maxDetail)
 
 	message := fmt.Sprintf("%s %s %s", prefix, status, detail)
-	if p.renderer != nil {
-		p.renderer.Log(message)
-	} else {
-		if result.hadProgress {
-			p.clearLine()
-		}
-		fmt.Fprintln(os.Stderr, message)
+	// Note: printer.renderer is not currently implemented
+	if result.hadProgress {
+		p.clearLine()
 	}
+	fmt.Fprintln(os.Stderr, message)
 }
 
 func (p *Printer) ItemSkipped(prefix, reason string) {
@@ -194,11 +191,8 @@ func (p *Printer) ItemSkipped(prefix, reason string) {
 		maxDetail = 0
 	}
 	message := fmt.Sprintf("%s %s %s", prefix, status, truncateText(reason, maxDetail))
-	if p.renderer != nil {
-		p.renderer.Log(message)
-	} else {
-		fmt.Fprintln(os.Stderr, message)
-	}
+	// Note: printer.renderer is not currently implemented
+	fmt.Fprintln(os.Stderr, message)
 }
 
 func (p *Printer) Summary(total, ok, failed, skipped int, bytes int64) {
@@ -224,11 +218,7 @@ func (p *Printer) Log(level LogLevel, message string) {
 	if level < p.logLevel {
 		return
 	}
-	if p.renderer != nil {
-		label := levelLabel(level)
-		p.renderer.Log(fmt.Sprintf("%s %s", label, message))
-		return
-	}
+	// Note: printer.renderer is not currently implemented
 
 	label := levelLabel(level)
 	fmt.Fprintf(os.Stderr, "%s %s\n", label, message)

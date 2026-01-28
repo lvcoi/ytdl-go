@@ -20,9 +20,7 @@ type progressWriter struct {
 
 func newProgressWriter(size int64, printer *Printer, prefix string) *progressWriter {
 	taskID := ""
-	if printer.renderer != nil {
-		taskID = printer.renderer.Register(prefix, size)
-	}
+	// Note: printer.renderer is not currently implemented
 	return &progressWriter{
 		size:    size,
 		start:   time.Now(),
@@ -47,10 +45,7 @@ func (p *progressWriter) print() {
 	if !p.printer.progressEnabled {
 		return
 	}
-	if p.printer.renderer != nil && p.taskID != "" {
-		p.printer.renderer.Update(p.taskID, 0, p.total, p.size)
-		return
-	}
+	// Note: printer.renderer is not currently implemented
 	line := p.printer.progressLine(p.prefix, p.total, p.size, time.Since(p.start))
 	p.printer.writeProgressLine(line)
 }
@@ -66,10 +61,7 @@ func (p *progressWriter) Finish() {
 		return
 	}
 	p.print()
-	if p.printer.renderer != nil && p.taskID != "" {
-		p.printer.renderer.Finish(p.taskID)
-		return
-	}
+	// Note: printer.renderer is not currently implemented
 	p.printer.writeProgressLine("\n")
 }
 
@@ -77,7 +69,8 @@ func (p *progressWriter) NewLine() {
 	if p.finished {
 		return
 	}
-	if p.printer.renderer != nil || !p.printer.progressEnabled {
+	// Note: printer.renderer is not currently implemented
+	if !p.printer.progressEnabled {
 		return
 	}
 	p.printer.writeProgressLine("\n")
