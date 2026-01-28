@@ -18,7 +18,7 @@ func embedAudioTags(metadata ItemMetadata, outputPath string, printer *Printer) 
 	case ".mp3":
 		if err := embedID3Tags(metadata, outputPath); err != nil {
 			if printer != nil {
-				printer.Log(LogWarn, fmt.Sprintf("metadata tag embedding failed: %v", err))
+				printer.Log(LogWarn, fmt.Sprintf("warning: metadata tag embedding failed: %v", err))
 			}
 		}
 	default:
