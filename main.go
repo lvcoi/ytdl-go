@@ -54,7 +54,6 @@ func main() {
 	if opts.JSON {
 		opts.Quiet = true
 	}
-	printer := downloader.NewPrinter(opts)
 
 	type task struct {
 		index int
@@ -71,9 +70,8 @@ func main() {
 	for i := 0; i < jobs; i++ {
 		go func() {
 			for t := range tasks {
-				if !opts.Quiet && !opts.JSON {
-					printer.Log(downloader.LogInfo, fmt.Sprintf("[%d/%d] %s", t.index+1, len(urls), t.url))
-				}
+				// Note: Each Process call creates its own progress manager
+				// Multiple parallel downloads will each have their own progress tracking
 				err := downloader.Process(ctx, t.url, opts)
 				results <- result{url: t.url, err: err}
 			}

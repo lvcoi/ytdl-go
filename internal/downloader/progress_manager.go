@@ -275,7 +275,7 @@ func (m *progressManager) loop(ctx context.Context) {
 func (m *progressManager) logLine(level LogLevel, message string) {
 	label := levelLabel(level)
 	if message == "" {
-		m.pw.Log(label)
+		m.pw.Log("%s", label)
 	} else {
 		m.pw.Log("%s %s", label, message)
 	}

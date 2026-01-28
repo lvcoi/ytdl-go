@@ -196,7 +196,8 @@ func Process(ctx context.Context, url string, opts Options) error {
 	}
 	printer := newPrinter(opts, progressManager)
 
-	if _, err := validateInputURL(url); err != nil {
+	normalizedURL, err := validateInputURL(url)
+	if err != nil {
 		return err
 	}
 
@@ -204,25 +205,21 @@ func Process(ctx context.Context, url string, opts Options) error {
 	isMusicURL := strings.Contains(url, "music.youtube.com")
 	
 	// Convert YouTube Music URLs to regular YouTube URLs
-	url = ConvertMusicURL(url)
+	normalizedURL = ConvertMusicURL(normalizedURL)
 
-	if looksLikePlaylist(url) {
-		if playlistIDRegex.MatchString(url) {
-			return processPlaylist(ctx, url, opts, printer, isMusicURL)
+	if looksLikePlaylist(normalizedURL) {
+		if playlistIDRegex.MatchString(normalizedURL) {
+			return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
 		}
-		if err := validateURL(url); err != nil {
+		if err := validateURL(normalizedURL); err != nil {
 			return err
 		}
-		return processPlaylist(ctx, url, opts, printer, isMusicURL)
+		return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
 	}
-	if err := validateURL(url); err != nil {
+	if err := validateURL(normalizedURL); err != nil {
 		return err
 	}
 
-	normalizedURL, err := validateInputURL(url)
-	if err != nil {
-		return wrapAccessError(fmt.Errorf("fetching metadata: %w", err))
-	}
 	extractor, err := selectExtractor(normalizedURL)
 	if err != nil {
 		return err
@@ -406,9 +403,6 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
-	if opts.ListFormats {
-		return errors.New("format listing is not supported for playlists")
-	}
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
 	}
