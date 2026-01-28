@@ -53,10 +53,12 @@ type Printer struct {
 	progressEnabled bool
 	interactive     bool
 	layout          string
+	renderer        *progressRenderer
+	manager         *ProgressManager
 	mu              sync.RWMutex
 }
 
-func newPrinter(opts Options) *Printer {
+func newPrinter(opts Options, manager *ProgressManager) *Printer {
 	columns := terminalColumns()
 	if columns <= 0 {
 		columns = 100
@@ -70,6 +72,11 @@ func newPrinter(opts Options) *Printer {
 		titleWidth = 60
 	}
 
+	var renderer *progressRenderer
+	if manager != nil {
+		renderer = &progressRenderer{manager: manager}
+	}
+
 	printer := &Printer{
 		quiet:           opts.Quiet,
 		color:           supportsColor(),
@@ -79,13 +86,14 @@ func newPrinter(opts Options) *Printer {
 		progressEnabled: isTerminal(os.Stderr) && supportsANSI(),
 		interactive:     isTerminal(os.Stderr),
 		layout:          opts.ProgressLayout,
+		renderer:        renderer,
+		manager:         manager,
 	}
-	// Note: ProgressRenderer is legacy code, not used with go-pretty
 	return printer
 }
 
 func NewPrinter(opts Options) *Printer {
-	manager := newProgressManager(opts)
+	manager := NewProgressManager(opts)
 	return newPrinter(opts, manager)
 }
 
