@@ -155,12 +155,12 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 
 func writePlaylistManifest(path string, manifest PlaylistManifest) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("creating manifest directory: %w", err)
+		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating manifest directory: %w", err))
 	}
 
 	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("creating manifest file: %w", err)
+		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating manifest file: %w", err))
 	}
 	defer file.Close()
 
@@ -168,7 +168,7 @@ func writePlaylistManifest(path string, manifest PlaylistManifest) error {
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(manifest); err != nil {
-		return fmt.Errorf("writing manifest: %w", err)
+		return wrapCategory(CategoryFilesystem, fmt.Errorf("writing manifest: %w", err))
 	}
 	return nil
 }
