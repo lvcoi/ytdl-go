@@ -222,9 +222,16 @@ func Process(ctx context.Context, url string, opts Options) error {
 
 	extractor, err := selectExtractor(normalizedURL)
 	if err != nil {
-		return err
+		return markReported(err)
 	}
-	return extractor.Process(ctx, normalizedURL, opts, printer)
+	okCount := 1
+	skipped := 0
+	if result.skipped {
+		okCount = 0
+		skipped = 1
+	}
+	printer.Summary(1, okCount, 0, skipped, result.bytes)
+	return nil
 }
 
 func renderFormats(video *youtube.Video, header string, opts Options, playlistID, playlistTitle string, index, total int) error {
@@ -711,6 +718,17 @@ func selectFormat(video *youtube.Video, opts Options) (*youtube.Format, error) {
 	}
 
 	if len(candidates) == 0 {
+		// If format was specified but not found, try again without format filter (fallback)
+		if opts.Format != "" {
+			fallbackOpts := opts
+			fallbackOpts.Format = ""
+			fallbackFormat, err := selectFormat(video, fallbackOpts)
+			if err == nil && fallbackFormat != nil {
+				// Found a fallback format - return it (caller should warn user)
+				return fallbackFormat, nil
+			}
+		}
+
 		reason := "no progressive (audio+video) formats available"
 		if opts.AudioOnly {
 			reason = "no audio-only formats available (try without --audio or use --list-formats)"

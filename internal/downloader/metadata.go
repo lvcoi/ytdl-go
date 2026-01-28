@@ -47,28 +47,6 @@ type PlaylistRef struct {
 	Count int    `json:"count,omitempty"`
 }
 
-type PlaylistManifest struct {
-	ID               string                  `json:"id"`
-	Title            string                  `json:"title"`
-	URL              string                  `json:"url,omitempty"`
-	Count            int                     `json:"count"`
-	Entries          []PlaylistManifestEntry `json:"entries"`
-	GeneratedAt      string                  `json:"generated_at"`
-	Extractor        string                  `json:"extractor"`
-	ExtractorVersion string                  `json:"extractor_version,omitempty"`
-}
-
-type PlaylistManifestEntry struct {
-	Index           int    `json:"index"`
-	ID              string `json:"id"`
-	Title           string `json:"title,omitempty"`
-	Author          string `json:"author,omitempty"`
-	DurationSeconds int    `json:"duration_seconds,omitempty"`
-	Output          string `json:"output,omitempty"`
-	Status          string `json:"status"`
-	Error           string `json:"error,omitempty"`
-}
-
 func buildItemMetadata(video *youtube.Video, format *youtube.Format, ctxInfo outputContext, outputPath string, status string, err error) ItemMetadata {
 	title := stringsOrFallback(ctxInfo.EntryTitle, video.Title, video.ID)
 	artist := stringsOrFallback(ctxInfo.EntryAuthor, video.Author)
@@ -163,25 +141,6 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 
 func sidecarPath(outputPath string) string {
 	return outputPath + ".json"
-}
-
-func writePlaylistManifest(path string, manifest PlaylistManifest) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating manifest directory: %w", err))
-	}
-	file, err := os.Create(path)
-	if err != nil {
-		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating playlist manifest: %w", err))
-	}
-	defer file.Close()
-
-	enc := json.NewEncoder(file)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(manifest); err != nil {
-		return wrapCategory(CategoryFilesystem, fmt.Errorf("writing playlist manifest: %w", err))
-	}
-	return nil
 }
 
 func bestThumbnailURL(thumbnails youtube.Thumbnails) string {
