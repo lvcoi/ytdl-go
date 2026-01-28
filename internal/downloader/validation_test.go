@@ -17,7 +17,7 @@ func TestValidateInputURL(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateInputURL(tc.input)
+			_, err := validateInputURL(tc.input)
 			if tc.wantErr && err == nil {
 				t.Fatalf("expected error for %q", tc.input)
 			}

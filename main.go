@@ -25,7 +25,7 @@ func main() {
 	flag.StringVar(&opts.Quality, "quality", "", "preferred quality (e.g. 1080p, 720p, 128k, best, worst)")
 	flag.StringVar(&opts.Format, "format", "", "preferred container/extension (e.g. mp4, webm, m4a)")
 	flag.Var(&meta, "meta", "metadata override key=value (repeatable)")
-	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {current}/{total} {rate} {eta}\")")
+	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {bar} {bytes} {rate} {eta}\")")
 	flag.IntVar(&opts.SegmentConcurrency, "segment-concurrency", 0, "parallel segment downloads (0=auto)")
 	flag.IntVar(&jobs, "jobs", 1, "number of concurrent downloads")
 	flag.BoolVar(&opts.JSON, "json", false, "emit JSON output (suppresses human-readable progress)")
@@ -54,7 +54,6 @@ func main() {
 	if opts.JSON {
 		opts.Quiet = true
 	}
-	printer := downloader.NewPrinter(opts)
 
 	type task struct {
 		index int
@@ -71,9 +70,8 @@ func main() {
 	for i := 0; i < jobs; i++ {
 		go func() {
 			for t := range tasks {
-				if !opts.Quiet && !opts.JSON {
-					printer.Log(downloader.LogInfo, fmt.Sprintf("[%d/%d] %s", t.index+1, len(urls), t.url))
-				}
+				// Note: Each Process call creates its own progress manager
+				// Multiple parallel downloads will each have their own progress tracking
 				err := downloader.Process(ctx, t.url, opts)
 				results <- result{url: t.url, err: err}
 			}

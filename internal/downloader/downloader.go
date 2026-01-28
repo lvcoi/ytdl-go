@@ -48,11 +48,11 @@ type Options struct {
 	JSON               bool
 	Quality            string
 	Format             string
-	MetaOverrides      map[string]string
-	SegmentConcurrency int
 	Timeout            time.Duration
 	ProgressLayout     string
 	LogLevel           string
+	SegmentConcurrency int
+	MetaOverrides      map[string]string
 }
 
 type outputContext struct {
@@ -189,94 +189,38 @@ func wrapFetchError(err error, context string) error {
 
 // Process fetches metadata, selects the best matching format, and downloads it.
 func Process(ctx context.Context, url string, opts Options) error {
-	if opts.JSON {
-		opts.Quiet = true
+	progressManager := newProgressManager(opts)
+	if progressManager != nil {
+		progressManager.Start(ctx)
+		defer progressManager.Stop()
 	}
+	printer := newPrinter(opts, progressManager)
 
 	normalizedURL, err := validateInputURL(url)
 	if err != nil {
 		return err
 	}
-	originalURL := normalizedURL
-	url = ConvertMusicURL(normalizedURL)
 
-	printer := newPrinter(opts)
+	// Check if it's a music URL before converting
+	isMusicURL := strings.Contains(url, "music.youtube.com")
 
 	// Convert YouTube Music URLs to regular YouTube URLs
-	isMusicURL := strings.Contains(originalURL, "music.youtube.com")
+	normalizedURL = ConvertMusicURL(normalizedURL)
 
-	if looksLikePlaylist(url) {
-		return processPlaylist(ctx, url, opts, printer, isMusicURL)
-	}
-
-	if !isYouTubeURL(url) {
-		result, err := processDirect(ctx, url, opts, printer)
-		if opts.JSON {
-			status := "ok"
-			errMsg := ""
-			if err != nil {
-				status = "error"
-				errMsg = err.Error()
-			}
-			emitJSONResult(jsonResult{
-				Type:    "item",
-				Status:  status,
-				URL:     url,
-				Output:  result.outputPath,
-				Bytes:   result.bytes,
-				Retries: result.retried,
-				Error:   errMsg,
-			})
+	if looksLikePlaylist(normalizedURL) {
+		if playlistIDRegex.MatchString(normalizedURL) {
+			return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
 		}
+		if err := validateURL(normalizedURL); err != nil {
+			return err
+		}
+		return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
+	}
+	if err := validateURL(normalizedURL); err != nil {
 		return err
 	}
 
-	youtube.DefaultClient = youtube.AndroidClient
-	client := newClient(opts)
-	video, err := client.GetVideoContext(ctx, url)
-	if err != nil {
-		return wrapFetchError(err, "fetching metadata")
-	}
-	if opts.InfoOnly {
-		return printInfo(video)
-	}
-	if opts.ListFormats {
-		return listFormats(video, opts, printer)
-	}
-	prefix := printer.Prefix(1, 1, video.Title)
-	result, err := downloadVideo(ctx, client, video, opts, outputContext{
-		SourceURL:     url,
-		MetaOverrides: opts.MetaOverrides,
-	}, printer, prefix)
-	if result.skipped {
-		printer.ItemSkipped(prefix, "exists")
-	} else {
-		printer.ItemResult(prefix, result, err)
-	}
-
-	if opts.JSON {
-		status := "ok"
-		errMsg := ""
-		if result.skipped {
-			status = "skip"
-			errMsg = "exists"
-		} else if err != nil {
-			status = "error"
-			errMsg = err.Error()
-		}
-		emitJSONResult(jsonResult{
-			Type:    "item",
-			Status:  status,
-			URL:     url,
-			ID:      video.ID,
-			Title:   video.Title,
-			Output:  result.outputPath,
-			Bytes:   result.bytes,
-			Retries: result.retried,
-			Error:   errMsg,
-		})
-	}
-
+	extractor, err := selectExtractor(normalizedURL)
 	if err != nil {
 		return markReported(err)
 	}
@@ -466,9 +410,6 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
-	if opts.ListFormats {
-		return errors.New("format listing is not supported for playlists")
-	}
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
 	}
