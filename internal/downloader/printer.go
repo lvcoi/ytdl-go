@@ -83,8 +83,8 @@ func newPrinter(opts Options, manager *ProgressManager) *Printer {
 		columns:         columns,
 		titleWidth:      titleWidth,
 		logLevel:        parseLogLevel(opts.LogLevel),
-		progressEnabled: isTerminal(os.Stderr) && supportsANSI(),
-		interactive:     isTerminal(os.Stderr),
+		progressEnabled: interactive,
+		interactive:     interactive,
 		layout:          opts.ProgressLayout,
 		renderer:        renderer,
 		manager:         manager,
@@ -210,8 +210,8 @@ func (p *Printer) Summary(total, ok, failed, skipped int, bytes int64) {
 	skipLabel := p.colorize("SKIP", colorYellow)
 	line := fmt.Sprintf("Summary: %s %d | %s %d | %s %d | TOTAL %d | SIZE %s",
 		okLabel, ok, failLabel, failed, skipLabel, skipped, total, humanBytes(bytes))
-	if p.manager != nil {
-		p.manager.Log(LogInfo, line)
+	if p.renderer != nil {
+		p.renderer.Log(line)
 		return
 	}
 	fmt.Fprintln(os.Stderr, line)

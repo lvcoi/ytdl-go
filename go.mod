@@ -5,8 +5,8 @@ go 1.24.0
 toolchain go1.24.3
 
 require (
+	fortio.org/progressbar v1.2.0
 	github.com/bogem/id3v2/v2 v2.1.4
-	github.com/jedib0t/go-pretty/v6 v6.7.8
 	github.com/kkdai/youtube/v2 v2.10.5
 )
 

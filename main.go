@@ -25,7 +25,7 @@ func main() {
 	flag.StringVar(&opts.Quality, "quality", "", "preferred quality (e.g. 1080p, 720p, 128k, best, worst)")
 	flag.StringVar(&opts.Format, "format", "", "preferred container/extension (e.g. mp4, webm, m4a)")
 	flag.Var(&meta, "meta", "metadata override key=value (repeatable)")
-	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {bar} {bytes} {rate} {eta}\")")
+	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {current}/{total} {rate} {eta}\")")
 	flag.IntVar(&opts.SegmentConcurrency, "segment-concurrency", 0, "parallel segment downloads (0=auto)")
 	flag.IntVar(&jobs, "jobs", 1, "number of concurrent downloads")
 	flag.BoolVar(&opts.JSON, "json", false, "emit JSON output (suppresses human-readable progress)")
@@ -54,6 +54,7 @@ func main() {
 	if opts.JSON {
 		opts.Quiet = true
 	}
+	printer := downloader.NewPrinter(opts)
 
 	type task struct {
 		index int

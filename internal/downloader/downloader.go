@@ -48,11 +48,11 @@ type Options struct {
 	JSON               bool
 	Quality            string
 	Format             string
+	MetaOverrides      map[string]string
+	SegmentConcurrency int
 	Timeout            time.Duration
 	ProgressLayout     string
 	LogLevel           string
-	SegmentConcurrency int
-	MetaOverrides      map[string]string
 }
 
 type outputContext struct {
@@ -210,23 +210,37 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	if err != nil {
 		return err
 	}
+	originalURL := normalizedURL
+	url = ConvertMusicURL(normalizedURL)
 
-	// Check if it's a music URL before converting
-	isMusicURL := strings.Contains(url, "music.youtube.com")
+	printer := newPrinter(opts)
 
 	// Convert YouTube Music URLs to regular YouTube URLs
-	normalizedURL = ConvertMusicURL(normalizedURL)
+	isMusicURL := strings.Contains(originalURL, "music.youtube.com")
 
-	if looksLikePlaylist(normalizedURL) {
-		if playlistIDRegex.MatchString(normalizedURL) {
-			return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
-		}
-		if err := validateURL(normalizedURL); err != nil {
-			return err
-		}
-		return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
+	if looksLikePlaylist(url) {
+		return processPlaylist(ctx, url, opts, printer, isMusicURL)
 	}
-	if err := validateURL(normalizedURL); err != nil {
+
+	if !isYouTubeURL(url) {
+		result, err := processDirect(ctx, url, opts, printer)
+		if opts.JSON {
+			status := "ok"
+			errMsg := ""
+			if err != nil {
+				status = "error"
+				errMsg = err.Error()
+			}
+			emitJSONResult(jsonResult{
+				Type:    "item",
+				Status:  status,
+				URL:     url,
+				Output:  result.outputPath,
+				Bytes:   result.bytes,
+				Retries: result.retried,
+				Error:   errMsg,
+			})
+		}
 		return err
 	}
 
@@ -437,6 +451,9 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
+	if opts.ListFormats {
+		return errors.New("format listing is not supported for playlists")
+	}
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
 	}
