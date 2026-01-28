@@ -31,7 +31,7 @@ func captureStderr(t *testing.T, fn func()) string {
 
 func TestProgressNonTTYUsesNewlines(t *testing.T) {
 	output := captureStderr(t, func() {
-		printer := newPrinter(Options{}, nil)
+		printer := newPrinter(Options{})
 		progress := newProgressWriter(10, printer, "[1/1] demo")
 		_, _ = progress.Write([]byte("12345"))
 		progress.Finish()
@@ -47,28 +47,25 @@ func TestProgressNonTTYUsesNewlines(t *testing.T) {
 
 func TestProgressInterleavesLogsNonTTY(t *testing.T) {
 	output := captureStderr(t, func() {
-		printer := newPrinter(Options{}, nil)
+		printer := newPrinter(Options{})
 		progress := newProgressWriter(10, printer, "[1/1] demo")
 		_, _ = progress.Write([]byte("12345"))
-		printer.Log(LogInfo, "log message")
+		printer.Log("log message")
 		_, _ = progress.Write([]byte("12345"))
 		progress.Finish()
 	})
 
-	// For non-TTY output, progress is only printed at the end
+	firstIdx := strings.Index(output, "[1/1] demo")
 	logIdx := strings.Index(output, "log message")
-	progressIdx := strings.Index(output, "[1/1] demo")
-	
-	if logIdx == -1 || progressIdx == -1 {
+	lastIdx := strings.LastIndex(output, "[1/1] demo")
+
+	if firstIdx == -1 || logIdx == -1 || lastIdx == -1 {
 		t.Fatalf("expected progress + log output, got %q", output)
 	}
-	
-	// Log should appear before the final progress line in non-TTY mode
-	if logIdx >= progressIdx {
-		t.Fatalf("expected log message before progress line in non-TTY mode, got %q", output)
+	if !(firstIdx < logIdx && logIdx < lastIdx) {
+		t.Fatalf("expected log line between progress lines, got %q", output)
 	}
-	
-	if !strings.Contains(output, "[INFO] log message") {
-		t.Fatalf("expected [INFO] log message in output, got %q", output)
+	if !strings.Contains(output, "\nlog message\n") {
+		t.Fatalf("expected log message on its own line, got %q", output)
 	}
 }
