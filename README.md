@@ -38,6 +38,7 @@
 ## ✨ Features
 
 - **Metadata extraction** - `--info` prints detailed metadata (formats included) as pretty JSON
+- **Format listing** - `--list-formats` prints available formats without downloading
 - **Audio-only downloads** - `--audio` grabs the best audio-only format; otherwise downloads best progressive
 - **Playlist support** - Playlist URLs are expanded and downloaded entry by entry with progress tracking
 - **YouTube Music compatibility** - Automatically converts `music.youtube.com` URLs to regular YouTube URLs
@@ -135,6 +136,11 @@ ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
 
 ![Metadata output example](screenshots/07-metadata-info.svg)
 
+```bash
+# List available formats without downloading
+ytdl-go --list-formats https://www.youtube.com/watch?v=BaW_jenozKc
+```
+
 ### 🎨 Output customization
 
 ```bash
@@ -218,6 +224,7 @@ ytdl-go https://www.youtube.com/watch?v=video1 https://www.youtube.com/watch?v=v
 | `-o` | `{title}.{ext}` | Output path or template with supported placeholders |
 | `-audio` | `false` | Download best available audio-only format |
 | `-info` | `false` | Print video metadata as JSON without downloading |
+| `-list-formats` | `false` | List available formats without downloading |
 | `-quiet` | `false` | Suppress progress output (errors still shown) |
 | `-timeout` | `3m` | Per-request timeout (e.g., 30s, 5m, 1h) |
 
@@ -299,11 +306,56 @@ done
 
 ## 📝 Notes / Limitations
 
+### Supported Formats
+
+- **YouTube-only**: This tool is specifically designed for YouTube and YouTube Music
+- **Progressive formats**: Only downloads videos with audio+video combined (no DASH muxing)
+- **Audio formats**: Supports best available audio-only formats via `--audio` flag
+- **No HLS/DASH parsing**: Relies on YouTube's progressive stream availability
+
+### Technical Limitations
+
 - Only progressive formats are pulled for video; DASH-only video+audio muxing is not implemented
 - YouTube Music URLs (`music.youtube.com`) are converted to regular YouTube URLs automatically
 - Authentication, cookies, proxies, and subtitle downloads are not yet supported
 - Output directories are created as needed; trailing slash on `-o` forces treating it as a directory
 - Maximum 9999 automatic renames when using the rename option to prevent infinite loops
+- No resume support for interrupted downloads
+
+### Non-Goals / Explicitly Not Supported
+
+This tool is designed exclusively for **publicly accessible YouTube content**. The following are explicitly **not supported** and will not be added:
+
+❌ **DRM/Encrypted Content**
+- Widevine, PlayReady, or other DRM-protected streams
+- AES-128 encrypted HLS streams
+- DASH manifests with CENC encryption
+
+❌ **Access Control Bypass**
+- Login-required or members-only videos
+- Paywall-protected content
+- Age-restricted content requiring sign-in
+- Private or unlisted videos requiring authentication
+
+❌ **Platform Limitations**
+- Non-YouTube platforms
+- Browser automation or cookie extraction
+- Credential harvesting or token spoofing
+
+### ⚖️ Legal Notice
+
+**Important**: Users are solely responsible for ensuring their use of this tool complies with:
+- YouTube's Terms of Service
+- Applicable copyright laws in their jurisdiction
+- Content creator rights and licenses
+
+This tool:
+- ✅ Only accesses publicly available content through standard APIs
+- ✅ Does not circumvent any technical protection measures or DRM
+- ✅ Does not bypass authentication or access controls
+- ❌ Should not be used to download copyrighted content without permission
+
+**When restricted content is detected** (private videos, login-required, etc.), the tool will refuse to proceed and exit with a clear error message.
 
 ## 🔧 Troubleshooting
 
