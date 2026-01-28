@@ -196,38 +196,20 @@ func Process(ctx context.Context, url string, opts Options) error {
 		return err
 	}
 
-	// Check if it's a music URL before converting
-	isMusicURL := strings.Contains(url, "music.youtube.com")
-
-	// Convert YouTube Music URLs to regular YouTube URLs
-	normalizedURL = ConvertMusicURL(normalizedURL)
-
-	if looksLikePlaylist(normalizedURL) {
-		if playlistIDRegex.MatchString(normalizedURL) {
-			return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
-		}
-		if err := validateURL(normalizedURL); err != nil {
-			return err
-		}
-		return processPlaylist(ctx, normalizedURL, opts, printer, isMusicURL)
-	}
 	if err := validateURL(normalizedURL); err != nil {
 		return err
 	}
 
-	extractor, err := selectExtractor(normalizedURL)
-	if err != nil {
-		return markReported(err)
-	}
+	extractor := selectExtractor(normalizedURL)
 	return extractor.Process(ctx, normalizedURL, opts, printer)
 }
 
 // selectExtractor returns the appropriate extractor for the given URL
-func selectExtractor(url string) (Extractor, error) {
+func selectExtractor(url string) Extractor {
 	if isYouTubeURL(url) {
-		return YouTubeExtractor{}, nil
+		return YouTubeExtractor{}
 	}
-	return DirectExtractor{}, nil
+	return DirectExtractor{}
 }
 
 func renderFormats(video *youtube.Video, header string, opts Options, playlistID, playlistTitle string, index, total int) error {
