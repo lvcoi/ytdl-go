@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/kkdai/youtube/v2"
@@ -125,17 +124,4 @@ func (e DirectExtractor) Process(ctx context.Context, raw string, opts Options, 
 		})
 	}
 	return err
-}
-
-func selectExtractor(raw string) (Extractor, error) {
-	extractors := []Extractor{
-		YouTubeExtractor{},
-		DirectExtractor{},
-	}
-	for _, extractor := range extractors {
-		if extractor.Match(raw) {
-			return extractor, nil
-		}
-	}
-	return nil, wrapCategory(CategoryUnsupported, errors.New("no extractor available for URL"))
 }

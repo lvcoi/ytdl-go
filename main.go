@@ -31,7 +31,6 @@ func main() {
 	flag.BoolVar(&opts.JSON, "json", false, "emit JSON output (suppresses human-readable progress)")
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
-	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {bar} {bytes} {rate} {eta}\")")
 	flag.StringVar(&opts.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
 	flag.Parse()
 
@@ -73,9 +72,9 @@ func main() {
 		go func() {
 			for t := range tasks {
 				if !opts.Quiet && !opts.JSON {
-					printer.Log(fmt.Sprintf("[%d/%d] %s", t.index+1, len(urls), t.url))
+					printer.Log(downloader.LogInfo, fmt.Sprintf("[%d/%d] %s", t.index+1, len(urls), t.url))
 				}
-				err := downloader.ProcessWithPrinter(ctx, t.url, opts, printer)
+				err := downloader.Process(ctx, t.url, opts)
 				results <- result{url: t.url, err: err}
 			}
 		}()

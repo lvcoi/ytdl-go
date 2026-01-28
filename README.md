@@ -288,6 +288,7 @@ ytdl-go --jobs 4 URL1 URL2 URL3 URL4
 Each successful download emits a sidecar JSON file alongside the media (`<output>.json`). Playlist downloads also emit a `playlist.json` manifest in the output folder.
 
 Metadata sources (in order of preference):
+
 - Platform/structured metadata from the extractor (e.g., YouTube API)
 - oEmbed/OG tags when downloading direct URLs that point to HTML pages
 - Manifest hints (when available)
@@ -425,17 +426,20 @@ done
 This tool is designed exclusively for **publicly accessible YouTube content**. The following are explicitly **not supported** and will not be added:
 
 ❌ **DRM/Encrypted Content**
+
 - Widevine, PlayReady, or other DRM-protected streams
 - AES-128 encrypted HLS streams
 - DASH manifests with CENC encryption
 
 ❌ **Access Control Bypass**
+
 - Login-required or members-only videos
 - Paywall-protected content
 - Age-restricted content requiring sign-in
 - Private or unlisted videos requiring authentication
 
 ❌ **Platform Limitations**
+
 - Non-YouTube platforms
 - Browser automation or cookie extraction
 - Credential harvesting or token spoofing
@@ -443,11 +447,13 @@ This tool is designed exclusively for **publicly accessible YouTube content**. T
 ### ⚖️ Legal Notice
 
 **Important**: Users are solely responsible for ensuring their use of this tool complies with:
+
 - YouTube's Terms of Service
 - Applicable copyright laws in their jurisdiction
 - Content creator rights and licenses
 
 This tool:
+
 - ✅ Only accesses publicly available content through standard APIs
 - ✅ Does not circumvent any technical protection measures or DRM
 - ✅ Does not bypass authentication or access controls

@@ -9,17 +9,55 @@ import (
 	"time"
 )
 
+type LogLevel int
+
+const (
+	LogDebug LogLevel = iota
+	LogInfo
+	LogWarn
+	LogError
+)
+
+func parseLogLevel(s string) LogLevel {
+	switch strings.ToLower(s) {
+	case "debug":
+		return LogDebug
+	case "warn", "warning":
+		return LogWarn
+	case "error":
+		return LogError
+	default:
+		return LogInfo
+	}
+}
+
+func levelLabel(level LogLevel) string {
+	switch level {
+	case LogDebug:
+		return "[DEBUG]"
+	case LogWarn:
+		return "[WARN]"
+	case LogError:
+		return "[ERROR]"
+	default:
+		return "[INFO]"
+	}
+}
+
 type Printer struct {
 	quiet           bool
 	color           bool
 	columns         int
 	titleWidth      int
-	manager         *progressManager
 	logLevel        LogLevel
 	progressEnabled bool
+	interactive     bool
+	layout          string
+	renderer        *ProgressRenderer
+	mu              sync.RWMutex
 }
 
-func newPrinter(opts Options, manager *progressManager) *Printer {
+func newPrinter(opts Options) *Printer {
 	columns := terminalColumns()
 	if columns <= 0 {
 		columns = 100
@@ -33,16 +71,18 @@ func newPrinter(opts Options, manager *progressManager) *Printer {
 		titleWidth = 60
 	}
 
-	return &Printer{
+	interactive := isTerminal(os.Stderr) && supportsANSI()
+	printer := &Printer{
 		quiet:           opts.Quiet,
 		color:           supportsColor(),
 		columns:         columns,
 		titleWidth:      titleWidth,
-		manager:         manager,
 		logLevel:        parseLogLevel(opts.LogLevel),
-		progressEnabled: isTerminal(os.Stderr) && supportsANSI(),
+		progressEnabled: interactive,
+		interactive:     interactive,
+		layout:          opts.ProgressLayout,
 	}
-	if !opts.Quiet && printer.interactive {
+	if !opts.Quiet && interactive {
 		printer.renderer = newProgressRenderer(os.Stderr, printer)
 	}
 	return printer
@@ -126,8 +166,8 @@ func (p *Printer) ItemResult(prefix string, result downloadResult, err error) {
 	detail = truncateText(detail, maxDetail)
 
 	message := fmt.Sprintf("%s %s %s", prefix, status, detail)
-	if p.manager != nil {
-		p.manager.Log(LogInfo, message)
+	if p.renderer != nil {
+		p.renderer.Log(message)
 	} else {
 		if result.hadProgress {
 			p.clearLine()
@@ -149,8 +189,8 @@ func (p *Printer) ItemSkipped(prefix, reason string) {
 		maxDetail = 0
 	}
 	message := fmt.Sprintf("%s %s %s", prefix, status, truncateText(reason, maxDetail))
-	if p.manager != nil {
-		p.manager.Log(LogInfo, message)
+	if p.renderer != nil {
+		p.renderer.Log(message)
 	} else {
 		fmt.Fprintln(os.Stderr, message)
 	}
@@ -179,8 +219,9 @@ func (p *Printer) Log(level LogLevel, message string) {
 	if level < p.logLevel {
 		return
 	}
-	if p.manager != nil {
-		p.manager.Log(level, message)
+	if p.renderer != nil {
+		label := levelLabel(level)
+		p.renderer.Log(fmt.Sprintf("%s %s", label, message))
 		return
 	}
 
@@ -193,6 +234,24 @@ func (p *Printer) colorize(text, color string) string {
 		return text
 	}
 	return color + text + colorReset
+}
+
+func (p *Printer) refreshLayout() {
+	columns := terminalColumns()
+	if columns <= 0 {
+		columns = 100
+	}
+	p.mu.Lock()
+	p.columns = columns
+	titleWidth := columns - 44
+	if titleWidth < 20 {
+		titleWidth = 20
+	}
+	if titleWidth > 60 {
+		titleWidth = 60
+	}
+	p.titleWidth = titleWidth
+	p.mu.Unlock()
 }
 
 func (p *Printer) clearLine() {
@@ -242,7 +301,7 @@ func formatProgressLayout(layout, prefix string, current, total int64, elapsed t
 		percent = fmt.Sprintf("%.2f%%", float64(current)*100/float64(total))
 		if current > 0 {
 			remaining := time.Duration(float64(elapsed) * (float64(total-current) / float64(current)))
-			eta = formatETA(remaining)
+			eta = formatETACompact(remaining)
 		}
 	}
 
@@ -258,7 +317,7 @@ func formatProgressLayout(layout, prefix string, current, total int64, elapsed t
 	return strings.TrimSpace(line)
 }
 
-func formatETA(duration time.Duration) string {
+func formatETACompact(duration time.Duration) string {
 	if duration <= 0 {
 		return ""
 	}
@@ -299,6 +358,14 @@ func supportsColor() bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func supportsANSI() bool {
+	term := os.Getenv("TERM")
+	if term == "dumb" || term == "" {
+		return false
+	}
+	return supportsColor()
 }
 
 const (

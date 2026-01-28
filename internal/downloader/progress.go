@@ -20,8 +20,8 @@ type progressWriter struct {
 
 func newProgressWriter(size int64, printer *Printer, prefix string) *progressWriter {
 	taskID := ""
-	if printer.manager != nil {
-		taskID = printer.manager.AddTask(prefix, size)
+	if printer.renderer != nil {
+		taskID = printer.renderer.Register(prefix, size)
 	}
 	return &progressWriter{
 		size:    size,
@@ -47,8 +47,8 @@ func (p *progressWriter) print() {
 	if !p.printer.progressEnabled {
 		return
 	}
-	if p.printer.manager != nil && p.taskID != "" {
-		p.printer.manager.UpdateTask(p.taskID, p.total, p.size, time.Since(p.start))
+	if p.printer.renderer != nil && p.taskID != "" {
+		p.printer.renderer.Update(p.taskID, 0, p.total, p.size)
 		return
 	}
 	line := p.printer.progressLine(p.prefix, p.total, p.size, time.Since(p.start))
@@ -66,8 +66,8 @@ func (p *progressWriter) Finish() {
 		return
 	}
 	p.print()
-	if p.printer.manager != nil && p.taskID != "" {
-		p.printer.manager.FinishTask(p.taskID)
+	if p.printer.renderer != nil && p.taskID != "" {
+		p.printer.renderer.Finish(p.taskID)
 		return
 	}
 	p.printer.writeProgressLine("\n")
@@ -77,7 +77,7 @@ func (p *progressWriter) NewLine() {
 	if p.finished {
 		return
 	}
-	if p.printer.manager != nil || !p.printer.progressEnabled {
+	if p.printer.renderer != nil || !p.printer.progressEnabled {
 		return
 	}
 	p.printer.writeProgressLine("\n")

@@ -40,14 +40,19 @@ func ResetDuplicateAction() {
 
 // Options describes CLI behavior for a download run.
 type Options struct {
-	OutputTemplate string
-	AudioOnly      bool
-	InfoOnly       bool
-	ListFormats    bool
-	Quiet          bool
-	Timeout        time.Duration
-	ProgressLayout string
-	LogLevel       string
+	OutputTemplate     string
+	AudioOnly          bool
+	InfoOnly           bool
+	ListFormats        bool
+	Quiet              bool
+	JSON               bool
+	Quality            string
+	Format             string
+	MetaOverrides      map[string]string
+	SegmentConcurrency int
+	Timeout            time.Duration
+	ProgressLayout     string
+	LogLevel           string
 }
 
 type outputContext struct {
@@ -184,45 +189,105 @@ func wrapFetchError(err error, context string) error {
 
 // Process fetches metadata, selects the best matching format, and downloads it.
 func Process(ctx context.Context, url string, opts Options) error {
-	progressManager := newProgressManager(opts)
-	if progressManager != nil {
-		progressManager.Start(ctx)
-		defer progressManager.Stop()
-	}
-	printer := newPrinter(opts, progressManager)
-
-	if err := validateInputURL(url); err != nil {
-		return err
-	}
-
-	// Convert YouTube Music URLs to regular YouTube URLs
-	url = ConvertMusicURL(url)
-
-	if looksLikePlaylist(url) {
-		if playlistIDRegex.MatchString(url) {
-			return processPlaylist(ctx, url, opts, printer)
-		}
-		if err := validateURL(url); err != nil {
-			return err
-		}
-		return processPlaylist(ctx, url, opts, printer)
-	}
-	if err := validateURL(url); err != nil {
-		return err
+	if opts.JSON {
+		opts.Quiet = true
 	}
 
 	normalizedURL, err := validateInputURL(url)
 	if err != nil {
-		return wrapAccessError(fmt.Errorf("fetching metadata: %w", err))
-	}
-	if opts.ListFormats {
-		return printFormats(video)
-	}
-	extractor, err := selectExtractor(normalizedURL)
-	if err != nil {
 		return err
 	}
-	return extractor.Process(ctx, normalizedURL, opts, printer)
+	originalURL := normalizedURL
+	url = ConvertMusicURL(normalizedURL)
+
+	printer := newPrinter(opts)
+
+	// Convert YouTube Music URLs to regular YouTube URLs
+	isMusicURL := strings.Contains(originalURL, "music.youtube.com")
+
+	if looksLikePlaylist(url) {
+		return processPlaylist(ctx, url, opts, printer, isMusicURL)
+	}
+
+	if !isYouTubeURL(url) {
+		result, err := processDirect(ctx, url, opts, printer)
+		if opts.JSON {
+			status := "ok"
+			errMsg := ""
+			if err != nil {
+				status = "error"
+				errMsg = err.Error()
+			}
+			emitJSONResult(jsonResult{
+				Type:    "item",
+				Status:  status,
+				URL:     url,
+				Output:  result.outputPath,
+				Bytes:   result.bytes,
+				Retries: result.retried,
+				Error:   errMsg,
+			})
+		}
+		return err
+	}
+
+	youtube.DefaultClient = youtube.AndroidClient
+	client := newClient(opts)
+	video, err := client.GetVideoContext(ctx, url)
+	if err != nil {
+		return wrapFetchError(err, "fetching metadata")
+	}
+	if opts.InfoOnly {
+		return printInfo(video)
+	}
+	if opts.ListFormats {
+		return listFormats(video, opts, printer)
+	}
+	prefix := printer.Prefix(1, 1, video.Title)
+	result, err := downloadVideo(ctx, client, video, opts, outputContext{
+		SourceURL:     url,
+		MetaOverrides: opts.MetaOverrides,
+	}, printer, prefix)
+	if result.skipped {
+		printer.ItemSkipped(prefix, "exists")
+	} else {
+		printer.ItemResult(prefix, result, err)
+	}
+
+	if opts.JSON {
+		status := "ok"
+		errMsg := ""
+		if result.skipped {
+			status = "skip"
+			errMsg = "exists"
+		} else if err != nil {
+			status = "error"
+			errMsg = err.Error()
+		}
+		emitJSONResult(jsonResult{
+			Type:    "item",
+			Status:  status,
+			URL:     url,
+			ID:      video.ID,
+			Title:   video.Title,
+			Output:  result.outputPath,
+			Bytes:   result.bytes,
+			Retries: result.retried,
+			Error:   errMsg,
+		})
+	}
+
+	if err != nil {
+		return markReported(err)
+	}
+	okCount := 1
+	skipped := 0
+	if result.skipped {
+		okCount = 0
+		skipped = 1
+	}
+	printer.Summary(1, okCount, 0, skipped, result.bytes)
+	return nil
 }
 
 func renderFormats(video *youtube.Video, header string, opts Options, playlistID, playlistTitle string, index, total int) error {
@@ -388,7 +453,7 @@ func isRestrictedAccess(err error) bool {
 	return false
 }
 
-func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer) error {
+func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer, isMusicURL bool) error {
 	savedClient := youtube.DefaultClient
 	defer func() {
 		youtube.DefaultClient = savedClient
@@ -712,6 +777,17 @@ func selectFormat(video *youtube.Video, opts Options) (*youtube.Format, error) {
 	}
 
 	if len(candidates) == 0 {
+		// If format was specified but not found, try again without format filter (fallback)
+		if opts.Format != "" {
+			fallbackOpts := opts
+			fallbackOpts.Format = ""
+			fallbackFormat, err := selectFormat(video, fallbackOpts)
+			if err == nil && fallbackFormat != nil {
+				// Found a fallback format - return it (caller should warn user)
+				return fallbackFormat, nil
+			}
+		}
+
 		reason := "no progressive (audio+video) formats available"
 		if opts.AudioOnly {
 			reason = "no audio-only formats available (try without --audio or use --list-formats)"
@@ -1167,10 +1243,6 @@ func printInfo(video *youtube.Video) error {
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
 	return enc.Encode(payload)
-}
-
-func printFormats(video *youtube.Video) error {
-	return writeFormats(os.Stdout, video)
 }
 
 func writeFormats(output io.Writer, video *youtube.Video) error {

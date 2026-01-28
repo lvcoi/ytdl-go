@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type progressEvent struct {
+type rendererEvent struct {
 	kind   string
 	id     string
 	prefix string
@@ -32,7 +32,7 @@ type ProgressRenderer struct {
 	out         io.Writer
 	printer     *Printer
 	interactive bool
-	events      chan progressEvent
+	events      chan rendererEvent
 	bars        map[string]*progressBar
 	order       []string
 	lastBars    int
@@ -45,7 +45,7 @@ func newProgressRenderer(out io.Writer, printer *Printer) *ProgressRenderer {
 		out:         out,
 		printer:     printer,
 		interactive: printer != nil && printer.interactive,
-		events:      make(chan progressEvent, 256),
+		events:      make(chan rendererEvent, 256),
 		bars:        map[string]*progressBar{},
 		order:       []string{},
 	}
@@ -55,28 +55,28 @@ func newProgressRenderer(out io.Writer, printer *Printer) *ProgressRenderer {
 
 func (r *ProgressRenderer) Register(prefix string, total int64) string {
 	id := fmt.Sprintf("bar-%d", atomic.AddUint64(&r.seq, 1))
-	r.events <- progressEvent{kind: "register", id: id, prefix: prefix, total: total}
+	r.events <- rendererEvent{kind: "register", id: id, prefix: prefix, total: total}
 	return id
 }
 
 func (r *ProgressRenderer) Update(id string, delta, value, total int64) {
 	select {
-	case r.events <- progressEvent{kind: "update", id: id, delta: delta, value: value, total: total}:
+	case r.events <- rendererEvent{kind: "update", id: id, delta: delta, value: value, total: total}:
 	default:
 	}
 }
 
 func (r *ProgressRenderer) Finish(id string) {
-	r.events <- progressEvent{kind: "finish", id: id}
+	r.events <- rendererEvent{kind: "finish", id: id}
 }
 
 func (r *ProgressRenderer) Log(msg string) {
-	r.events <- progressEvent{kind: "log", msg: msg}
+	r.events <- rendererEvent{kind: "log", msg: msg}
 }
 
 func (r *ProgressRenderer) Flush() {
 	ack := make(chan struct{})
-	r.events <- progressEvent{kind: "flush", ack: ack}
+	r.events <- rendererEvent{kind: "flush", ack: ack}
 	<-ack
 }
 
@@ -117,7 +117,7 @@ func (r *ProgressRenderer) loop() {
 	}
 }
 
-func (r *ProgressRenderer) handleRegister(event progressEvent) {
+func (r *ProgressRenderer) handleRegister(event rendererEvent) {
 	if _, exists := r.bars[event.id]; exists {
 		return
 	}
@@ -130,7 +130,7 @@ func (r *ProgressRenderer) handleRegister(event progressEvent) {
 	r.order = append(r.order, event.id)
 }
 
-func (r *ProgressRenderer) handleUpdate(event progressEvent) {
+func (r *ProgressRenderer) handleUpdate(event rendererEvent) {
 	bar := r.bars[event.id]
 	if bar == nil {
 		return
@@ -144,7 +144,7 @@ func (r *ProgressRenderer) handleUpdate(event progressEvent) {
 	}
 }
 
-func (r *ProgressRenderer) handleFinish(event progressEvent) {
+func (r *ProgressRenderer) handleFinish(event rendererEvent) {
 	bar := r.bars[event.id]
 	if bar == nil {
 		return
@@ -164,7 +164,7 @@ func (r *ProgressRenderer) handleFinish(event progressEvent) {
 	r.order = newOrder
 }
 
-func (r *ProgressRenderer) handleLog(event progressEvent) {
+func (r *ProgressRenderer) handleLog(event rendererEvent) {
 	if r.interactive {
 		r.clearBars()
 		fmt.Fprintln(r.out, event.msg)
@@ -221,25 +221,38 @@ func (r *ProgressRenderer) renderBar(bar *progressBar) string {
 
 	// Calculate speed
 	speed := ""
-	if elapsed.Seconds() > 0 {
+	if elapsed.Seconds() > 0.5 {
 		bytesPerSec := float64(bar.current) / elapsed.Seconds()
 		speed = humanBytes(int64(bytesPerSec)) + "/s"
 	}
 
 	// Calculate ETA
-	eta := "-:--:--"
+	eta := ""
 	if bar.current > 0 && bar.total > 0 && bar.current < bar.total {
 		remaining := time.Duration(float64(elapsed) * (float64(bar.total-bar.current) / float64(bar.current)))
-		eta = formatTime(remaining)
-	} else if bar.current >= bar.total && bar.total > 0 {
-		eta = "0:00:00"
+		eta = formatTimeCompact(remaining)
 	}
 
-	// Build colored progress bar
-	barWidth := 30
-	if r.printer != nil && r.printer.columns > 100 {
-		barWidth = 40
+	// Determine bar width based on terminal size
+	columns := 100
+	if r.printer != nil {
+		r.printer.mu.RLock()
+		columns = r.printer.columns
+		r.printer.mu.RUnlock()
 	}
+
+	// Calculate available space for bar after prefix and stats
+	// Format: "prefix ━━━━━ XX% SIZE SPEED ETA"
+	prefixLen := len(bar.prefix)
+	statsLen := 30 // approximate space for stats
+	barWidth := columns - prefixLen - statsLen - 4
+	if barWidth < 15 {
+		barWidth = 15
+	}
+	if barWidth > 50 {
+		barWidth = 50
+	}
+
 	filled := 0
 	if bar.total > 0 {
 		filled = int(float64(barWidth) * float64(bar.current) / float64(bar.total))
@@ -248,32 +261,48 @@ func (r *ProgressRenderer) renderBar(bar *progressBar) string {
 		filled = barWidth
 	}
 
-	// Use colored bar characters
-	barColor := "\x1b[38;5;197m" // Pink/magenta color
+	// Colors for Rich-style gradient bar
+	barColor := "\x1b[38;5;199m" // Bright magenta/pink
+	dimColor := "\x1b[38;5;239m" // Dark gray for unfilled
 	reset := "\x1b[0m"
-	dim := "\x1b[2m"
+	cyan := "\x1b[36m"
+	green := "\x1b[32m"
+	yellow := "\x1b[33m"
 
-	barStr := barColor + strings.Repeat("━", filled) + reset + dim + strings.Repeat("━", barWidth-filled) + reset
+	barStr := barColor + strings.Repeat("━", filled) + reset + dimColor + strings.Repeat("━", barWidth-filled) + reset
 
-	// Format: prefix bar percentage current/total speed eta
-	return fmt.Sprintf("%s %s %5.1f%% %s/%s %s %s",
-		bar.prefix,
-		barStr,
-		percent,
-		padLeft(humanBytes(bar.current), 7),
-		padLeft(humanBytes(bar.total), 7),
-		padLeft(speed, 10),
-		eta,
-	)
+	// Build stats string with colors
+	var stats strings.Builder
+	stats.WriteString(fmt.Sprintf("%s%3.0f%%%s", green, percent, reset))
+
+	if bar.total > 0 {
+		stats.WriteString(fmt.Sprintf(" %s%s%s", cyan, humanBytes(bar.total), reset))
+	}
+	if speed != "" {
+		stats.WriteString(fmt.Sprintf(" %s%s%s", yellow, speed, reset))
+	}
+	if eta != "" {
+		stats.WriteString(fmt.Sprintf(" %s", eta))
+	}
+
+	return fmt.Sprintf("%s %s %s", bar.prefix, barStr, stats.String())
 }
 
-func formatTime(d time.Duration) string {
+func formatTimeCompact(d time.Duration) string {
 	if d <= 0 {
-		return "0:00:00"
+		return ""
 	}
-	h := int(d.Hours())
-	m := int(d.Minutes()) % 60
-	s := int(d.Seconds()) % 60
+	s := int(d.Seconds())
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	m := s / 60
+	s = s % 60
+	if m < 60 {
+		return fmt.Sprintf("%d:%02d", m, s)
+	}
+	h := m / 60
+	m = m % 60
 	return fmt.Sprintf("%d:%02d:%02d", h, m, s)
 }
 
