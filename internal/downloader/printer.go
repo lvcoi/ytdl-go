@@ -53,11 +53,12 @@ type Printer struct {
 	progressEnabled bool
 	interactive     bool
 	layout          string
-	renderer        *ProgressRenderer
+	renderer        *progressRenderer
+	manager         *ProgressManager
 	mu              sync.RWMutex
 }
 
-func newPrinter(opts Options) *Printer {
+func newPrinter(opts Options, manager *ProgressManager) *Printer {
 	columns := terminalColumns()
 	if columns <= 0 {
 		columns = 100
@@ -71,7 +72,11 @@ func newPrinter(opts Options) *Printer {
 		titleWidth = 60
 	}
 
-	interactive := isTerminal(os.Stderr) && supportsANSI()
+	var renderer *progressRenderer
+	if manager != nil {
+		renderer = &progressRenderer{manager: manager}
+	}
+
 	printer := &Printer{
 		quiet:           opts.Quiet,
 		color:           supportsColor(),
@@ -81,15 +86,15 @@ func newPrinter(opts Options) *Printer {
 		progressEnabled: interactive,
 		interactive:     interactive,
 		layout:          opts.ProgressLayout,
-	}
-	if !opts.Quiet && interactive {
-		printer.renderer = newProgressRenderer(os.Stderr, printer)
+		renderer:        renderer,
+		manager:         manager,
 	}
 	return printer
 }
 
 func NewPrinter(opts Options) *Printer {
-	return newPrinter(opts)
+	manager := NewProgressManager(opts)
+	return newPrinter(opts, manager)
 }
 
 func (p *Printer) Prefix(index, total int, title string) string {

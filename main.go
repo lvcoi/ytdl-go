@@ -68,13 +68,27 @@ func main() {
 	results := make(chan result, len(urls))
 	ctx := context.Background()
 
+	// Create shared progress manager for concurrent jobs
+	var sharedManager *downloader.ProgressManager
+	if jobs > 1 {
+		sharedManager = downloader.NewProgressManager(opts)
+		if sharedManager != nil {
+			sharedManager.Start(ctx)
+			defer sharedManager.Stop()
+		}
+	}
+
 	for i := 0; i < jobs; i++ {
 		go func() {
 			for t := range tasks {
-				if !opts.Quiet && !opts.JSON {
-					printer.Log(downloader.LogInfo, fmt.Sprintf("[%d/%d] %s", t.index+1, len(urls), t.url))
+				var err error
+				if jobs > 1 && sharedManager != nil {
+					// Use shared progress manager for parallel downloads
+					err = downloader.ProcessWithManager(ctx, t.url, opts, sharedManager)
+				} else {
+					// Single job uses its own progress manager
+					err = downloader.Process(ctx, t.url, opts)
 				}
-				err := downloader.Process(ctx, t.url, opts)
 				results <- result{url: t.url, err: err}
 			}
 		}()

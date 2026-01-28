@@ -189,9 +189,22 @@ func wrapFetchError(err error, context string) error {
 
 // Process fetches metadata, selects the best matching format, and downloads it.
 func Process(ctx context.Context, url string, opts Options) error {
-	if opts.JSON {
-		opts.Quiet = true
+	return ProcessWithManager(ctx, url, opts, nil)
+}
+
+// ProcessWithManager is like Process but allows sharing a progress manager across
+// multiple concurrent downloads. If manager is nil, a new one is created.
+func ProcessWithManager(ctx context.Context, url string, opts Options, manager *ProgressManager) error {
+	var ownedManager *ProgressManager
+	if manager == nil {
+		ownedManager = NewProgressManager(opts)
+		if ownedManager != nil {
+			ownedManager.Start(ctx)
+			defer ownedManager.Stop()
+		}
+		manager = ownedManager
 	}
+	printer := newPrinter(opts, manager)
 
 	normalizedURL, err := validateInputURL(url)
 	if err != nil {
@@ -231,53 +244,24 @@ func Process(ctx context.Context, url string, opts Options) error {
 		return err
 	}
 
-	youtube.DefaultClient = youtube.AndroidClient
 	client := newClient(opts)
-	video, err := client.GetVideoContext(ctx, url)
+	video, err := client.GetVideoContext(ctx, normalizedURL)
 	if err != nil {
-		return wrapFetchError(err, "fetching metadata")
+		return markReported(wrapFetchError(err, "fetching video metadata"))
 	}
+
 	if opts.InfoOnly {
-		return printInfo(video)
+		return printVideoInfo(video)
 	}
 	if opts.ListFormats {
-		return listFormats(video, opts, printer)
+		return renderFormats(video, "", opts, "", "", 0, 0)
 	}
+
+	ctxInfo := outputContext{}
 	prefix := printer.Prefix(1, 1, video.Title)
-	result, err := downloadVideo(ctx, client, video, opts, outputContext{
-		SourceURL:     url,
-		MetaOverrides: opts.MetaOverrides,
-	}, printer, prefix)
-	if result.skipped {
-		printer.ItemSkipped(prefix, "exists")
-	} else {
-		printer.ItemResult(prefix, result, err)
-	}
-
-	if opts.JSON {
-		status := "ok"
-		errMsg := ""
-		if result.skipped {
-			status = "skip"
-			errMsg = "exists"
-		} else if err != nil {
-			status = "error"
-			errMsg = err.Error()
-		}
-		emitJSONResult(jsonResult{
-			Type:    "item",
-			Status:  status,
-			URL:     url,
-			ID:      video.ID,
-			Title:   video.Title,
-			Output:  result.outputPath,
-			Bytes:   result.bytes,
-			Retries: result.retried,
-			Error:   errMsg,
-		})
-	}
-
+	result, err := downloadVideo(ctx, client, video, opts, ctxInfo, printer, prefix)
 	if err != nil {
+		printer.ItemResult(prefix, result, err)
 		return markReported(err)
 	}
 	okCount := 1
@@ -286,6 +270,7 @@ func Process(ctx context.Context, url string, opts Options) error {
 		okCount = 0
 		skipped = 1
 	}
+	printer.ItemResult(prefix, result, nil)
 	printer.Summary(1, okCount, 0, skipped, result.bytes)
 	return nil
 }
@@ -1266,6 +1251,26 @@ func writeFormats(output io.Writer, video *youtube.Video) error {
 		)
 	}
 	return writer.Flush()
+}
+
+func printVideoInfo(video *youtube.Video) error {
+	payload := struct {
+		ID          string `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Author      string `json:"author"`
+		Duration    int    `json:"duration_seconds"`
+	}{
+		ID:          video.ID,
+		Title:       video.Title,
+		Description: video.Description,
+		Author:      video.Author,
+		Duration:    int(video.Duration.Seconds()),
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(payload)
 }
 
 func printPlaylistInfo(playlist *youtube.Playlist) error {
