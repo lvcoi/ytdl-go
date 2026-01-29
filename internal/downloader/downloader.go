@@ -341,10 +341,7 @@ func renderFormats(video *youtube.Video, header string, opts Options, playlistID
 }
 
 func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts Options, _ *Printer) error {
-	if len(playlist.Videos) == 0 {
-		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
-	}
-
+	// Allow listing formats even for empty playlists (will just render nothing)
 	youtube.DefaultClient = youtube.AndroidClient
 	client := newClient(opts)
 	for i, entry := range playlist.Videos {
