@@ -207,8 +207,8 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	originalURL := normalizedURL
 	url = ConvertMusicURL(normalizedURL)
 
-	// Convert YouTube Music URLs to regular YouTube URLs
-	isMusicURL := strings.Contains(originalURL, "music.youtube.com")
+	// Detect YouTube Music URLs by parsing and normalizing the hostname
+	isMusicURL := isMusicYouTubeURL(originalURL)
 
 	if looksLikePlaylist(url) {
 		return processPlaylist(ctx, url, opts, printer, isMusicURL)
@@ -237,7 +237,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	}
 
 	client := newClient(opts)
-	video, err := client.GetVideoContext(ctx, normalizedURL)
+	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
 		return markReported(wrapFetchError(err, "fetching video metadata"))
 	}
@@ -341,8 +341,9 @@ func renderFormats(video *youtube.Video, header string, opts Options, playlistID
 }
 
 func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts Options, _ *Printer) error {
+	// Allow listing formats even for empty playlists (will just render nothing)
 	if len(playlist.Videos) == 0 {
-		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
+		return nil
 	}
 
 	youtube.DefaultClient = youtube.AndroidClient
@@ -421,6 +422,18 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
+	// Fetch playlist title from YouTube Music (the library often returns empty/generic titles)
+	// Do this before ListFormats/InfoOnly so they get the proper title
+	if isMusicURL {
+		if title, err := fetchMusicPlaylistTitle(ctx, playlist.ID, opts.Timeout); err == nil && title != "" {
+			playlist.Title = title
+		}
+	}
+	if playlist.Title == "" {
+		playlist.Title = "Playlist"
+	}
+
+	// Check InfoOnly first, then ListFormats (consistent with single-video path)
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
 	}
@@ -428,18 +441,9 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return listPlaylistFormats(ctx, playlist, opts, printer)
 	}
 
+	// Only check for empty videos when actually downloading
 	if len(playlist.Videos) == 0 {
 		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
-	}
-
-	// Fetch playlist title from YouTube Music (the library often returns empty/generic titles)
-	if isMusicURL {
-		if title, err := fetchMusicPlaylistTitle(ctx, playlist.ID, opts.Timeout); err == nil && title != "" {
-			playlist.Title = title
-		}
-	}
-	if playlist.Title == "" || playlist.Title == "Playlist" {
-		playlist.Title = "Playlist"
 	}
 
 	albumMeta := map[string]musicEntryMeta{}
@@ -1238,6 +1242,13 @@ func isYouTubeURL(raw string) bool {
 	return host == "youtube.com" || host == "youtu.be" || host == "music.youtube.com"
 }
 
+// normalizeHostname returns the normalized hostname from a URL:
+// lowercase, with "www." prefix removed, and port stripped.
+func normalizeHostname(parsed *url.URL) string {
+	host := strings.ToLower(parsed.Hostname())
+	return strings.TrimPrefix(host, "www.")
+}
+
 // ConvertMusicURL converts YouTube Music URLs to regular YouTube URLs
 func ConvertMusicURL(u string) string {
 	// Parse the URL
@@ -1247,11 +1258,12 @@ func ConvertMusicURL(u string) string {
 	}
 
 	// If it's not a music.youtube.com URL, return as-is
-	if parsed.Host != "music.youtube.com" {
+	if normalizeHostname(parsed) != "music.youtube.com" {
 		return u
 	}
 
-	// Replace the host with www.youtube.com
+	// Replace the host with www.youtube.com (do not preserve port)
+	// so that downstream YouTube URL checks that rely on Host match as expected.
 	parsed.Host = "www.youtube.com"
 
 	// Remove any music-specific parameters
@@ -1260,6 +1272,16 @@ func ConvertMusicURL(u string) string {
 	parsed.RawQuery = query.Encode()
 
 	return parsed.String()
+}
+
+// isMusicYouTubeURL checks if a URL is a YouTube Music URL by parsing and normalizing the hostname
+func isMusicYouTubeURL(u string) bool {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return false
+	}
+
+	return normalizeHostname(parsed) == "music.youtube.com"
 }
 
 const musicUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
