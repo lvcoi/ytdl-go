@@ -243,7 +243,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	}
 
 	client := newClient(opts)
-	video, err := client.GetVideoContext(ctx, normalizedURL)
+	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
 		return markReported(wrapFetchError(err, "fetching video metadata"))
 	}
@@ -449,18 +449,12 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
-	if opts.ListFormats {
-		return listPlaylistFormats(ctx, playlist, opts, printer)
-	}
-	if opts.InfoOnly {
-		return printPlaylistInfo(playlist)
-	}
-
 	if len(playlist.Videos) == 0 {
 		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
 	}
 
 	// Fetch playlist title from YouTube Music (the library often returns empty/generic titles)
+	// Do this before ListFormats/InfoOnly so they get the proper title
 	if isMusicURL {
 		if title, err := fetchMusicPlaylistTitle(ctx, playlist.ID, opts.Timeout); err == nil && title != "" {
 			playlist.Title = title
@@ -468,6 +462,13 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	}
 	if playlist.Title == "" || playlist.Title == "Playlist" {
 		playlist.Title = "Playlist"
+	}
+
+	if opts.ListFormats {
+		return listPlaylistFormats(ctx, playlist, opts, printer)
+	}
+	if opts.InfoOnly {
+		return printPlaylistInfo(playlist)
 	}
 
 	albumMeta := map[string]musicEntryMeta{}
