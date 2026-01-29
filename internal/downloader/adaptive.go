@@ -91,7 +91,7 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts)
+	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}

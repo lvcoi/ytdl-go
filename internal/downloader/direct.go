@@ -191,7 +191,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts)
+	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}
