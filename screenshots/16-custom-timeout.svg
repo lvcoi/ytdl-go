@@ -25,12 +25,12 @@
   <text class="terminal-header" x="450" y="25" text-anchor="middle">Custom Timeout</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --timeout 10m https://www.youtube.com/watch?v=dQw4w9WgXcQ</text>
+  <text class="terminal-prompt" x="20" y="50">$ ytdl-go -timeout 10m https://www.youtube.com/watch?v=dQw4w9WgXcQ</text>
   <text class="terminal-text" x="20" y="68">Fetching video info...</text>
   <text class="terminal-text" x="20" y="86">Timeout: 10m0s</text>
   <text class="terminal-text" x="20" y="104">Title: Rick Astley - Never Gonna Give You Up</text>
   <text class="terminal-text" x="20" y="122"></text>
-  <text class="terminal-text" x="20" y="140">Downloading: [████████████████████████████████████] 100% | 2.8 MB/s</text>
+  <text class="terminal-text" x="20" y="140">Rick Astley - Never Gonna Give You Up 100.00%   14.5 MB /   14.5 MB   2.8 MB/s</text>
   <text class="terminal-text" x="20" y="158"></text>
   <text class="terminal-success" x="20" y="176">✓ Downloaded: Rick Astley - Never Gonna Give You Up.mp4</text>
 </svg>

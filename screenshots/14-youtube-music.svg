@@ -25,7 +25,7 @@
   <text class="terminal-header" x="450" y="25" text-anchor="middle">YouTube Music URL Conversion</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --audio &quot;https://music.youtube.com/playlist?list=PLxUALHb15RSAPuTLY&quot;</text>
+  <text class="terminal-prompt" x="20" y="50">$ ytdl-go -audio &quot;https://music.youtube.com/playlist?list=PLxUALHb15RSAPuTLY&quot;</text>
   <text class="terminal-info" x="20" y="68">INFO: Converting YouTube Music URL to regular YouTube URL</text>
   <text class="terminal-text" x="20" y="86">URL: https://www.youtube.com/playlist?list=PLxUALHb15RSAPuTLY</text>
   <text class="terminal-text" x="20" y="104"></text>

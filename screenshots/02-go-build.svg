@@ -25,7 +25,7 @@
   <text class="terminal-header" x="450" y="25" text-anchor="middle">Build Binary</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ go build -o ytdl-go ./cmd/yt-dlgo</text>
+  <text class="terminal-prompt" x="20" y="50">$ go build -o ytdl-go main.go</text>
   <text class="terminal-text" x="20" y="68">go: downloading github.com/kkdai/youtube/v2 v2.10.5</text>
   <text class="terminal-text" x="20" y="86">go: downloading github.com/bitly/go-simplejson v0.5.1</text>
   <text class="terminal-text" x="20" y="104">go: downloading github.com/dop251/goja v0.0.0-20250125213203-5ef83b82af17</text>

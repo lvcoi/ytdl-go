@@ -29,9 +29,7 @@
   <text class="terminal-text" x="20" y="68">Fetching playlist info...</text>
   <text class="terminal-text" x="20" y="86">Playlist: Best Music Collection (25 videos)</text>
   <text class="terminal-text" x="20" y="104"></text>
-  <text class="terminal-text" x="20" y="122">[1/25] Downloading: Song One</text>
-  <text class="terminal-text" x="20" y="140">Progress: [████████████████████████────────────] 70% | 2.5 MB/s</text>
-  <text class="terminal-text" x="20" y="158"></text>
-  <text class="terminal-text" x="20" y="176">[2/25] Downloading: Song Two</text>
-  <text class="terminal-text" x="20" y="194">Progress: [████████────────────────────────────] 25% | 3.1 MB/s</text>
+  <text class="terminal-text" x="20" y="122">[1/25] Song One                                      70.00%   10.5 MB /   15.0 MB   2.5 MB/s</text>
+  <text class="terminal-text" x="20" y="140"></text>
+  <text class="terminal-text" x="20" y="158">[2/25] Song Two                                      25.00%    3.8 MB /   15.0 MB   3.1 MB/s</text>
 </svg>

@@ -30,7 +30,7 @@
   <text class="terminal-text" x="20" y="86">Artist: Rick Astley</text>
   <text class="terminal-text" x="20" y="104">Title: Never Gonna Give You Up</text>
   <text class="terminal-text" x="20" y="122"></text>
-  <text class="terminal-text" x="20" y="140">Downloading: [████████████████████████████████████] 100%</text>
+  <text class="terminal-text" x="20" y="140">Rick Astley - Never Gonna Give You Up 100.00%   14.5 MB /   14.5 MB   2.9 MB/s</text>
   <text class="terminal-text" x="20" y="158"></text>
   <text class="terminal-success" x="20" y="176">✓ Downloaded: Rick Astley - Never Gonna Give You Up.mp4</text>
 </svg>

@@ -25,7 +25,7 @@
   <text class="terminal-header" x="450" y="25" text-anchor="middle">Audio Playlist with Folders</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --audio -o &quot;music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}&quot; \</text>
+  <text class="terminal-prompt" x="20" y="50">$ ytdl-go -audio -o &quot;music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}&quot; \</text>
   <text class="terminal-text" x="20" y="68">  &quot;https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12&quot;</text>
   <text class="terminal-text" x="20" y="86"></text>
   <text class="terminal-success" x="20" y="104">✓ music/Various Artists/Best Collection/01 - Song One.m4a</text>

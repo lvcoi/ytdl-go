@@ -29,7 +29,7 @@
   <text class="terminal-text" x="20" y="68">Fetching video info...</text>
   <text class="terminal-text" x="20" y="86">Title: Rick Astley - Never Gonna Give You Up</text>
   <text class="terminal-text" x="20" y="104"></text>
-  <text class="terminal-text" x="20" y="122">Downloading: [████████████████████████████████████] 100% | 3.0 MB/s</text>
+  <text class="terminal-text" x="20" y="122">Rick Astley - Never Gonna Give You Up 100.00%   14.5 MB /   14.5 MB   2.9 MB/s</text>
   <text class="terminal-text" x="20" y="140"></text>
   <text class="terminal-success" x="20" y="158">✓ Downloaded: downloads/Rick Astley - Never Gonna Give You Up.mp4</text>
 </svg>

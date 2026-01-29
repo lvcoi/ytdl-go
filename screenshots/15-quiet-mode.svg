@@ -25,10 +25,10 @@
   <text class="terminal-header" x="450" y="25" text-anchor="middle">Quiet Mode</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --quiet https://www.youtube.com/watch?v=dQw4w9WgXcQ</text>
+  <text class="terminal-prompt" x="20" y="50">$ ytdl-go -quiet https://www.youtube.com/watch?v=dQw4w9WgXcQ</text>
   <text class="terminal-success" x="20" y="68">✓ Rick Astley - Never Gonna Give You Up.mp4</text>
   <text class="terminal-text" x="20" y="86"></text>
-  <text class="terminal-prompt" x="20" y="104">$ ytdl-go --quiet --audio https://www.youtube.com/watch?v=jNQXAC9IVRw</text>
+  <text class="terminal-prompt" x="20" y="104">$ ytdl-go -quiet -audio https://www.youtube.com/watch?v=jNQXAC9IVRw</text>
   <text class="terminal-success" x="20" y="122">✓ Me at the zoo.m4a</text>
   <text class="terminal-text" x="20" y="140"></text>
   <text class="terminal-prompt" x="20" y="158">$ echo &quot;Downloads completed&quot;</text>
