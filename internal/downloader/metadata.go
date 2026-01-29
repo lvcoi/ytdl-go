@@ -47,20 +47,6 @@ type PlaylistRef struct {
 	Count int    `json:"count,omitempty"`
 }
 
-type PlaylistManifest struct {
-	ID          string                  `json:"id"`
-	Title       string                  `json:"title"`
-	Count       int                     `json:"count"`
-	GeneratedAt string                  `json:"generated_at"`
-	Entries     []PlaylistManifestEntry `json:"entries"`
-}
-
-type PlaylistManifestEntry struct {
-	Index  int    `json:"index"`
-	ID     string `json:"id"`
-	Status string `json:"status"`
-}
-
 func buildItemMetadata(video *youtube.Video, format *youtube.Format, ctxInfo outputContext, outputPath string, status string, err error) ItemMetadata {
 	title := stringsOrFallback(ctxInfo.EntryTitle, video.Title, video.ID)
 	artist := stringsOrFallback(ctxInfo.EntryAuthor, video.Author)
@@ -149,26 +135,6 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(metadata); err != nil {
 		return wrapCategory(CategoryFilesystem, fmt.Errorf("writing sidecar: %w", err))
-	}
-	return nil
-}
-
-func writePlaylistManifest(path string, manifest PlaylistManifest) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating manifest directory: %w", err))
-	}
-
-	file, err := os.Create(path)
-	if err != nil {
-		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating manifest file: %w", err))
-	}
-	defer file.Close()
-
-	enc := json.NewEncoder(file)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(manifest); err != nil {
-		return wrapCategory(CategoryFilesystem, fmt.Errorf("writing manifest: %w", err))
 	}
 	return nil
 }

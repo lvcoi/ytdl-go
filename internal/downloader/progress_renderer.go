@@ -26,17 +26,6 @@ type ProgressRenderer struct {
 	mu          sync.Mutex
 }
 
-func newProgressRenderer(out io.Writer, printer *Printer) *ProgressRenderer {
-	interactive := printer != nil && printer.interactive
-
-	return &ProgressRenderer{
-		out:         out,
-		printer:     printer,
-		interactive: interactive,
-		bars:        make(map[string]*barState),
-	}
-}
-
 func (r *ProgressRenderer) Register(prefix string, total int64) string {
 	id := fmt.Sprintf("bar-%d", atomic.AddUint64(&r.seq, 1))
 
