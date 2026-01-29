@@ -213,8 +213,6 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	originalURL := normalizedURL
 	url = ConvertMusicURL(normalizedURL)
 
-	printer := newPrinter(opts)
-
 	// Convert YouTube Music URLs to regular YouTube URLs
 	isMusicURL := strings.Contains(originalURL, "music.youtube.com")
 
@@ -452,13 +450,10 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	}
 
 	if opts.ListFormats {
-		return errors.New("format listing is not supported for playlists")
+		return listPlaylistFormats(ctx, playlist, opts, printer)
 	}
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
-	}
-	if opts.ListFormats {
-		return listPlaylistFormats(ctx, playlist, opts, printer)
 	}
 
 	if len(playlist.Videos) == 0 {
