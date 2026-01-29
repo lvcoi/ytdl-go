@@ -38,11 +38,11 @@
 
 ## ✨ Features
 
-- **Metadata extraction** - `--info` prints detailed metadata (formats included) as pretty JSON
-- **Format/quality control** - `--quality`, `--format`, and `--list-formats` let you pick the variant you want before downloading
+- **Metadata extraction** - `-info` prints detailed metadata (formats included) as pretty JSON
+- **Format/quality control** - `-quality`, `-format`, and `-list-formats` let you pick the variant you want before downloading
 - **Direct URL support** - Downloads public `.mp4`, `.webm`, `.mov`, `.m3u8`, and `.mpd` URLs (HLS/DASH unencrypted only)
-- **Parallel downloads** - `--jobs` runs multiple URLs concurrently with stable progress output
-- **Audio-only downloads** - `--audio` grabs the best audio-only format; otherwise downloads best progressive
+- **Parallel downloads** - `-jobs` runs multiple URLs concurrently with stable progress output
+- **Audio-only downloads** - `-audio` grabs the best audio-only format; otherwise downloads best progressive
 - **Playlist support** - Playlist URLs are expanded and downloaded entry by entry with progress tracking
 - **YouTube Music compatibility** - Automatically converts `music.youtube.com` URLs to regular YouTube URLs
 - **Flexible output templating** - `-o` supports multiple placeholders:
@@ -56,10 +56,10 @@
   - `{playlist_id}` - Playlist ID (for playlists)
   - `{index}` - Current index in playlist
   - `{count}` - Total number of videos in playlist
-- **Progress tracking** - Real-time progress bar with speed indicators, or `--quiet` to suppress
+- **Progress tracking** - Real-time progress bar with speed indicators, or `-quiet` to suppress
 - **Error resilience** - Automatic retry on 403 errors with fallback download method
 - **Interactive file handling** - Prompts for overwrite/skip/rename when files exist (when TTY is available)
-- **Configurable timeout** - Per-request timeout via `--timeout`
+- **Configurable timeout** - Per-request timeout via `-timeout`
 - **Comprehensive summaries** - Detailed download summary with success/failure/skip counts and total size
 
 ## 🚀 Installation
@@ -127,21 +127,21 @@ ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
 
 ```bash
 # Download audio-only
-ytdl-go --audio https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -audio https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ![Audio download](screenshots/06-audio-download.svg)
 
 ```bash
 # Get video metadata without downloading
-ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -info https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ![Metadata output example](screenshots/07-metadata-info.svg)
 
 ```bash
 # List available formats without downloading
-ytdl-go --list-formats https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ### 🎨 Output customization
@@ -185,14 +185,14 @@ ytdl-go -o "downloads/{playlist_title}/{index:02d} - {title}.{ext}" "https://www
 
 ```bash
 # Download playlist as audio-only with artist folders
-ytdl-go --audio -o "music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
+ytdl-go -audio -o "music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 ```
 
 ![Audio playlist with folders](screenshots/13-audio-playlist-folders.svg)
 
 ```bash
 # YouTube Music playlists (automatically converted)
-ytdl-go --audio -o "music/{artist}/{title}.{ext}" "https://music.youtube.com/playlist?list=PLxUALHb15RSAPuTLY-05OageBIuHAOwJm"
+ytdl-go -audio -o "music/{artist}/{title}.{ext}" "https://music.youtube.com/playlist?list=PLxUALHb15RSAPuTLY-05OageBIuHAOwJm"
 ```
 
 ![YouTube Music conversion](screenshots/14-youtube-music.svg)
@@ -201,14 +201,14 @@ ytdl-go --audio -o "music/{artist}/{title}.{ext}" "https://music.youtube.com/pla
 
 ```bash
 # Quiet mode (no progress output)
-ytdl-go --quiet https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -quiet https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ![Quiet mode output](screenshots/15-quiet-mode.svg)
 
 ```bash
 # Custom timeout
-ytdl-go --timeout 10m https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -timeout 10m https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ![Custom timeout example](screenshots/16-custom-timeout.svg)
@@ -222,22 +222,22 @@ ytdl-go https://www.youtube.com/watch?v=video1 https://www.youtube.com/watch?v=v
 
 ```bash
 # List all available formats without downloading
-ytdl-go --list-formats https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ```bash
 # Pick a specific quality/container
-ytdl-go --quality 720p --format mp4 https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -quality 720p -format mp4 https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ```bash
 # Download a specific format by itag number
-ytdl-go --itag 251 https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -itag 251 https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ```bash
 # JSON-only output (no human progress noise)
-ytdl-go --json --quality 1080p https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go -json -quality 1080p https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ```bash
@@ -247,12 +247,12 @@ ytdl-go https://example.com/video.mp4
 
 ```bash
 # Custom progress layout
-ytdl-go --progress-layout "{label} {percent} {current}/{total} {rate} {eta}" URL
+ytdl-go -progress-layout "{label} {percent} {current}/{total} {rate} {eta}" URL
 ```
 
 ```bash
 # Parallel downloads
-ytdl-go --jobs 4 URL1 URL2 URL3 URL4
+ytdl-go -jobs 4 URL1 URL2 URL3 URL4
 ```
 
 ## 📊 Command Line Options
@@ -298,7 +298,7 @@ Metadata sources (in order of preference):
 - Platform/structured metadata from the extractor (e.g., YouTube API)
 - oEmbed/OG tags when downloading direct URLs that point to HTML pages
 - Manifest hints (when available)
-- `--meta` overrides
+- `-meta` overrides
 
 Sidecar schema (fields omitted when unknown):
 
@@ -336,7 +336,7 @@ Sidecar schema (fields omitted when unknown):
 Metadata overrides:
 
 ```bash
-ytdl-go --meta title="Custom Title" --meta artist="Custom Artist" --meta album="Custom Album" URL
+ytdl-go -meta title="Custom Title" -meta artist="Custom Artist" -meta album="Custom Album" URL
 ```
 
 Supported keys: `title`, `artist`, `author`, `album`, `track`, `disc`, `release_date`, `release_year`, `source_url`.
@@ -370,16 +370,16 @@ The downloader includes robust error handling:
 
 ```bash
 # Download playlist as organized music library by artist/album/song
-ytdl-go --audio -o "Music/{artist}/{album}/{title}.{ext}" "https://music.youtube.com/playlist?list=..."
+ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" "https://music.youtube.com/playlist?list=..."
 
 # Download with track numbers
-ytdl-go --audio -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" "https://music.youtube.com/playlist?list=..."
+ytdl-go -audio -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" "https://music.youtube.com/playlist?list=..."
 
 # Download playlist songs under playlist folder
-ytdl-go --audio -o "Music/{playlist_title}/{title}.{ext}" "https://www.youtube.com/playlist?list=..."
+ytdl-go -audio -o "Music/{playlist_title}/{title}.{ext}" "https://www.youtube.com/playlist?list=..."
 
 # Download with playlist and track number
-ytdl-go --audio -o "Music/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=..."
+ytdl-go -audio -o "Music/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=..."
 ```
 
 ### 🎬 Video collection
@@ -393,7 +393,7 @@ ytdl-go -o "Videos/{playlist_title}/{title} [{quality}].{ext}" "https://www.yout
 
 ```bash
 # Export playlist metadata to JSON
-ytdl-go --info "https://www.youtube.com/playlist?list=..." > playlist.json
+ytdl-go -info "https://www.youtube.com/playlist?list=..." > playlist.json
 ```
 
 ### 📦 Bulk downloads
@@ -401,7 +401,7 @@ ytdl-go --info "https://www.youtube.com/playlist?list=..." > playlist.json
 ```bash
 # Download multiple playlists
 for url in $(cat playlist_urls.txt); do
-    ytdl-go --audio -o "music/{artist}/{title}.{ext}" "$url"
+    ytdl-go -audio -o "music/{artist}/{title}.{ext}" "$url"
 done
 ```
 
@@ -411,7 +411,7 @@ done
 
 - **YouTube-only**: This tool is specifically designed for YouTube and YouTube Music
 - **Progressive formats**: Only downloads videos with audio+video combined (no DASH muxing)
-- **Audio formats**: Supports best available audio-only formats via `--audio` flag
+- **Audio formats**: Supports best available audio-only formats via `-audio` flag
 - **No HLS/DASH parsing**: Relies on YouTube's progressive stream availability
 
 ### Technical Limitations
@@ -485,7 +485,7 @@ This tool is intended for downloading publicly accessible content that you have 
 The downloader automatically handles most 403 errors by retrying with a different method. If you continue to see issues:
 
 1. Check your network connection
-2. Try increasing the timeout: `--timeout 10m`
+2. Try increasing the timeout: `-timeout 10m`
 3. The video might be region-restricted or private
 
 ### Playlist download issues
