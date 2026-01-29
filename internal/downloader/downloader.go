@@ -42,6 +42,7 @@ type Options struct {
 	JSON               bool
 	Quality            string
 	Format             string
+	Itag               int
 	MetaOverrides      map[string]string
 	SegmentConcurrency int
 	Timeout            time.Duration
@@ -704,6 +705,17 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 }
 
 func selectFormat(video *youtube.Video, opts Options) (*youtube.Format, error) {
+	// If itag is specified, search for it directly
+	if opts.Itag > 0 {
+		for i := range video.Formats {
+			format := &video.Formats[i]
+			if format.ItagNo == opts.Itag {
+				return format, nil
+			}
+		}
+		return nil, wrapCategory(CategoryUnsupported, fmt.Errorf("itag %d not found (use --list-formats to see available itags)", opts.Itag))
+	}
+
 	candidates := make([]*youtube.Format, 0, len(video.Formats))
 	for i := range video.Formats {
 		format := &video.Formats[i]
