@@ -421,9 +421,6 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
 	}
 
-	if opts.ListFormats {
-		return errors.New("format listing is not supported for playlists")
-	}
 	if opts.InfoOnly {
 		return printPlaylistInfo(playlist)
 	}
