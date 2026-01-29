@@ -231,6 +231,11 @@ ytdl-go --quality 720p --format mp4 https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
 ```bash
+# Download a specific format by itag number
+ytdl-go --itag 251 https://www.youtube.com/watch?v=BaW_jenozKc
+```
+
+```bash
 # JSON-only output (no human progress noise)
 ytdl-go --json --quality 1080p https://www.youtube.com/watch?v=BaW_jenozKc
 ```
@@ -260,6 +265,7 @@ ytdl-go --jobs 4 URL1 URL2 URL3 URL4
 | `-list-formats` | `false` | List available formats for a URL and exit |
 | `-quality` | `best` | Preferred quality (e.g., `1080p`, `720p`, `128k`, `worst`) |
 | `-format` | `` | Preferred container/extension (e.g., `mp4`, `webm`, `m4a`) |
+| `-itag` | `0` | Download specific format by itag number (use `-list-formats` to see available itags) |
 | `-meta` | `` | Metadata override (`key=value`, repeatable) |
 | `-progress-layout` | `` | Progress layout template (use `{label}`, `{percent}`, `{rate}`, `{eta}`, `{current}`, `{total}`) |
 | `-segment-concurrency` | `auto` | Parallel segment downloads for HLS/DASH (0=auto, 1=disabled) |
