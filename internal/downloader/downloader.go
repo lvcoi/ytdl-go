@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/kkdai/youtube/v2"
@@ -32,11 +31,6 @@ const (
 )
 
 var globalDuplicateAction = duplicateAskEach
-
-// ResetDuplicateAction resets the global duplicate handling preference (for testing or new sessions)
-func ResetDuplicateAction() {
-	globalDuplicateAction = duplicateAskEach
-}
 
 // Options describes CLI behavior for a download run.
 type Options struct {
@@ -346,11 +340,6 @@ func renderFormats(video *youtube.Video, header string, opts Options, playlistID
 	return nil
 }
 
-func listFormats(video *youtube.Video, opts Options, _ *Printer) error {
-	header := fmt.Sprintf("Formats for %s (%s)", video.Title, video.ID)
-	return renderFormats(video, header, opts, "", "", 0, 0)
-}
-
 func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts Options, _ *Printer) error {
 	if len(playlist.Videos) == 0 {
 		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
@@ -381,23 +370,6 @@ func newClient(opts Options) *youtube.Client {
 	return &youtube.Client{
 		HTTPClient: &http.Client{Timeout: opts.Timeout},
 	}
-}
-
-func validateURL(input string) error {
-	if playlistIDRegex.MatchString(input) {
-		return nil
-	}
-	parsed, err := url.Parse(input)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return fmt.Errorf("invalid URL: unsupported scheme %q", parsed.Scheme)
-	}
-	if parsed.Host == "" {
-		return errors.New("invalid URL: missing host")
-	}
-	return nil
 }
 
 func wrapAccessError(err error) error {
@@ -447,6 +419,13 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	playlist, err := playlistClient.GetPlaylistContext(ctx, url)
 	if err != nil {
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
+	}
+
+	if opts.InfoOnly {
+		return printPlaylistInfo(playlist)
+	}
+	if opts.ListFormats {
+		return listPlaylistFormats(ctx, playlist, opts, printer)
 	}
 
 	if len(playlist.Videos) == 0 {
@@ -1184,69 +1163,6 @@ func humanBytes(n int64) string {
 	value := float64(n) / float64(div)
 	suffix := []string{"KB", "MB", "GB", "TB"}
 	return fmt.Sprintf("%.1f%s", value, suffix[exp])
-}
-
-func printInfo(video *youtube.Video) error {
-	payload := struct {
-		ID       string       `json:"id"`
-		Title    string       `json:"title"`
-		Artist   string       `json:"artist"`
-		Author   string       `json:"author"`
-		Duration int          `json:"duration_seconds"`
-		Formats  []formatInfo `json:"formats"`
-	}{
-		ID:       video.ID,
-		Title:    video.Title,
-		Artist:   video.Author,
-		Author:   video.Author,
-		Duration: int(video.Duration.Seconds()),
-	}
-
-	for _, f := range video.Formats {
-		payload.Formats = append(payload.Formats, formatInfo{
-			Itag:         f.ItagNo,
-			MimeType:     f.MimeType,
-			Quality:      f.Quality,
-			QualityLabel: f.QualityLabel,
-			Bitrate:      f.Bitrate,
-			AvgBitrate:   f.AverageBitrate,
-			AudioQuality: f.AudioQuality,
-			SampleRate:   f.AudioSampleRate,
-			Channels:     f.AudioChannels,
-			Width:        f.Width,
-			Height:       f.Height,
-			Size:         int64(f.ContentLength),
-			Ext:          mimeToExt(f.MimeType),
-		})
-	}
-
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	return enc.Encode(payload)
-}
-
-func writeFormats(output io.Writer, video *youtube.Video) error {
-	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(writer, "itag\tquality\tquality_label\tmime_type\text\tbitrate\tchannels\tresolution\tsize")
-	for _, f := range video.Formats {
-		resolution := ""
-		if f.Width > 0 && f.Height > 0 {
-			resolution = fmt.Sprintf("%dx%d", f.Width, f.Height)
-		}
-		fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\n",
-			f.ItagNo,
-			f.Quality,
-			f.QualityLabel,
-			f.MimeType,
-			mimeToExt(f.MimeType),
-			bitrateForFormat(&f),
-			f.AudioChannels,
-			resolution,
-			f.ContentLength,
-		)
-	}
-	return writer.Flush()
 }
 
 func printVideoInfo(video *youtube.Video) error {
