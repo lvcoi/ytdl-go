@@ -674,6 +674,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 			formatSingle.ContentLength = 0
 
 			stream.Close()
+			stream = nil
 			stream, size, err = client.GetStreamContext(ctx, video, &formatSingle)
 			if err != nil {
 				return result, wrapCategory(CategoryNetwork, fmt.Errorf("retry failed: %w", err))
