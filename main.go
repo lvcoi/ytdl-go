@@ -54,7 +54,6 @@ func main() {
 	if opts.JSON {
 		opts.Quiet = true
 	}
-	printer := downloader.NewPrinter(opts)
 
 	type task struct {
 		index int

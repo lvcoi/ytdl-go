@@ -77,6 +77,8 @@ func newPrinter(opts Options, manager *ProgressManager) *Printer {
 		renderer = &progressRenderer{manager: manager}
 	}
 
+	interactive := !opts.Quiet && manager != nil
+
 	printer := &Printer{
 		quiet:           opts.Quiet,
 		color:           supportsColor(),
@@ -90,11 +92,6 @@ func newPrinter(opts Options, manager *ProgressManager) *Printer {
 		manager:         manager,
 	}
 	return printer
-}
-
-func NewPrinter(opts Options) *Printer {
-	manager := NewProgressManager(opts)
-	return newPrinter(opts, manager)
 }
 
 func (p *Printer) Prefix(index, total int, title string) string {
@@ -231,23 +228,6 @@ func (p *Printer) colorize(text, color string) string {
 	return color + text + colorReset
 }
 
-func (p *Printer) refreshLayout() {
-	columns := terminalColumns()
-	if columns <= 0 {
-		columns = 100
-	}
-	p.mu.Lock()
-	p.columns = columns
-	titleWidth := columns - 44
-	if titleWidth < 20 {
-		titleWidth = 20
-	}
-	if titleWidth > 60 {
-		titleWidth = 60
-	}
-	p.titleWidth = titleWidth
-	p.mu.Unlock()
-}
 
 func (p *Printer) clearLine() {
 	if !p.interactive {
