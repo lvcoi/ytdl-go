@@ -152,7 +152,6 @@ func (p *Printer) ItemResult(prefix string, result downloadResult, err error) {
 		detail = err.Error()
 	}
 
-	status := p.colorize(statusText, statusColor)
 	plainStatus := statusText
 	if result.retried && err == nil {
 		plainStatus = "OK"
@@ -167,8 +166,20 @@ func (p *Printer) ItemResult(prefix string, result downloadResult, err error) {
 	}
 	detail = truncateText(detail, maxDetail)
 
+	if p.renderer != nil && p.progressEnabled {
+		level := LogInfo
+		if err != nil {
+			level = LogError
+		} else if result.retried {
+			level = LogWarn
+		}
+		message := fmt.Sprintf("%s %s %s", prefix, statusText, detail)
+		p.renderer.Log(level, message)
+		return
+	}
+
+	status := p.colorize(statusText, statusColor)
 	message := fmt.Sprintf("%s %s %s", prefix, status, detail)
-	// Note: printer.renderer is not currently implemented
 	if result.hadProgress {
 		p.clearLine()
 	}
@@ -179,7 +190,6 @@ func (p *Printer) ItemSkipped(prefix, reason string) {
 	if p.quiet {
 		return
 	}
-	status := p.colorize("SKIP", colorYellow)
 	p.mu.RLock()
 	columns := p.columns
 	p.mu.RUnlock()
@@ -187,8 +197,15 @@ func (p *Printer) ItemSkipped(prefix, reason string) {
 	if maxDetail < 0 {
 		maxDetail = 0
 	}
-	message := fmt.Sprintf("%s %s %s", prefix, status, truncateText(reason, maxDetail))
-	// Note: printer.renderer is not currently implemented
+	reason = truncateText(reason, maxDetail)
+	if p.renderer != nil && p.progressEnabled {
+		message := fmt.Sprintf("%s SKIP %s", prefix, reason)
+		p.renderer.Log(LogWarn, message)
+		return
+	}
+
+	status := p.colorize("SKIP", colorYellow)
+	message := fmt.Sprintf("%s %s %s", prefix, status, reason)
 	fmt.Fprintln(os.Stderr, message)
 }
 
@@ -196,15 +213,24 @@ func (p *Printer) Summary(total, ok, failed, skipped int, bytes int64) {
 	if p.quiet {
 		return
 	}
+	if p.renderer != nil && p.progressEnabled {
+		line := fmt.Sprintf("Summary: OK %d | FAIL %d | SKIP %d | TOTAL %d | SIZE %s",
+			ok, failed, skipped, total, humanBytes(bytes))
+		level := LogInfo
+		if failed > 0 {
+			level = LogError
+		} else if skipped > 0 {
+			level = LogWarn
+		}
+		p.renderer.Log(level, line)
+		return
+	}
+
 	okLabel := p.colorize("OK", colorGreen)
 	failLabel := p.colorize("FAIL", colorRed)
 	skipLabel := p.colorize("SKIP", colorYellow)
 	line := fmt.Sprintf("Summary: %s %d | %s %d | %s %d | TOTAL %d | SIZE %s",
 		okLabel, ok, failLabel, failed, skipLabel, skipped, total, humanBytes(bytes))
-	if p.renderer != nil {
-		p.renderer.Log(line)
-		return
-	}
 	fmt.Fprintln(os.Stderr, line)
 }
 
@@ -215,7 +241,10 @@ func (p *Printer) Log(level LogLevel, message string) {
 	if level < p.logLevel {
 		return
 	}
-	// Note: printer.renderer is not currently implemented
+	if p.renderer != nil && p.progressEnabled {
+		p.renderer.Log(level, message)
+		return
+	}
 
 	label := levelLabel(level)
 	fmt.Fprintf(os.Stderr, "%s %s\n", label, message)
@@ -227,7 +256,6 @@ func (p *Printer) colorize(text, color string) string {
 	}
 	return color + text + colorReset
 }
-
 
 func (p *Printer) clearLine() {
 	if !p.interactive {

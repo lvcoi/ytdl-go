@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -18,6 +20,7 @@ import (
 	"time"
 
 	"github.com/kkdai/youtube/v2"
+	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 // duplicateAction represents the user's choice for handling existing files
@@ -48,6 +51,7 @@ type Options struct {
 	Timeout            time.Duration
 	ProgressLayout     string
 	LogLevel           string
+	IPFamily           string
 }
 
 type outputContext struct {
@@ -237,6 +241,10 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return err
 	}
 
+	savedClient := youtube.DefaultClient
+	defer func() { youtube.DefaultClient = savedClient }()
+	youtube.DefaultClient = youtube.AndroidClient
+
 	client := newClient(opts)
 	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
@@ -368,10 +376,161 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 	return nil
 }
 
-func newClient(opts Options) *youtube.Client {
-	return &youtube.Client{
-		HTTPClient: &http.Client{Timeout: opts.Timeout},
+const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+type consistentTransport struct {
+	base      http.RoundTripper
+	userAgent string
+}
+
+func (t *consistentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Ensure consistent User-Agent across all requests
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", t.userAgent)
 	}
+	// Add browser-like headers
+	if req.Header.Get("Accept-Language") == "" {
+		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	}
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "*/*")
+	}
+	return t.base.RoundTrip(req)
+}
+
+func newClient(opts Options) *youtube.Client {
+	// Create cookie jar for persistent cookies across requests
+	jar, _ := cookiejar.New(nil)
+
+	transport := &consistentTransport{
+		base:      http.DefaultTransport,
+		userAgent: defaultUserAgent,
+	}
+
+	httpClient := &http.Client{
+		Timeout:   opts.Timeout,
+		Jar:       jar,
+		Transport: transport,
+	}
+
+	return &youtube.Client{HTTPClient: httpClient}
+}
+
+// ffmpegAvailable checks if ffmpeg is installed and accessible
+func ffmpegAvailable() bool {
+	_, err := exec.LookPath("ffmpeg")
+	return err == nil
+}
+
+// downloadWithFFmpegFallback downloads a progressive format and extracts audio using ffmpeg
+func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, audioOutputPath string, progress *progressWriter) (downloadResult, error) {
+	result := downloadResult{}
+
+	// Find the best progressive format with high-quality audio
+	var progressiveFormat *youtube.Format
+	preferredItags := []int{22, 18} // 720p first, then 360p
+	for _, targetItag := range preferredItags {
+		for i := range video.Formats {
+			f := &video.Formats[i]
+			if f.ItagNo == targetItag && f.AudioChannels > 0 {
+				progressiveFormat = f
+				break
+			}
+		}
+		if progressiveFormat != nil {
+			break
+		}
+	}
+	if progressiveFormat == nil {
+		return result, wrapCategory(CategoryUnsupported, errors.New("no progressive format available for ffmpeg fallback"))
+	}
+
+	// Create temp file for video download
+	tempVideoPath := audioOutputPath + ".tmp.mp4"
+	defer os.Remove(tempVideoPath)
+
+	if progressiveFormat.ItagNo == 22 {
+		printer.Log(LogInfo, fmt.Sprintf("step 1/3: downloading 720p video (itag 22, 192kbps AAC source)"))
+	} else {
+		printer.Log(LogInfo, fmt.Sprintf("step 1/3: downloading 360p video (itag 18, 96kbps AAC source)"))
+		printer.Log(LogWarn, "note: 720p source unavailable, using 360p video for audio extraction")
+	}
+
+	stream, size, err := client.GetStreamContext(ctx, video, progressiveFormat)
+	if err != nil {
+		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
+	}
+	defer stream.Close()
+
+	tempFile, err := os.Create(tempVideoPath)
+	if err != nil {
+		return result, wrapCategory(CategoryFilesystem, err)
+	}
+
+	var writer io.Writer = tempFile
+	if !opts.Quiet {
+		if progress != nil {
+			progress.Reset(size)
+		} else {
+			progress = newProgressWriter(size, printer, prefix)
+		}
+		writer = io.MultiWriter(tempFile, progress)
+	}
+
+	_, err = copyWithContext(ctx, writer, stream)
+	tempFile.Close()
+	if err != nil {
+		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
+	}
+	if progress != nil {
+		progress.Finish()
+	}
+
+	// Extract audio using ffmpeg
+	printer.Log(LogInfo, "step 2/3: extracting audio track")
+	printer.Log(LogInfo, "step 3/3: encoding to Opus @ 160kbps")
+	if err := extractAudio(tempVideoPath, audioOutputPath); err != nil {
+		return result, wrapCategory(CategoryFilesystem, fmt.Errorf("ffmpeg extraction failed: %w", err))
+	}
+
+	// Get file size
+	if fi, err := os.Stat(audioOutputPath); err == nil {
+		result.bytes = fi.Size()
+	}
+	result.outputPath = audioOutputPath
+	printer.Log(LogInfo, fmt.Sprintf("complete: %s (Opus audio)", filepath.Base(audioOutputPath)))
+	return result, nil
+}
+
+// extractAudio extracts audio from a video file using ffmpeg
+func extractAudio(inputPath, outputPath string) error {
+	// Determine output format from extension
+	ext := strings.ToLower(filepath.Ext(outputPath))
+	kwargs := ffmpeg.KwArgs{"vn": ""}
+
+	switch ext {
+	case ".mp3":
+		kwargs["acodec"] = "libmp3lame"
+		kwargs["q:a"] = "2"
+	case ".m4a", ".aac":
+		kwargs["acodec"] = "aac"
+		kwargs["b:a"] = "192k"
+	case ".opus":
+		kwargs["acodec"] = "libopus"
+		kwargs["b:a"] = "160k" // Match itag 251 quality
+	case ".webm":
+		kwargs["acodec"] = "libopus"
+		kwargs["b:a"] = "160k" // Match itag 251 quality
+	default:
+		// Copy audio codec if possible
+		kwargs["acodec"] = "copy"
+	}
+
+	return ffmpeg.Input(inputPath).
+		Output(outputPath, kwargs).
+		OverWriteOutput().
+		Silent(true).
+		Run()
 }
 
 func wrapAccessError(err error) error {
@@ -682,7 +841,11 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 
 			writer = file
 			if !opts.Quiet {
-				progress = newProgressWriter(size, printer, prefix)
+				if progress != nil {
+					progress.Reset(size)
+				} else {
+					progress = newProgressWriter(size, printer, prefix)
+				}
 				writer = io.MultiWriter(file, progress)
 			} else {
 				progress = nil
@@ -693,6 +856,17 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 			result.retried = true
 		}
 		if err != nil {
+			// If audio-only format fails with 403, try ffmpeg fallback
+			isAudioOnlyFormat := format.AudioChannels > 0 && format.Width == 0 && format.Height == 0
+			audioOnlyItags := map[int]bool{251: true, 140: true, 250: true, 249: true, 139: true, 171: true}
+			isAudioOnlyItag := audioOnlyItags[opts.Itag]
+			if (opts.AudioOnly || isAudioOnlyFormat || isAudioOnlyItag) && isUnexpectedStatus(err, http.StatusForbidden) && ffmpegAvailable() {
+				printer.Log(LogWarn, "YouTube blocked chunked audio-only download (403); switching to ffmpeg fallback to preserve Opus quality")
+				printer.Log(LogInfo, "ffmpeg fallback: download video → extract audio → encode Opus @ 160kbps")
+				file.Close()
+				os.Remove(outputPath)
+				return downloadWithFFmpegFallback(ctx, client, video, opts, ctxInfo, printer, prefix, outputPath, progress)
+			}
 			return result, wrapCategory(CategoryNetwork, fmt.Errorf("download failed: %w", err))
 		}
 	}

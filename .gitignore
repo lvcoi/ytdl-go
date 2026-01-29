@@ -32,6 +32,7 @@ build/
 dist/
 bin/
 
+
 # OS generated files
 Thumbs.db
 .Spotlight-V100

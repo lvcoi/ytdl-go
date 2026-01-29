@@ -16,17 +16,23 @@ type progressWriter struct {
 	prefix   string
 	printer  *Printer
 	taskID   string
+	renderer *progressRenderer
 }
 
 func newProgressWriter(size int64, printer *Printer, prefix string) *progressWriter {
 	taskID := ""
-	// Note: printer.renderer is not currently implemented
+	var renderer *progressRenderer
+	if printer != nil && printer.renderer != nil {
+		renderer = printer.renderer
+		taskID = renderer.Register(prefix, size)
+	}
 	return &progressWriter{
-		size:    size,
-		start:   time.Now(),
-		prefix:  prefix,
-		printer: printer,
-		taskID:  taskID,
+		size:     size,
+		start:    time.Now(),
+		prefix:   prefix,
+		printer:  printer,
+		taskID:   taskID,
+		renderer: renderer,
 	}
 }
 
@@ -45,7 +51,10 @@ func (p *progressWriter) print() {
 	if !p.printer.progressEnabled {
 		return
 	}
-	// Note: printer.renderer is not currently implemented
+	if p.renderer != nil && p.taskID != "" {
+		p.renderer.Update(p.taskID, p.total, p.size)
+		return
+	}
 	line := p.printer.progressLine(p.prefix, p.total, p.size, time.Since(p.start))
 	p.printer.writeProgressLine(line)
 }
@@ -60,8 +69,11 @@ func (p *progressWriter) Finish() {
 		fmt.Fprintf(os.Stderr, "%s\n", line)
 		return
 	}
+	if p.renderer != nil && p.taskID != "" {
+		p.renderer.Finish(p.taskID)
+		return
+	}
 	p.print()
-	// Note: printer.renderer is not currently implemented
 	p.printer.writeProgressLine("\n")
 }
 
@@ -69,11 +81,36 @@ func (p *progressWriter) NewLine() {
 	if p.finished {
 		return
 	}
-	// Note: printer.renderer is not currently implemented
 	if !p.printer.progressEnabled {
 		return
 	}
+	if p.renderer != nil && p.taskID != "" {
+		return
+	}
 	p.printer.writeProgressLine("\n")
+}
+
+func (p *progressWriter) Reset(size int64) {
+	if p == nil {
+		return
+	}
+	p.size = size
+	p.total = 0
+	p.start = time.Now()
+	p.finished = false
+	if p.renderer != nil && p.taskID != "" {
+		p.renderer.Update(p.taskID, 0, p.size)
+	}
+}
+
+func (p *progressWriter) SetCurrent(current int64) {
+	if p == nil {
+		return
+	}
+	p.total = current
+	if p.renderer != nil && p.taskID != "" {
+		p.renderer.Update(p.taskID, p.total, p.size)
+	}
 }
 
 type contextReader struct {

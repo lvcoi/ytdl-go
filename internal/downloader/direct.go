@@ -238,7 +238,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	var progress *progressWriter
 	if !opts.Quiet {
 		progress = newProgressWriter(resp.ContentLength, printer, printer.Prefix(1, 1, info.Title))
-		progress.total = state.BytesWritten
+		progress.SetCurrent(state.BytesWritten)
 		writer = io.MultiWriter(file, progress)
 	}
 
