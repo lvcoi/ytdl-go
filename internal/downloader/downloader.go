@@ -207,8 +207,8 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	originalURL := normalizedURL
 	url = ConvertMusicURL(normalizedURL)
 
-	// Convert YouTube Music URLs to regular YouTube URLs
-	isMusicURL := strings.Contains(originalURL, "music.youtube.com")
+	// Detect YouTube Music URLs by parsing and normalizing the hostname
+	isMusicURL := isMusicYouTubeURL(originalURL)
 
 	if looksLikePlaylist(url) {
 		return processPlaylist(ctx, url, opts, printer, isMusicURL)
@@ -1246,8 +1246,8 @@ func ConvertMusicURL(u string) string {
 		return u
 	}
 
-	// Normalize the host: lowercase and trim www. prefix
-	host := strings.ToLower(parsed.Host)
+	// Normalize the hostname: lowercase and trim www. prefix (Hostname() strips port)
+	host := strings.ToLower(parsed.Hostname())
 	host = strings.TrimPrefix(host, "www.")
 
 	// If it's not a music.youtube.com URL, return as-is
@@ -1255,8 +1255,12 @@ func ConvertMusicURL(u string) string {
 		return u
 	}
 
-	// Replace the host with www.youtube.com
-	parsed.Host = "www.youtube.com"
+	// Replace the host with www.youtube.com (preserve port if present)
+	if parsed.Port() != "" {
+		parsed.Host = "www.youtube.com:" + parsed.Port()
+	} else {
+		parsed.Host = "www.youtube.com"
+	}
 
 	// Remove any music-specific parameters
 	query := parsed.Query()
@@ -1264,6 +1268,20 @@ func ConvertMusicURL(u string) string {
 	parsed.RawQuery = query.Encode()
 
 	return parsed.String()
+}
+
+// isMusicYouTubeURL checks if a URL is a YouTube Music URL by parsing and normalizing the hostname
+func isMusicYouTubeURL(u string) bool {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return false
+	}
+
+	// Normalize the hostname: lowercase and trim www. prefix (Hostname() strips port)
+	host := strings.ToLower(parsed.Hostname())
+	host = strings.TrimPrefix(host, "www.")
+
+	return host == "music.youtube.com"
 }
 
 const musicUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
