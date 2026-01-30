@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kkdai/youtube/v2"
@@ -34,6 +35,34 @@ const (
 )
 
 var globalDuplicateAction = duplicateAskEach
+
+var promptMu sync.Mutex
+var promptCond = sync.NewCond(&promptMu)
+var promptActive bool
+
+func beginPrompt() {
+	promptMu.Lock()
+	for promptActive {
+		promptCond.Wait()
+	}
+	promptActive = true
+	promptMu.Unlock()
+}
+
+func endPrompt() {
+	promptMu.Lock()
+	promptActive = false
+	promptCond.Broadcast()
+	promptMu.Unlock()
+}
+
+func waitForPromptClear() {
+	promptMu.Lock()
+	for promptActive {
+		promptCond.Wait()
+	}
+	promptMu.Unlock()
+}
 
 // Options describes CLI behavior for a download run.
 type Options struct {
@@ -619,14 +648,17 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 
 	youtube.DefaultClient = youtube.AndroidClient
 	videoClient := newClient(opts)
-	successes := 0
-	failures := 0
-	skipped := 0
-	var totalBytes int64
-	for i, entry := range playlist.Videos {
-		prefix := printer.Prefix(i+1, len(playlist.Videos), entryTitle(entry))
+	type playlistOutcome struct {
+		ok      bool
+		failed  bool
+		skipped bool
+		bytes   int64
+	}
+
+	handleEntry := func(i int, entry *youtube.PlaylistEntry) playlistOutcome {
+		total := len(playlist.Videos)
+		prefix := printer.Prefix(i+1, total, entryTitle(entry))
 		if entry == nil || entry.ID == "" {
-			skipped++
 			printer.ItemSkipped(prefix, "missing playlist entry")
 			if opts.JSON {
 				emitJSONResult(jsonResult{
@@ -640,13 +672,12 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 					Error:         "missing playlist entry",
 				})
 			}
-			continue
+			return playlistOutcome{skipped: true}
 		}
 
 		video, err := videoClient.VideoFromPlaylistEntryContext(ctx, entry)
 		if err != nil {
 			err = wrapFetchError(err, "fetching video metadata")
-			failures++
 			printer.ItemResult(prefix, downloadResult{}, err)
 			if opts.JSON {
 				emitJSONResult(jsonResult{
@@ -660,7 +691,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 					Error:         err.Error(),
 				})
 			}
-			continue
+			return playlistOutcome{failed: true}
 		}
 
 		meta := albumMeta[entry.ID]
@@ -676,7 +707,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		result, err := downloadVideo(ctx, videoClient, video, opts, outputContext{
 			Playlist:      playlist,
 			Index:         i + 1,
-			Total:         len(playlist.Videos),
+			Total:         total,
 			EntryTitle:    entryTitle,
 			EntryAuthor:   entryAuthor,
 			EntryAlbum:    meta.Album,
@@ -685,7 +716,6 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 			MetaOverrides: opts.MetaOverrides,
 		}, printer, prefix)
 		if result.skipped {
-			skipped++
 			printer.ItemSkipped(prefix, "exists")
 			if opts.JSON {
 				emitJSONResult(jsonResult{
@@ -702,7 +732,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 					Error:         "exists",
 				})
 			}
-			continue
+			return playlistOutcome{skipped: true}
 		}
 		printer.ItemResult(prefix, result, err)
 		if opts.JSON {
@@ -728,12 +758,89 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		}
 
 		if err != nil {
-			failures++
-			continue
+			return playlistOutcome{failed: true}
 		}
 
-		successes++
-		totalBytes += result.bytes
+		return playlistOutcome{ok: true, bytes: result.bytes}
+	}
+
+	successes := 0
+	failures := 0
+	skipped := 0
+	var totalBytes int64
+
+	concurrency := defaultSegmentConcurrency(opts.SegmentConcurrency)
+	if !printer.progressEnabled {
+		concurrency = 1
+	}
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	if concurrency > len(playlist.Videos) {
+		concurrency = len(playlist.Videos)
+	}
+
+	if concurrency <= 1 {
+		for i, entry := range playlist.Videos {
+			outcome := handleEntry(i, entry)
+			if outcome.skipped {
+				skipped++
+				continue
+			}
+			if outcome.failed {
+				failures++
+				continue
+			}
+			if outcome.ok {
+				successes++
+				totalBytes += outcome.bytes
+			}
+		}
+	} else {
+		type job struct {
+			index int
+			entry *youtube.PlaylistEntry
+		}
+		jobs := make(chan job)
+		results := make(chan playlistOutcome, len(playlist.Videos))
+		var wg sync.WaitGroup
+
+		worker := func() {
+			defer wg.Done()
+			for j := range jobs {
+				results <- handleEntry(j.index, j.entry)
+			}
+		}
+
+		for i := 0; i < concurrency; i++ {
+			wg.Add(1)
+			go worker()
+		}
+
+		for i, entry := range playlist.Videos {
+			jobs <- job{index: i, entry: entry}
+		}
+		close(jobs)
+
+		go func() {
+			wg.Wait()
+			close(results)
+		}()
+
+		for outcome := range results {
+			if outcome.skipped {
+				skipped++
+				continue
+			}
+			if outcome.failed {
+				failures++
+				continue
+			}
+			if outcome.ok {
+				successes++
+				totalBytes += outcome.bytes
+			}
+		}
 	}
 
 	printer.Summary(len(playlist.Videos), successes, failures, skipped, totalBytes)
@@ -779,7 +886,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 	if err != nil {
 		return result, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts)
+	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
 	if err != nil {
 		return result, err
 	}
@@ -1135,7 +1242,10 @@ func watchURLForID(id string) string {
 	return "https://www.youtube.com/watch?v=" + id
 }
 
-func handleExistingPath(path string, opts Options) (string, bool, error) {
+func handleExistingPath(path string, opts Options, printer *Printer) (string, bool, error) {
+	if isTerminal(os.Stdin) {
+		waitForPromptClear()
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1165,7 +1275,39 @@ func handleExistingPath(path string, opts Options) (string, bool, error) {
 		return path, false, nil
 	}
 
+	if printer != nil && printer.progressEnabled && printer.manager != nil {
+		choice, err := printer.manager.PromptDuplicate(path)
+		if err != nil {
+			return "", false, wrapCategory(CategoryFilesystem, err)
+		}
+		switch choice {
+		case promptOverwrite:
+			return path, false, nil
+		case promptOverwriteAll:
+			globalDuplicateAction = duplicateOverwriteAll
+			return path, false, nil
+		case promptSkip:
+			return path, true, nil
+		case promptSkipAll:
+			globalDuplicateAction = duplicateSkipAll
+			return path, true, nil
+		case promptRename:
+			newPath, err := nextAvailablePath(path)
+			return newPath, false, err
+		case promptRenameAll:
+			globalDuplicateAction = duplicateRenameAll
+			newPath, err := nextAvailablePath(path)
+			return newPath, false, err
+		case promptQuit:
+			return "", false, errors.New("aborted by user")
+		default:
+			return "", false, errors.New("duplicate prompt failed")
+		}
+	}
+
 	reader := bufio.NewReader(os.Stdin)
+	beginPrompt()
+	defer endPrompt()
 	for {
 		fmt.Fprintf(os.Stderr, "%s exists.\n", path)
 		fmt.Fprint(os.Stderr, "  [o]verwrite, [s]kip, [r]ename, [q]uit\n")

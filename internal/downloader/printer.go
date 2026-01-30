@@ -363,14 +363,6 @@ func supportsColor() bool {
 	return info.Mode()&os.ModeCharDevice != 0
 }
 
-func supportsANSI() bool {
-	term := os.Getenv("TERM")
-	if term == "dumb" || term == "" {
-		return false
-	}
-	return supportsColor()
-}
-
 const (
 	colorReset  = "\x1b[0m"
 	colorGreen  = "\x1b[32m"

@@ -7,7 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/lvcoi/ytdl-go/internal/downloader"
@@ -67,7 +69,8 @@ func main() {
 	}
 	tasks := make(chan task)
 	results := make(chan result, len(urls))
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	// Create shared progress manager for concurrent jobs
 	var sharedManager *downloader.ProgressManager
@@ -81,36 +84,61 @@ func main() {
 
 	for i := 0; i < jobs; i++ {
 		go func() {
-			for t := range tasks {
-				var err error
-				if jobs > 1 && sharedManager != nil {
-					// Use shared progress manager for parallel downloads
-					err = downloader.ProcessWithManager(ctx, t.url, opts, sharedManager)
-				} else {
-					// Single job uses its own progress manager
-					err = downloader.Process(ctx, t.url, opts)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case t, ok := <-tasks:
+					if !ok {
+						return
+					}
+					var err error
+					if jobs > 1 && sharedManager != nil {
+						// Use shared progress manager for parallel downloads
+						err = downloader.ProcessWithManager(ctx, t.url, opts, sharedManager)
+					} else {
+						// Single job uses its own progress manager
+						err = downloader.Process(ctx, t.url, opts)
+					}
+					select {
+					case results <- result{url: t.url, err: err}:
+					case <-ctx.Done():
+						return
+					}
 				}
-				results <- result{url: t.url, err: err}
 			}
 		}()
 	}
 
 	for i, url := range urls {
-		tasks <- task{index: i, url: url}
+		select {
+		case <-ctx.Done():
+			close(tasks)
+			goto done
+		case tasks <- task{index: i, url: url}:
+		}
 	}
 	close(tasks)
 
+done:
 	exitCode := 0
-	for range urls {
-		res := <-results
-		if res.err != nil {
-			if code := downloader.ExitCode(res.err); code > exitCode {
-				exitCode = code
+	for i := 0; i < len(urls); i++ {
+		select {
+		case <-ctx.Done():
+			if sharedManager != nil {
+				sharedManager.Stop()
 			}
-			if opts.JSON {
-				writeJSONError(res.url, res.err)
-			} else if !downloader.IsReported(res.err) {
-				fmt.Fprintf(os.Stderr, "error: %v\n", res.err)
+			os.Exit(130)
+		case res := <-results:
+			if res.err != nil {
+				if code := downloader.ExitCode(res.err); code > exitCode {
+					exitCode = code
+				}
+				if opts.JSON {
+					writeJSONError(res.url, res.err)
+				} else if !downloader.IsReported(res.err) {
+					fmt.Fprintf(os.Stderr, "error: %v\n", res.err)
+				}
 			}
 		}
 	}
@@ -118,6 +146,8 @@ func main() {
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
+
+	return
 }
 
 func writeJSONError(url string, err error) {

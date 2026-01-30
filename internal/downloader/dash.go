@@ -95,7 +95,7 @@ func downloadDASH(ctx context.Context, client *youtube.Client, video *youtube.Vi
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts)
+	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}

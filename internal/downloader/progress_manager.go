@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	progressbar "github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -44,6 +46,7 @@ func (pm *ProgressManager) Start(ctx context.Context) {
 	model := newProgressModel()
 	opts := []tea.ProgramOption{
 		tea.WithOutput(os.Stderr),
+		tea.WithAltScreen(),
 		tea.WithoutSignalHandler(),
 	}
 	program := tea.NewProgram(model, opts...)
@@ -54,6 +57,9 @@ func (pm *ProgressManager) Start(ctx context.Context) {
 
 	go func() {
 		_, _ = program.Run()
+		if pm.cancel != nil {
+			pm.cancel()
+		}
 	}()
 
 	go func() {
@@ -86,6 +92,24 @@ func (pm *ProgressManager) Log(level LogLevel, msg string) {
 	pm.send(logMsg{level: level, text: msg})
 }
 
+func (pm *ProgressManager) PromptDuplicate(path string) (promptChoice, error) {
+	if pm == nil {
+		return promptQuit, errors.New("no progress manager")
+	}
+	resp := make(chan promptChoice, 1)
+	pm.send(promptMsg{path: path, resp: resp})
+	if pm.ctx == nil {
+		choice := <-resp
+		return choice, nil
+	}
+	select {
+	case choice := <-resp:
+		return choice, nil
+	case <-pm.ctx.Done():
+		return promptQuit, pm.ctx.Err()
+	}
+}
+
 func (pm *ProgressManager) send(msg tea.Msg) {
 	if pm == nil {
 		return
@@ -100,10 +124,6 @@ func (pm *ProgressManager) send(msg tea.Msg) {
 
 type progressRenderer struct {
 	manager *ProgressManager
-}
-
-func NewProgressRenderer(manager *ProgressManager) *progressRenderer {
-	return &progressRenderer{manager: manager}
 }
 
 func (pr *progressRenderer) Register(prefix string, size int64) string {
@@ -165,6 +185,23 @@ type logMsg struct {
 
 type stopMsg struct{}
 
+type promptMsg struct {
+	path string
+	resp chan promptChoice
+}
+
+type promptChoice int
+
+const (
+	promptOverwrite promptChoice = iota
+	promptSkip
+	promptRename
+	promptOverwriteAll
+	promptSkipAll
+	promptRenameAll
+	promptQuit
+)
+
 // Styles following Bubble Tea examples
 var (
 	titleStyle = lipgloss.NewStyle().
@@ -182,7 +219,6 @@ var (
 			Bold(true)
 
 	progressBarStyle = lipgloss.NewStyle().
-				MarginLeft(2).
 				Bold(true)
 
 	etaStyle = lipgloss.NewStyle().
@@ -200,14 +236,50 @@ var (
 	logErrorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF6B6B")).
 			Bold(true)
+
+	promptStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FDE68A")).
+			Bold(true)
+
+	promptTitleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#0B0B0B")).
+				Background(lipgloss.Color("#FF006E")).
+				Bold(true).
+				Padding(0, 1)
+
+	promptOptionStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#EAEAEA")).
+				Bold(true)
+
+	promptSelectedStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#0B0B0B")).
+				Background(lipgloss.Color("#00F5D4")).
+				Bold(true).
+				Padding(0, 1)
+
+	promptOverwriteStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B9A")).Bold(true)
+	promptOverwriteAllStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF3B30")).Bold(true)
+	promptSkipStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("#00F5D4")).Bold(true)
+	promptSkipAllStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#00D27A")).Bold(true)
+	promptRenameStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD166")).Bold(true)
+	promptRenameAllStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB703")).Bold(true)
+	promptQuitStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("#C0C0C0")).Bold(true)
+
+	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#7FDBFF"))
 )
 
 type progressModel struct {
-	tasks map[string]*progressTask
-	order []string
-	width int
-	quit  bool
-	log   string
+	tasks        map[string]*progressTask
+	order        []string
+	width        int
+	height       int
+	quit         bool
+	log          string
+	promptActive bool
+	promptPath   string
+	promptResp   chan promptChoice
+	promptQueue  []promptMsg
+	promptIndex  int
 }
 
 type progressTask struct {
@@ -218,13 +290,15 @@ type progressTask struct {
 	started time.Time
 	percent float64
 	bar     progressbar.Model
+	spin    spinner.Model
 }
 
 func newProgressModel() *progressModel {
 	return &progressModel{
-		tasks: make(map[string]*progressTask),
-		order: make([]string, 0),
-		width: 80,
+		tasks:  make(map[string]*progressTask),
+		order:  make([]string, 0),
+		width:  80,
+		height: 24,
 	}
 }
 
@@ -254,14 +328,28 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		m.height = msg.Height
 		for _, task := range m.tasks {
 			task.bar.Width = barWidth(m.width)
 		}
+	case promptMsg:
+		if m.promptActive {
+			m.promptQueue = append(m.promptQueue, msg)
+			return m, nil
+		}
+		m.promptActive = true
+		m.promptPath = msg.path
+		m.promptResp = msg.resp
+		m.promptIndex = 0
+		return m, nil
 	case registerMsg:
 		if _, exists := m.tasks[msg.id]; exists {
 			return m, nil
 		}
 		m.order = append(m.order, msg.id)
+		spin := spinner.New()
+		spin.Spinner = spinner.MiniDot
+		spin.Style = spinnerStyle
 		bar := progressbar.New(
 			progressbar.WithGradient("#FF006E", "#00F5FF"),
 			progressbar.WithWidth(barWidth(m.width)),
@@ -273,9 +361,10 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			total:   msg.total,
 			started: msg.start,
 			bar:     bar,
+			spin:    spin,
 		}
 		m.tasks[msg.id] = task
-		return m, task.bar.SetPercent(0)
+		return m, tea.Batch(task.bar.SetPercent(0), task.spin.Tick)
 	case updateMsg:
 		if task, ok := m.tasks[msg.id]; ok {
 			task.current = msg.current
@@ -305,6 +394,80 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.log = style.Render(truncateLine(msg.text, m.width))
 		return m, nil
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		if !m.promptActive {
+			return m, nil
+		}
+		choice := promptChoice(-1)
+		switch msg.String() {
+		case "up", "k":
+			if m.promptIndex > 0 {
+				m.promptIndex--
+			} else {
+				m.promptIndex = 6
+			}
+			return m, nil
+		case "down", "j", "tab":
+			if m.promptIndex < 6 {
+				m.promptIndex++
+			} else {
+				m.promptIndex = 0
+			}
+			return m, nil
+		case "enter":
+			choice = promptChoiceForIndex(m.promptIndex)
+		case "o":
+			choice = promptOverwrite
+		case "O":
+			choice = promptOverwriteAll
+		case "s":
+			choice = promptSkip
+		case "S":
+			choice = promptSkipAll
+		case "r":
+			choice = promptRename
+		case "R":
+			choice = promptRenameAll
+		case "q", "esc":
+			choice = promptQuit
+		}
+		if choice >= 0 {
+			if m.promptResp != nil {
+				select {
+				case m.promptResp <- choice:
+				default:
+				}
+			}
+			if choice == promptOverwriteAll || choice == promptSkipAll || choice == promptRenameAll || choice == promptQuit {
+				for _, queued := range m.promptQueue {
+					if queued.resp == nil {
+						continue
+					}
+					select {
+					case queued.resp <- choice:
+					default:
+					}
+				}
+				m.promptQueue = nil
+			}
+			m.promptActive = false
+			m.promptPath = ""
+			m.promptResp = nil
+			m.promptIndex = 0
+			if len(m.promptQueue) > 0 {
+				next := m.promptQueue[0]
+				m.promptQueue = m.promptQueue[1:]
+				m.promptActive = true
+				m.promptPath = next.path
+				m.promptResp = next.resp
+				m.promptIndex = 0
+			}
+			return m, tea.ClearScreen
+		}
+		return m, nil
 	case progressbar.FrameMsg:
 		cmds := make([]tea.Cmd, 0, len(m.tasks))
 		for _, task := range m.tasks {
@@ -315,6 +478,19 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if updated, ok := model.(progressbar.Model); ok {
 				task.bar = updated
 			}
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		return m, tea.Batch(cmds...)
+	case spinner.TickMsg:
+		cmds := make([]tea.Cmd, 0, len(m.tasks))
+		for _, task := range m.tasks {
+			if task == nil {
+				continue
+			}
+			updated, cmd := task.spin.Update(msg)
+			task.spin = updated
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -340,6 +516,52 @@ func (m *progressModel) View() string {
 		b.WriteString("\n")
 	}
 
+	if m.promptActive {
+		var dialog strings.Builder
+		dialog.WriteString(promptTitleStyle.Render(" Duplicate File "))
+		dialog.WriteString("\n\n")
+		dialog.WriteString(promptStyle.Render(truncateLine(m.promptPath, m.width-8)))
+		dialog.WriteString("\n\n")
+
+		options := []struct {
+			label string
+			key   string
+			style lipgloss.Style
+			all   bool
+		}{
+			{label: "Overwrite", key: "o", style: promptOverwriteStyle},
+			{label: "Overwrite All", key: "O", style: promptOverwriteAllStyle, all: true},
+			{label: "Skip", key: "s", style: promptSkipStyle},
+			{label: "Skip All", key: "S", style: promptSkipAllStyle, all: true},
+			{label: "Rename", key: "r", style: promptRenameStyle},
+			{label: "Rename All", key: "R", style: promptRenameAllStyle, all: true},
+			{label: "Quit", key: "q", style: promptQuitStyle},
+		}
+
+		for i, opt := range options {
+			text := fmt.Sprintf("[%s] %s", opt.key, opt.label)
+			if opt.all {
+				text = fmt.Sprintf("[%s] %s (all)", opt.key, opt.label)
+			}
+			if i == m.promptIndex {
+				dialog.WriteString(promptSelectedStyle.Render(text))
+			} else {
+				dialog.WriteString(promptOptionStyle.Render(opt.style.Render(text)))
+			}
+			dialog.WriteString("\n")
+		}
+		dialog.WriteString("\n")
+		dialog.WriteString(promptStyle.Render("Use ↑/↓ + Enter or press the hotkey."))
+
+		box := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#FF006E")).
+			Padding(1, 2).
+			Render(dialog.String())
+
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+	}
+
 	// Render downloads
 	if len(m.order) > 0 {
 		b.WriteString(titleStyle.Render(" Downloads"))
@@ -353,19 +575,32 @@ func (m *progressModel) View() string {
 
 			elapsed := time.Since(task.started)
 			eta := estimateETA(task.current, task.total, elapsed)
+			rate := formatRate(task.current, elapsed)
 
 			percentText := percentStyle.Render(fmt.Sprintf("%5.1f%%", task.percent*100))
 			labelText := labelStyle.Render(task.label)
 
 			// First line: percentage and label
-			b.WriteString(fmt.Sprintf("%s %s\n", percentText, labelText))
+			spinText := task.spin.View()
+			if spinText != "" {
+				spinText = spinnerStyle.Render(spinText)
+			}
+			b.WriteString(fmt.Sprintf("%s %s %s\n", spinText, percentText, labelText))
 
 			// Second line: progress bar
 			bar := task.bar.View()
 			b.WriteString(progressBarStyle.Render(bar))
 			b.WriteString("\n")
 
-			// Third line: ETA
+			// Third line: bytes and rate
+			bytesLine := fmt.Sprintf("%s / %s · %s",
+				humanBytes(task.current),
+				humanBytes(task.total),
+				rate,
+			)
+			b.WriteString(fmt.Sprintf("        %s\n", etaStyle.Render(bytesLine)))
+
+			// Fourth line: ETA
 			etaText := etaStyle.Render(fmt.Sprintf("elapsed %s · eta %s",
 				formatDurationShort(elapsed),
 				formatDurationShort(eta)))
@@ -373,7 +608,38 @@ func (m *progressModel) View() string {
 		}
 	}
 
-	return b.String()
+	content := b.String()
+	return lipgloss.NewStyle().Width(m.width).Height(m.height).Render(content)
+}
+
+func formatRate(current int64, elapsed time.Duration) string {
+	if elapsed <= 0 {
+		return "--/s"
+	}
+	rate := int64(float64(current) / elapsed.Seconds())
+	if rate <= 0 {
+		return "--/s"
+	}
+	return humanBytes(rate) + "/s"
+}
+
+func promptChoiceForIndex(index int) promptChoice {
+	switch index {
+	case 0:
+		return promptOverwrite
+	case 1:
+		return promptOverwriteAll
+	case 2:
+		return promptSkip
+	case 3:
+		return promptSkipAll
+	case 4:
+		return promptRename
+	case 5:
+		return promptRenameAll
+	default:
+		return promptQuit
+	}
 }
 
 func estimateETA(current, total int64, elapsed time.Duration) time.Duration {
