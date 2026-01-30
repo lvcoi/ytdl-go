@@ -49,6 +49,8 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 	if printer != nil {
 		progress = newProgressWriter(0, printer, plan.Prefix)
 	}
+	var progressMu sync.Mutex
+	counter := &progressCounter{total: &totalBytes, progress: progress, mu: &progressMu}
 
 	type job struct {
 		Index int
@@ -73,17 +75,15 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 				firstErr.Store(wrapCategory(CategoryFilesystem, fmt.Errorf("creating segment file: %w", err)))
 				return
 			}
-			err = downloadSegmentWithRetry(ctx, client, j.URL, file)
+			segmentWriter := io.Writer(file)
+			if progress != nil {
+				segmentWriter = io.MultiWriter(file, counter)
+			}
+			err = downloadSegmentWithRetry(ctx, client, j.URL, segmentWriter)
 			file.Close()
 			if err != nil {
 				firstErr.Store(wrapCategory(CategoryNetwork, fmt.Errorf("segment %d failed: %w", j.Index+1, err)))
 				return
-			}
-			if info, statErr := os.Stat(dest); statErr == nil {
-				if progress != nil {
-					progress.total += info.Size()
-				}
-				atomic.AddInt64(&totalBytes, info.Size())
 			}
 		}
 	}
@@ -137,8 +137,14 @@ func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, pla
 		progress = newProgressWriter(0, printer, plan.Prefix)
 	}
 	var totalBytes int64
+	var progressMu sync.Mutex
+	counter := &progressCounter{total: &totalBytes, progress: progress, mu: &progressMu}
 	for i, url := range plan.URLs {
-		if err := downloadSegmentWithRetry(ctx, client, url, writer); err != nil {
+		segmentWriter := writer
+		if progress != nil {
+			segmentWriter = io.MultiWriter(writer, counter)
+		}
+		if err := downloadSegmentWithRetry(ctx, client, url, segmentWriter); err != nil {
 			if progress != nil {
 				progress.NewLine()
 			}
@@ -147,7 +153,26 @@ func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, pla
 	}
 	if progress != nil {
 		progress.Finish()
-		totalBytes = progress.total
 	}
 	return totalBytes, nil
+}
+
+type progressCounter struct {
+	total    *int64
+	progress *progressWriter
+	mu       *sync.Mutex
+}
+
+func (pc *progressCounter) Write(p []byte) (int, error) {
+	if pc == nil || pc.total == nil {
+		return len(p), nil
+	}
+	n := len(p)
+	updated := atomic.AddInt64(pc.total, int64(n))
+	if pc.progress != nil && pc.mu != nil {
+		pc.mu.Lock()
+		pc.progress.SetCurrent(updated)
+		pc.mu.Unlock()
+	}
+	return n, nil
 }

@@ -124,10 +124,10 @@ func headOrGet(ctx context.Context, rawURL string, timeout time.Duration) (*http
 		return nil, err
 	}
 	resp, err := client.Do(req)
-	if err == nil && resp.StatusCode != http.StatusMethodNotAllowed {
-		return resp, nil
-	}
-	if resp != nil {
+	if err == nil {
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return resp, nil
+		}
 		resp.Body.Close()
 	}
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)

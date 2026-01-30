@@ -23,6 +23,7 @@ type ProgressManager struct {
 	cancel  context.CancelFunc
 	program *tea.Program
 	started bool
+	done    chan struct{}
 }
 
 // NewProgressManager creates a new progress manager.
@@ -54,8 +55,10 @@ func (pm *ProgressManager) Start(ctx context.Context) {
 	pm.ctx, pm.cancel = context.WithCancel(ctx)
 	pm.program = program
 	pm.started = true
+	pm.done = make(chan struct{})
 
 	go func() {
+		defer close(pm.done)
 		_, _ = program.Run()
 		if pm.cancel != nil {
 			pm.cancel()
@@ -76,10 +79,17 @@ func (pm *ProgressManager) Stop() {
 
 	pm.mu.Lock()
 	program := pm.program
+	done := pm.done
 	pm.mu.Unlock()
 
 	if program != nil {
 		program.Send(stopMsg{})
+	}
+	if done != nil {
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
 	}
 }
 

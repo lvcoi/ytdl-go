@@ -240,6 +240,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	}
 	originalURL := normalizedURL
 	url = ConvertMusicURL(normalizedURL)
+	url = NormalizeYouTubeURL(url)
 
 	// Detect YouTube Music URLs by parsing and normalizing the hostname
 	isMusicURL := isMusicYouTubeURL(originalURL)
@@ -277,7 +278,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	client := newClient(opts)
 	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
-		return markReported(wrapFetchError(err, "fetching video metadata"))
+		return wrapFetchError(err, "fetching video metadata")
 	}
 
 	if opts.InfoOnly {
@@ -475,6 +476,27 @@ func newClient(opts Options) *youtube.Client {
 	return &youtube.Client{HTTPClient: httpClient}
 }
 
+const (
+	minChunkSize     int64 = 256 * 1024      // 256KB keeps progress responsive on small files
+	maxChunkSize     int64 = 2 * 1024 * 1024 // cap to avoid excessive requests on large files
+	targetChunkCount int64 = 64
+)
+
+// adjustChunkSize picks a smaller chunk size for the YouTube client to keep
+// progress updates frequent without spawning thousands of requests.
+func adjustChunkSize(client *youtube.Client, contentLength int64) {
+	if client == nil || contentLength <= 0 {
+		return
+	}
+	chunk := contentLength / targetChunkCount
+	if chunk < minChunkSize {
+		chunk = minChunkSize
+	} else if chunk > maxChunkSize {
+		chunk = maxChunkSize
+	}
+	client.ChunkSize = chunk
+}
+
 // ffmpegAvailable checks if ffmpeg is installed and accessible
 func ffmpegAvailable() bool {
 	_, err := exec.LookPath("ffmpeg")
@@ -515,9 +537,13 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 		printer.Log(LogWarn, "note: 720p source unavailable, using 360p video for audio extraction")
 	}
 
+	adjustChunkSize(client, progressiveFormat.ContentLength)
 	stream, size, err := client.GetStreamContext(ctx, video, progressiveFormat)
 	if err != nil {
 		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
+	}
+	if size <= 0 && progressiveFormat.ContentLength > 0 {
+		size = progressiveFormat.ContentLength
 	}
 	defer stream.Close()
 
@@ -937,9 +963,13 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 	}
 	defer file.Close()
 
+	adjustChunkSize(client, format.ContentLength)
 	stream, size, err := client.GetStreamContext(ctx, video, format)
 	if err != nil {
 		return result, wrapCategory(CategoryNetwork, fmt.Errorf("starting stream: %w", err))
+	}
+	if size <= 0 && format.ContentLength > 0 {
+		size = format.ContentLength
 	}
 	defer func() {
 		if stream != nil {
@@ -974,6 +1004,9 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 			stream, size, err = client.GetStreamContext(ctx, video, &formatSingle)
 			if err != nil {
 				return result, wrapCategory(CategoryNetwork, fmt.Errorf("retry failed: %w", err))
+			}
+			if size <= 0 && format.ContentLength > 0 {
+				size = format.ContentLength
 			}
 
 			writer = file
@@ -1632,6 +1665,39 @@ func ConvertMusicURL(u string) string {
 	parsed.RawQuery = query.Encode()
 
 	return parsed.String()
+}
+
+// NormalizeYouTubeURL converts alternate YouTube URL forms (live/shorts/youtu.be) to watch?v=.
+func NormalizeYouTubeURL(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return u
+	}
+	host := normalizeHostname(parsed)
+	if host != "youtube.com" && host != "youtu.be" {
+		return u
+	}
+	query := parsed.Query()
+	if host == "youtu.be" {
+		id := strings.TrimPrefix(parsed.Path, "/")
+		if id != "" {
+			query.Set("v", id)
+			parsed.Path = "/watch"
+			parsed.RawQuery = query.Encode()
+		}
+		return parsed.String()
+	}
+
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) >= 2 && (parts[0] == "live" || parts[0] == "shorts") {
+		if query.Get("v") == "" && parts[1] != "" {
+			query.Set("v", parts[1])
+		}
+		parsed.Path = "/watch"
+		parsed.RawQuery = query.Encode()
+		return parsed.String()
+	}
+	return u
 }
 
 // isMusicYouTubeURL checks if a URL is a YouTube Music URL by parsing and normalizing the hostname
