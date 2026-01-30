@@ -30,7 +30,7 @@ func main() {
 	flag.Var(&meta, "meta", "metadata override key=value (repeatable)")
 	flag.StringVar(&opts.ProgressLayout, "progress-layout", "", "progress layout template (e.g. \"{label} {percent} {current}/{total} {rate} {eta}\")")
 	flag.IntVar(&opts.SegmentConcurrency, "segment-concurrency", 0, "parallel segment downloads (0=auto)")
-	flag.StringVar(&opts.IPFamily, "ip-family", "", "force IP family for requests (ipv4 or ipv6)")
+	flag.IntVar(&opts.PlaylistConcurrency, "playlist-concurrency", 0, "parallel playlist entry downloads (0=auto)")
 	flag.IntVar(&jobs, "jobs", 1, "number of concurrent downloads")
 	flag.BoolVar(&opts.JSON, "json", false, "emit JSON output (suppresses human-readable progress)")
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
@@ -135,6 +135,9 @@ done:
 					exitCode = code
 				}
 				if opts.JSON {
+					if downloader.IsReported(res.err) {
+						continue
+					}
 					writeJSONError(res.url, res.err)
 				} else if !downloader.IsReported(res.err) {
 					fmt.Fprintf(os.Stderr, "error: %v\n", res.err)
@@ -146,8 +149,6 @@ done:
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
-
-	return
 }
 
 func writeJSONError(url string, err error) {

@@ -78,6 +78,7 @@ func newPrinter(opts Options, manager *ProgressManager) *Printer {
 	}
 
 	interactive := !opts.Quiet && manager != nil
+	progressEnabled := !opts.Quiet
 
 	printer := &Printer{
 		quiet:           opts.Quiet,
@@ -85,7 +86,7 @@ func newPrinter(opts Options, manager *ProgressManager) *Printer {
 		columns:         columns,
 		titleWidth:      titleWidth,
 		logLevel:        parseLogLevel(opts.LogLevel),
-		progressEnabled: interactive,
+		progressEnabled: progressEnabled,
 		interactive:     interactive,
 		layout:          opts.ProgressLayout,
 		renderer:        renderer,

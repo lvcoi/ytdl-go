@@ -80,9 +80,6 @@ videos/
 docs/_build/
 site/
 
-# Test files
-*/**/*_test.go
-
 # Backup files
 *.bak
 *.backup

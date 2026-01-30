@@ -72,7 +72,7 @@
 
 ```bash
 # Install directly from GitHub
-go install github.com/lvcoi/ytdl-go/cmd/ytdl-go@latest
+go install github.com/lvcoi/ytdl-go@latest
 ```
 
 This will download, build, and install `ytdl-go` to your `$GOPATH/bin` directory (usually `~/go/bin`). Make sure this directory is in your `PATH`.
@@ -89,14 +89,14 @@ cd ytdl-go
 
 ```bash
 # Build the binary
-go build -o ytdl-go ./cmd/ytdl-go
+go build -o ytdl-go .
 ```
 
 ![Build output](screenshots/02-go-build.svg)
 
 ```bash
 # Optional: Install to system path
-go install ./cmd/ytdl-go
+go install .
 ```
 
 ![Install output](screenshots/03-go-install.svg)
@@ -109,7 +109,7 @@ If your environment blocks writes to the default Go caches, point them at a writ
 export GOCACHE=/tmp/gocache
 export GOMODCACHE=/tmp/gomodcache
 go mod tidy   # downloads dependencies
-go build ./cmd/ytdl-go
+go build .
 ```
 
 ![Custom cache build](screenshots/04-custom-cache.svg)
@@ -269,10 +269,12 @@ ytdl-go --jobs 4 URL1 URL2 URL3 URL4
 | `-meta` | `` | Metadata override (`key=value`, repeatable) |
 | `-progress-layout` | `` | Progress layout template (use `{label}`, `{percent}`, `{rate}`, `{eta}`, `{current}`, `{total}`) |
 | `-segment-concurrency` | `auto` | Parallel segment downloads for HLS/DASH (0=auto, 1=disabled) |
+| `-playlist-concurrency` | `auto` | Parallel playlist entry downloads (0=auto, 1=disabled) |
 | `-jobs` | `1` | Number of concurrent downloads |
 | `-json` | `false` | Emit newline-delimited JSON output (suppresses progress text) |
 | `-quiet` | `false` | Suppress progress output (errors still shown) |
 | `-timeout` | `3m` | Per-request timeout (e.g., 30s, 5m, 1h) |
+| `-log-level` | `info` | Log level: `debug`, `info`, `warn`, `error` |
 
 ## 🏷️ Output Template Placeholders
 
@@ -412,7 +414,7 @@ done
 - **YouTube-only**: This tool is specifically designed for YouTube and YouTube Music
 - **Progressive formats**: Only downloads videos with audio+video combined (no DASH muxing)
 - **Audio formats**: Supports best available audio-only formats via `--audio` flag
-- **No HLS/DASH parsing**: Relies on YouTube's progressive stream availability
+- **HLS/DASH parsing supported**: Unencrypted manifests are parsed and segments are concatenated; adaptive A/V muxing is not implemented
 
 ### Technical Limitations
 
@@ -422,10 +424,10 @@ done
 - Direct URL downloads rely on the server exposing a video/audio content type or a recognizable file extension
 - YouTube Music URLs (`music.youtube.com`) are converted to regular YouTube URLs automatically
 - Authentication, cookies, proxies, and subtitle downloads are not yet supported
-- No credential storage or cookie jars are used; no browser automation is performed
+- No credential storage or persistent cookie jars are used; no browser automation is performed
 - Output directories are created as needed; trailing slash on `-o` forces treating it as a directory
 - Maximum 9999 automatic renames when using the rename option to prevent infinite loops
-- No resume support for interrupted downloads
+- Resume support for direct/HLS/DASH downloads via `.resume.json` state; progressive YouTube streams do not resume
 
 ### Non-Goals / Explicitly Not Supported
 

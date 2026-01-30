@@ -66,21 +66,21 @@ func waitForPromptClear() {
 
 // Options describes CLI behavior for a download run.
 type Options struct {
-	OutputTemplate     string
-	AudioOnly          bool
-	InfoOnly           bool
-	ListFormats        bool
-	Quiet              bool
-	JSON               bool
-	Quality            string
-	Format             string
-	Itag               int
-	MetaOverrides      map[string]string
-	SegmentConcurrency int
-	Timeout            time.Duration
-	ProgressLayout     string
-	LogLevel           string
-	IPFamily           string
+	OutputTemplate      string
+	AudioOnly           bool
+	InfoOnly            bool
+	ListFormats         bool
+	Quiet               bool
+	JSON                bool
+	Quality             string
+	Format              string
+	Itag                int
+	MetaOverrides       map[string]string
+	SegmentConcurrency  int
+	PlaylistConcurrency int
+	Timeout             time.Duration
+	ProgressLayout      string
+	LogLevel            string
 }
 
 type outputContext struct {
@@ -292,6 +292,19 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	result, err := downloadVideo(ctx, client, video, opts, ctxInfo, printer, prefix)
 	if err != nil {
 		printer.ItemResult(prefix, result, err)
+		if opts.JSON {
+			emitJSONResult(jsonResult{
+				Type:    "item",
+				Status:  "error",
+				URL:     url,
+				ID:      video.ID,
+				Title:   video.Title,
+				Output:  result.outputPath,
+				Bytes:   result.bytes,
+				Retries: result.retried,
+				Error:   err.Error(),
+			})
+		}
 		return markReported(err)
 	}
 	okCount := 1
@@ -301,6 +314,23 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		skipped = 1
 	}
 	printer.ItemResult(prefix, result, nil)
+	if opts.JSON {
+		status := "ok"
+		if result.skipped {
+			status = "skip"
+		}
+		emitJSONResult(jsonResult{
+			Type:    "item",
+			Status:  status,
+			URL:     url,
+			ID:      video.ID,
+			Title:   video.Title,
+			Output:  result.outputPath,
+			Bytes:   result.bytes,
+			Retries: result.retried,
+			Skipped: result.skipped,
+		})
+	}
 	printer.Summary(1, okCount, 0, skipped, result.bytes)
 	return nil
 }
@@ -479,9 +509,9 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 	defer os.Remove(tempVideoPath)
 
 	if progressiveFormat.ItagNo == 22 {
-		printer.Log(LogInfo, fmt.Sprintf("step 1/3: downloading 720p video (itag 22, 192kbps AAC source)"))
+		printer.Log(LogInfo, "step 1/3: downloading 720p video (itag 22, 192kbps AAC source)")
 	} else {
-		printer.Log(LogInfo, fmt.Sprintf("step 1/3: downloading 360p video (itag 18, 96kbps AAC source)"))
+		printer.Log(LogInfo, "step 1/3: downloading 360p video (itag 18, 96kbps AAC source)")
 		printer.Log(LogWarn, "note: 720p source unavailable, using 360p video for audio extraction")
 	}
 
@@ -769,7 +799,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	skipped := 0
 	var totalBytes int64
 
-	concurrency := defaultSegmentConcurrency(opts.SegmentConcurrency)
+	concurrency := defaultSegmentConcurrency(opts.PlaylistConcurrency)
 	if !printer.progressEnabled {
 		concurrency = 1
 	}
