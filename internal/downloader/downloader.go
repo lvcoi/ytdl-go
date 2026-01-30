@@ -80,7 +80,6 @@ type Options struct {
 	Timeout            time.Duration
 	ProgressLayout     string
 	LogLevel           string
-	IPFamily           string
 }
 
 type outputContext struct {
@@ -479,9 +478,9 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 	defer os.Remove(tempVideoPath)
 
 	if progressiveFormat.ItagNo == 22 {
-		printer.Log(LogInfo, fmt.Sprintf("step 1/3: downloading 720p video (itag 22, 192kbps AAC source)"))
+		printer.Log(LogInfo, "step 1/3: downloading 720p video (itag 22, 192kbps AAC source)")
 	} else {
-		printer.Log(LogInfo, fmt.Sprintf("step 1/3: downloading 360p video (itag 18, 96kbps AAC source)"))
+		printer.Log(LogInfo, "step 1/3: downloading 360p video (itag 18, 96kbps AAC source)")
 		printer.Log(LogWarn, "note: 720p source unavailable, using 360p video for audio extraction")
 	}
 

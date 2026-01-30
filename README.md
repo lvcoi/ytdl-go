@@ -72,7 +72,7 @@
 
 ```bash
 # Install directly from GitHub
-go install github.com/lvcoi/ytdl-go/cmd/ytdl-go@latest
+go install github.com/lvcoi/ytdl-go@latest
 ```
 
 This will download, build, and install `ytdl-go` to your `$GOPATH/bin` directory (usually `~/go/bin`). Make sure this directory is in your `PATH`.
@@ -89,14 +89,14 @@ cd ytdl-go
 
 ```bash
 # Build the binary
-go build -o ytdl-go ./cmd/ytdl-go
+go build -o ytdl-go .
 ```
 
 ![Build output](screenshots/02-go-build.svg)
 
 ```bash
 # Optional: Install to system path
-go install ./cmd/ytdl-go
+go install .
 ```
 
 ![Install output](screenshots/03-go-install.svg)
@@ -109,7 +109,7 @@ If your environment blocks writes to the default Go caches, point them at a writ
 export GOCACHE=/tmp/gocache
 export GOMODCACHE=/tmp/gomodcache
 go mod tidy   # downloads dependencies
-go build ./cmd/ytdl-go
+go build .
 ```
 
 ![Custom cache build](screenshots/04-custom-cache.svg)
