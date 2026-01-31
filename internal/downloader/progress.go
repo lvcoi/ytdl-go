@@ -5,22 +5,20 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type progressWriter struct {
-	size       int64
+	size       atomic.Int64
 	total      atomic.Int64
-	start      time.Time
+	start      atomic.Int64 // Unix nanoseconds
 	lastUpdate atomic.Int64 // Unix nanoseconds
 	finished   atomic.Bool
 	prefix     string
 	printer    *Printer
 	taskID     string
 	renderer   *progressRenderer
-	mu         sync.Mutex // Protects fields not using atomics
 }
 
 func newProgressWriter(size int64, printer *Printer, prefix string) *progressWriter {
@@ -32,13 +30,13 @@ func newProgressWriter(size int64, printer *Printer, prefix string) *progressWri
 	}
 	now := time.Now()
 	pw := &progressWriter{
-		size:     size,
-		start:    now,
 		prefix:   prefix,
 		printer:  printer,
 		taskID:   taskID,
 		renderer: renderer,
 	}
+	pw.size.Store(size)
+	pw.start.Store(now.UnixNano())
 	pw.lastUpdate.Store(now.UnixNano())
 	return pw
 }
@@ -67,11 +65,14 @@ func (p *progressWriter) print() {
 		return
 	}
 	total := p.total.Load()
+	size := p.size.Load()
 	if p.renderer != nil && p.taskID != "" {
-		p.renderer.Update(p.taskID, total, p.size)
+		p.renderer.Update(p.taskID, total, size)
 		return
 	}
-	line := p.printer.progressLine(p.prefix, total, p.size, time.Since(p.start))
+	startNano := p.start.Load()
+	elapsed := time.Duration(time.Now().UnixNano() - startNano)
+	line := p.printer.progressLine(p.prefix, total, size, elapsed)
 	p.printer.writeProgressLine(line)
 }
 
@@ -80,14 +81,17 @@ func (p *progressWriter) Finish() {
 		return
 	}
 	total := p.total.Load()
+	size := p.size.Load()
 	if !p.printer.progressEnabled {
-		line := p.printer.progressLine(p.prefix, total, p.size, time.Since(p.start))
+		startNano := p.start.Load()
+		elapsed := time.Duration(time.Now().UnixNano() - startNano)
+		line := p.printer.progressLine(p.prefix, total, size, elapsed)
 		fmt.Fprintf(os.Stderr, "%s\n", line)
 		return
 	}
 	if p.renderer != nil && p.taskID != "" {
 		// Force a final update before finishing
-		p.renderer.Update(p.taskID, total, p.size)
+		p.renderer.Update(p.taskID, total, size)
 		p.renderer.Finish(p.taskID)
 		return
 	}
@@ -113,17 +117,14 @@ func (p *progressWriter) Reset(size int64) {
 	if p == nil {
 		return
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	now := time.Now()
-	p.size = size
+	p.size.Store(size)
 	p.total.Store(0)
-	p.start = now
+	p.start.Store(now.UnixNano())
 	p.lastUpdate.Store(now.UnixNano())
 	p.finished.Store(false)
 	if p.renderer != nil && p.taskID != "" {
-		p.renderer.Update(p.taskID, 0, p.size)
+		p.renderer.Update(p.taskID, 0, size)
 	}
 }
 
@@ -133,7 +134,8 @@ func (p *progressWriter) SetCurrent(current int64) {
 	}
 	p.total.Store(current)
 	if p.renderer != nil && p.taskID != "" {
-		p.renderer.Update(p.taskID, current, p.size)
+		size := p.size.Load()
+		p.renderer.Update(p.taskID, current, size)
 	}
 }
 
