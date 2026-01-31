@@ -442,6 +442,7 @@ const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 const (
 	maxIdleConns        = 100
 	maxIdleConnsPerHost = 10
+	maxConnsPerHost     = 0 // 0 = unlimited concurrent connections per host
 	idleConnTimeout     = 90 * time.Second
 )
 
@@ -458,10 +459,16 @@ func getSharedHTTPClient(timeout time.Duration) *http.Client {
 		transport := &http.Transport{
 			MaxIdleConns:        maxIdleConns,
 			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			MaxConnsPerHost:     maxConnsPerHost, // 0 = unlimited
 			IdleConnTimeout:     idleConnTimeout,
 		}
+		// Wrap with consistentTransport for browser-like headers
+		consistentTrans := &consistentTransport{
+			base:      transport,
+			userAgent: defaultUserAgent,
+		}
 		sharedHTTPClient = &http.Client{
-			Transport: transport,
+			Transport: consistentTrans,
 		}
 	})
 	// Return new client with shared transport but custom timeout
@@ -506,6 +513,7 @@ func newClient(opts Options) *youtube.Client {
 		customTransport := baseTransport.Clone()
 		customTransport.MaxIdleConns = maxIdleConns
 		customTransport.MaxIdleConnsPerHost = maxIdleConnsPerHost
+		customTransport.MaxConnsPerHost = maxConnsPerHost
 		customTransport.IdleConnTimeout = idleConnTimeout
 		transport.base = customTransport
 	}
