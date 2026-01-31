@@ -452,7 +452,7 @@ var (
 	sharedHTTPClientOnce sync.Once
 )
 
-// getSharedHTTPClient returns a shared HTTP client with connection pooling configured
+// getSharedHTTPClient returns a client with shared transport and custom timeout
 func getSharedHTTPClient(timeout time.Duration) *http.Client {
 	sharedHTTPClientOnce.Do(func() {
 		transport := &http.Transport{
@@ -464,10 +464,11 @@ func getSharedHTTPClient(timeout time.Duration) *http.Client {
 			Transport: transport,
 		}
 	})
-	// Clone the client with the specific timeout
-	client := *sharedHTTPClient
-	client.Timeout = timeout
-	return &client
+	// Return new client with shared transport but custom timeout
+	return &http.Client{
+		Transport: sharedHTTPClient.Transport,
+		Timeout:   timeout,
+	}
 }
 
 type consistentTransport struct {
