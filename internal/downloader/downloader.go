@@ -462,9 +462,19 @@ func newClient(opts Options) *youtube.Client {
 	// Create cookie jar for persistent cookies across requests
 	jar, _ := cookiejar.New(nil)
 
+	// Configure transport with connection pooling for better performance
 	transport := &consistentTransport{
 		base:      http.DefaultTransport,
 		userAgent: defaultUserAgent,
+	}
+
+	// Set reasonable connection pool limits to prevent resource exhaustion
+	if baseTransport, ok := http.DefaultTransport.(*http.Transport); ok {
+		customTransport := baseTransport.Clone()
+		customTransport.MaxIdleConns = 100
+		customTransport.MaxIdleConnsPerHost = 10
+		customTransport.IdleConnTimeout = 90 * time.Second
+		transport.base = customTransport
 	}
 
 	httpClient := &http.Client{
@@ -1771,7 +1781,14 @@ func fetchMusicPlaylistEntries(ctx context.Context, playlistID string, opts Opti
 
 func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Duration) (musicConfig, error) {
 	playlistURL := "https://music.youtube.com/playlist?list=" + url.QueryEscape(playlistID)
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
 	if err != nil {
 		return musicConfig{}, err
@@ -1818,7 +1835,14 @@ func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Durat
 func fetchMusicPlaylistTitle(ctx context.Context, playlistID string, timeout time.Duration) (string, error) {
 	// Fetch the HTML page and extract og:title meta tag
 	playlistURL := "https://music.youtube.com/playlist?list=" + url.QueryEscape(playlistID)
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
 	if err != nil {
 		return "", err
@@ -1869,7 +1893,14 @@ func fetchMusicBrowse(ctx context.Context, apiKey string, payload map[string]any
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 	endpoint := "https://music.youtube.com/youtubei/v1/browse?key=" + apiKey
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
