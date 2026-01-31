@@ -122,9 +122,9 @@ func headOrGet(ctx context.Context, rawURL string, timeout time.Duration) (*http
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, rawURL, nil)
@@ -315,9 +315,9 @@ func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*ht
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	var lastErr error

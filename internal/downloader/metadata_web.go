@@ -24,9 +24,9 @@ func fetchPageMetadata(ctx context.Context, pageURL string, timeout time.Duratio
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	resp, err := client.Do(req)
@@ -78,9 +78,9 @@ func fetchOEmbed(ctx context.Context, oembedURL string, timeout time.Duration) (
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	resp, err := client.Do(req)

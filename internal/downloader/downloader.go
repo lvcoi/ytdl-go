@@ -438,6 +438,13 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 
 const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+// Connection pool settings for HTTP clients
+const (
+	maxIdleConns        = 100
+	maxIdleConnsPerHost = 10
+	idleConnTimeout     = 90 * time.Second
+)
+
 type consistentTransport struct {
 	base      http.RoundTripper
 	userAgent string
@@ -471,9 +478,9 @@ func newClient(opts Options) *youtube.Client {
 	// Set reasonable connection pool limits to prevent resource exhaustion
 	if baseTransport, ok := http.DefaultTransport.(*http.Transport); ok {
 		customTransport := baseTransport.Clone()
-		customTransport.MaxIdleConns = 100
-		customTransport.MaxIdleConnsPerHost = 10
-		customTransport.IdleConnTimeout = 90 * time.Second
+		customTransport.MaxIdleConns = maxIdleConns
+		customTransport.MaxIdleConnsPerHost = maxIdleConnsPerHost
+		customTransport.IdleConnTimeout = idleConnTimeout
 		transport.base = customTransport
 	}
 
@@ -1784,9 +1791,9 @@ func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Durat
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
@@ -1838,9 +1845,9 @@ func fetchMusicPlaylistTitle(ctx context.Context, playlistID string, timeout tim
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
@@ -1896,9 +1903,9 @@ func fetchMusicBrowse(ctx context.Context, apiKey string, payload map[string]any
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
 		},
 	}
 	endpoint := "https://music.youtube.com/youtubei/v1/browse?key=" + apiKey
