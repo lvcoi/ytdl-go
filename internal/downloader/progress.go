@@ -115,7 +115,7 @@ func (p *progressWriter) Reset(size int64) {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	now := time.Now()
 	p.size = size
 	p.total.Store(0)
