@@ -24,12 +24,10 @@ func defaultSegmentConcurrency(value int) int {
 	if value > 0 {
 		return value
 	}
+	// Use as many CPUs as available for maximum performance
 	cpu := runtime.NumCPU()
 	if cpu < 2 {
 		return 2
-	}
-	if cpu > 8 {
-		return 8
 	}
 	return cpu
 }
