@@ -12,8 +12,8 @@ import (
 type progressWriter struct {
 	size       atomic.Int64
 	total      atomic.Int64
-	start      atomic.Int64 // Unix nanoseconds
-	lastUpdate atomic.Int64 // Unix nanoseconds
+	start      atomic.Int64 // Start time in Unix nanoseconds
+	lastUpdate atomic.Int64 // Last update time in Unix nanoseconds
 	finished   atomic.Bool
 	prefix     string
 	printer    *Printer
