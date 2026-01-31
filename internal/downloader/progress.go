@@ -9,14 +9,15 @@ import (
 )
 
 type progressWriter struct {
-	size     int64
-	total    int64
-	start    time.Time
-	finished bool
-	prefix   string
-	printer  *Printer
-	taskID   string
-	renderer *progressRenderer
+	size       int64
+	total      int64
+	start      time.Time
+	lastUpdate time.Time
+	finished   bool
+	prefix     string
+	printer    *Printer
+	taskID     string
+	renderer   *progressRenderer
 }
 
 func newProgressWriter(size int64, printer *Printer, prefix string) *progressWriter {
@@ -26,13 +27,15 @@ func newProgressWriter(size int64, printer *Printer, prefix string) *progressWri
 		renderer = printer.renderer
 		taskID = renderer.Register(prefix, size)
 	}
+	now := time.Now()
 	return &progressWriter{
-		size:     size,
-		start:    time.Now(),
-		prefix:   prefix,
-		printer:  printer,
-		taskID:   taskID,
-		renderer: renderer,
+		size:       size,
+		start:      now,
+		lastUpdate: now,
+		prefix:     prefix,
+		printer:    printer,
+		taskID:     taskID,
+		renderer:   renderer,
 	}
 }
 
@@ -40,7 +43,13 @@ func (p *progressWriter) Write(b []byte) (int, error) {
 	n := len(b)
 	p.total += int64(n)
 
-	p.print()
+	// Throttle progress updates to avoid performance overhead
+	// Update at most once per 100ms (10 times per second)
+	now := time.Now()
+	if now.Sub(p.lastUpdate) >= 100*time.Millisecond {
+		p.lastUpdate = now
+		p.print()
+	}
 	return n, nil
 }
 
@@ -70,9 +79,12 @@ func (p *progressWriter) Finish() {
 		return
 	}
 	if p.renderer != nil && p.taskID != "" {
+		// Force a final update before finishing
+		p.renderer.Update(p.taskID, p.total, p.size)
 		p.renderer.Finish(p.taskID)
 		return
 	}
+	// Force a final update before finishing
 	p.print()
 	p.printer.writeProgressLine("\n")
 }
@@ -94,9 +106,11 @@ func (p *progressWriter) Reset(size int64) {
 	if p == nil {
 		return
 	}
+	now := time.Now()
 	p.size = size
 	p.total = 0
-	p.start = time.Now()
+	p.start = now
+	p.lastUpdate = now
 	p.finished = false
 	if p.renderer != nil && p.taskID != "" {
 		p.renderer.Update(p.taskID, 0, p.size)
