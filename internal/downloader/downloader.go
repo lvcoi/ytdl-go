@@ -445,6 +445,31 @@ const (
 	idleConnTimeout     = 90 * time.Second
 )
 
+// Package-level shared HTTP client with connection pooling
+// This client is reused across all HTTP requests to enable connection reuse
+var (
+	sharedHTTPClient     *http.Client
+	sharedHTTPClientOnce sync.Once
+)
+
+// getSharedHTTPClient returns a shared HTTP client with connection pooling configured
+func getSharedHTTPClient(timeout time.Duration) *http.Client {
+	sharedHTTPClientOnce.Do(func() {
+		transport := &http.Transport{
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
+		}
+		sharedHTTPClient = &http.Client{
+			Transport: transport,
+		}
+	})
+	// Clone the client with the specific timeout
+	client := *sharedHTTPClient
+	client.Timeout = timeout
+	return &client
+}
+
 type consistentTransport struct {
 	base      http.RoundTripper
 	userAgent string
@@ -1788,14 +1813,7 @@ func fetchMusicPlaylistEntries(ctx context.Context, playlistID string, opts Opti
 
 func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Duration) (musicConfig, error) {
 	playlistURL := "https://music.youtube.com/playlist?list=" + url.QueryEscape(playlistID)
-	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:        maxIdleConns,
-			MaxIdleConnsPerHost: maxIdleConnsPerHost,
-			IdleConnTimeout:     idleConnTimeout,
-		},
-	}
+	client := getSharedHTTPClient(timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
 	if err != nil {
 		return musicConfig{}, err
@@ -1842,14 +1860,7 @@ func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Durat
 func fetchMusicPlaylistTitle(ctx context.Context, playlistID string, timeout time.Duration) (string, error) {
 	// Fetch the HTML page and extract og:title meta tag
 	playlistURL := "https://music.youtube.com/playlist?list=" + url.QueryEscape(playlistID)
-	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:        maxIdleConns,
-			MaxIdleConnsPerHost: maxIdleConnsPerHost,
-			IdleConnTimeout:     idleConnTimeout,
-		},
-	}
+	client := getSharedHTTPClient(timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
 	if err != nil {
 		return "", err
@@ -1900,14 +1911,7 @@ func fetchMusicBrowse(ctx context.Context, apiKey string, payload map[string]any
 		return nil, err
 	}
 
-	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:        maxIdleConns,
-			MaxIdleConnsPerHost: maxIdleConnsPerHost,
-			IdleConnTimeout:     idleConnTimeout,
-		},
-	}
+	client := getSharedHTTPClient(timeout)
 	endpoint := "https://music.youtube.com/youtubei/v1/browse?key=" + apiKey
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {
