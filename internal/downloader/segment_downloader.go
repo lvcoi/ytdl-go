@@ -24,12 +24,14 @@ func defaultSegmentConcurrency(value int) int {
 	if value > 0 {
 		return value
 	}
-	// Use as many CPUs as available for maximum performance
+	// Use more workers than CPUs for I/O-bound playlist downloads
+	// Most time is spent waiting for network I/O, not CPU
 	cpu := runtime.NumCPU()
 	if cpu < 2 {
-		return 2
+		return 8 // Minimum of 8 concurrent downloads
 	}
-	return cpu
+	// Use 3x CPU count for better throughput on I/O-bound operations
+	return cpu * 3
 }
 
 func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
