@@ -27,8 +27,8 @@ const (
 	
 	// ioMultiplier determines how many concurrent downloads per CPU core
 	// Downloads are I/O-bound (waiting for network), not CPU-bound,
-	// so we can run 3x more workers than CPU cores for better throughput
-	ioMultiplier = 3
+	// so we can run 2x more workers than CPU cores for better throughput
+	ioMultiplier = 2
 )
 
 func defaultSegmentConcurrency(value int) int {
@@ -41,7 +41,7 @@ func defaultSegmentConcurrency(value int) int {
 	if cpu < 2 {
 		return minConcurrentDownloads
 	}
-	// Use 3x CPU count for better throughput on I/O-bound operations
+	// Use 2x CPU count for better throughput on I/O-bound operations
 	return cpu * ioMultiplier
 }
 
