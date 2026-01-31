@@ -26,22 +26,20 @@ const (
 	minConcurrentDownloads = 8
 	
 	// ioMultiplier determines how many concurrent downloads per CPU core
-	// Downloads are I/O-bound (waiting for network), not CPU-bound,
-	// so we can run 2x more workers than CPU cores for better throughput
-	ioMultiplier = 2
+	// Set to 1x to match CPU cores (users can adjust with -segment-concurrency)
+	ioMultiplier = 1
 )
 
 func defaultSegmentConcurrency(value int) int {
 	if value > 0 {
 		return value
 	}
-	// Use more workers than CPUs for I/O-bound playlist downloads
-	// Most time is spent waiting for network I/O, not CPU
+	// Use workers based on CPU count for playlist downloads
+	// Users can adjust concurrency with -segment-concurrency flag
 	cpu := runtime.NumCPU()
 	if cpu < 2 {
 		return minConcurrentDownloads
 	}
-	// Use 2x CPU count for better throughput on I/O-bound operations
 	return cpu * ioMultiplier
 }
 
