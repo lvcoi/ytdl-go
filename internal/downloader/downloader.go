@@ -459,7 +459,7 @@ func getSharedHTTPClient(timeout time.Duration) *http.Client {
 		transport := &http.Transport{
 			MaxIdleConns:        maxIdleConns,
 			MaxIdleConnsPerHost: maxIdleConnsPerHost,
-			MaxConnsPerHost:     maxConnsPerHost, // 0 = unlimited
+			MaxConnsPerHost:     maxConnsPerHost,
 			IdleConnTimeout:     idleConnTimeout,
 		}
 		// Wrap with consistentTransport for browser-like headers
