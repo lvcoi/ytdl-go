@@ -283,13 +283,19 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Find current position in matches and move to next
 					currentPos := -1
 					for i, idx := range matches {
-						if idx == m.cycleIndex {
+						if idx == m.selected {
 							currentPos = i
 							break
 						}
 					}
 					
-					nextPos := (currentPos + 1) % len(matches)
+					// If not found in matches, start from first; otherwise move to next
+					var nextPos int
+					if currentPos == -1 {
+						nextPos = 0
+					} else {
+						nextPos = (currentPos + 1) % len(matches)
+					}
 					m.selected = matches[nextPos]
 					m.cycleIndex = matches[nextPos]
 					m.lastDigit = digit
