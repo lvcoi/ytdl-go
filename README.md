@@ -39,6 +39,7 @@
 ## ✨ Features
 
 - **Metadata extraction** - `--info` prints detailed metadata (formats included) as pretty JSON
+- **Interactive format selection** - `--list-formats` now provides an interactive selector to browse and download formats
 - **Format/quality control** - `--quality`, `--format`, and `--list-formats` let you pick the variant you want before downloading
 - **Direct URL support** - Downloads public `.mp4`, `.webm`, `.mov`, `.m3u8`, and `.mpd` URLs (HLS/DASH unencrypted only)
 - **Parallel downloads** - `--jobs` runs multiple URLs concurrently with stable progress output
@@ -221,8 +222,9 @@ ytdl-go https://www.youtube.com/watch?v=video1 https://www.youtube.com/watch?v=v
 ![Multiple URLs download](screenshots/17-multiple-urls.svg)
 
 ```bash
-# List all available formats without downloading
+# List available formats interactively (NEW!)
 ytdl-go --list-formats https://www.youtube.com/watch?v=BaW_jenozKc
+# Navigate with arrow keys, press Enter to download selected format
 ```
 
 ```bash
@@ -346,6 +348,22 @@ Supported keys: `title`, `artist`, `author`, `album`, `track`, `disc`, `release_
 Audio tag embedding: ID3 tags are embedded for `.mp3` outputs. Other containers are currently logged as “unsupported” and skipped.
 
 ## 🎮 Interactive Features
+
+### Format Selection
+
+When using `--list-formats`, you can interactively browse and select formats:
+
+- **↑/↓ or j/k** - Navigate between formats
+- **Enter** - Download the selected format
+- **1-9** - Quick jump to formats with itags starting with that digit
+- **Page Up/Page Down** - Jump 10 formats at a time
+- **Home/End or g/G** - Go to first/last format
+- **b** - Go back without downloading
+- **q/esc/ctrl+c** - Quit
+
+The selected format is highlighted and the itag number is displayed in real-time.
+
+### File Handling
 
 When downloading to an existing file and running in a terminal:
 
