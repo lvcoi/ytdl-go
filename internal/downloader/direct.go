@@ -118,7 +118,7 @@ func probeDirectURL(ctx context.Context, rawURL string, timeout time.Duration) (
 }
 
 func headOrGet(ctx context.Context, rawURL string, timeout time.Duration) (*http.Response, error) {
-	client := &http.Client{Timeout: timeout}
+	client := newHTTPClient(timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func saveFileResume(path string, state fileResumeState) error {
 }
 
 func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*http.Response, error) {
-	client := &http.Client{Timeout: timeout}
+	client := newHTTPClient(timeout)
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		resp, err := client.Do(req)

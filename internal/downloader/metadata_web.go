@@ -21,7 +21,7 @@ func fetchPageMetadata(ctx context.Context, pageURL string, timeout time.Duratio
 	if err != nil {
 		return "", "", err
 	}
-	client := &http.Client{Timeout: timeout}
+	client := newHTTPClient(timeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", "", err
@@ -68,7 +68,7 @@ func fetchOEmbed(ctx context.Context, oembedURL string, timeout time.Duration) (
 	if err != nil {
 		return oEmbedResponse{}, err
 	}
-	client := &http.Client{Timeout: timeout}
+	client := newHTTPClient(timeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return oEmbedResponse{}, err
