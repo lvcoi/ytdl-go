@@ -103,7 +103,7 @@ func downloadDASH(ctx context.Context, client *youtube.Client, video *youtube.Vi
 		return downloadResult{skipped: true, outputPath: outputPath}, nil
 	}
 
-	result, err := downloadDASHSegments(ctx, client, selected, outputPath, opts, printer, prefix)
+	result, err := downloadDASHSegments(ctx, client, selected, outputPath, opts, printer, prefix, video.ID)
 	if err == nil {
 		result.outputPath = outputPath
 	}
@@ -320,10 +320,18 @@ type dashResumeState struct {
 	InitDone     bool   `json:"init_done"`
 }
 
-func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashRepresentation, outputPath string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashRepresentation, outputPath string, opts Options, printer *Printer, prefix string, videoID string) (downloadResult, error) {
 	partPath := outputPath + partSuffix
 	resumePath := outputPath + resumeSuffix
 	segmentDir := outputPath + ".segments"
+	var session *YTSession
+	if opts.AudioOnly {
+		session = NewSession()
+		session.VideoID = videoID
+		if err := session.RefreshSessionRequirements(videoID); err != nil {
+			return downloadResult{}, wrapCategory(CategoryNetwork, fmt.Errorf("refreshing session: %w", err))
+		}
+	}
 
 	state := dashResumeState{
 		ManifestURL:  rep.BaseURL,
@@ -345,7 +353,13 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 		defer file.Close()
 
 		if rep.InitURL != "" {
-			if err := downloadSegmentWithRetry(ctx, client, rep.InitURL, file); err != nil {
+			var err error
+			if session != nil {
+				err = downloadSegmentWithSession(ctx, session, rep.InitURL, file)
+			} else {
+				err = downloadSegmentWithRetry(ctx, client, rep.InitURL, file)
+			}
+			if err != nil {
 				return downloadResult{}, wrapCategory(CategoryNetwork, fmt.Errorf("initialization segment failed: %w", err))
 			}
 		}
@@ -354,6 +368,7 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 			TempDir:     segmentDir,
 			Prefix:      prefix,
 			Concurrency: opts.SegmentConcurrency,
+			Session:     session,
 		}
 		total, err := downloadSegmentsParallel(ctx, client, plan, file, printer)
 		if err != nil {
@@ -387,7 +402,13 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 	}
 
 	if !state.InitDone && rep.InitURL != "" {
-		if err := downloadSegmentWithRetry(ctx, client, rep.InitURL, writer); err != nil {
+		var err error
+		if session != nil {
+			err = downloadSegmentWithSession(ctx, session, rep.InitURL, writer)
+		} else {
+			err = downloadSegmentWithRetry(ctx, client, rep.InitURL, writer)
+		}
+		if err != nil {
 			return downloadResult{}, wrapCategory(CategoryNetwork, fmt.Errorf("initialization segment failed: %w", err))
 		}
 		state.InitDone = true
@@ -400,7 +421,13 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 	}
 
 	for idx := state.NextIndex; idx < len(rep.Segments); idx++ {
-		if err := downloadSegmentWithRetry(ctx, client, rep.Segments[idx], writer); err != nil {
+		var err error
+		if session != nil {
+			err = downloadSegmentWithSession(ctx, session, rep.Segments[idx], writer)
+		} else {
+			err = downloadSegmentWithRetry(ctx, client, rep.Segments[idx], writer)
+		}
+		if err != nil {
 			if progress != nil {
 				progress.NewLine()
 			}

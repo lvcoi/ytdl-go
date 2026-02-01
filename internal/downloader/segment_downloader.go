@@ -18,13 +18,14 @@ type segmentDownloadPlan struct {
 	TempDir     string
 	Prefix      string
 	Concurrency int
+	Session     *YTSession
 }
 
 const (
 	// minConcurrentDownloads is the minimum number of concurrent downloads
 	// for I/O-bound operations, even on single-core systems
 	minConcurrentDownloads = 8
-	
+
 	// ioMultiplier determines how many concurrent downloads per CPU core
 	// Set to 1x to match CPU cores (users can adjust with -segment-concurrency)
 	ioMultiplier = 1
@@ -88,7 +89,11 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 			if progress != nil {
 				segmentWriter = io.MultiWriter(file, counter)
 			}
-			err = downloadSegmentWithRetry(ctx, client, j.URL, segmentWriter)
+			if plan.Session != nil {
+				err = downloadSegmentWithSession(ctx, plan.Session, j.URL, segmentWriter)
+			} else {
+				err = downloadSegmentWithRetry(ctx, client, j.URL, segmentWriter)
+			}
 			file.Close()
 			if err != nil {
 				firstErr.Store(wrapCategory(CategoryNetwork, fmt.Errorf("segment %d failed: %w", j.Index+1, err)))
@@ -153,7 +158,13 @@ func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, pla
 		if progress != nil {
 			segmentWriter = io.MultiWriter(writer, counter)
 		}
-		if err := downloadSegmentWithRetry(ctx, client, url, segmentWriter); err != nil {
+		var err error
+		if plan.Session != nil {
+			err = downloadSegmentWithSession(ctx, plan.Session, url, segmentWriter)
+		} else {
+			err = downloadSegmentWithRetry(ctx, client, url, segmentWriter)
+		}
+		if err != nil {
 			if progress != nil {
 				progress.NewLine()
 			}
