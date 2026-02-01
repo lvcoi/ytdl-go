@@ -502,20 +502,18 @@ func newClient(opts Options) *youtube.Client {
 	// Create cookie jar for persistent cookies across requests
 	jar, _ := cookiejar.New(nil)
 
-	// Configure transport with connection pooling for better performance
-	transport := &consistentTransport{
-		base:      http.DefaultTransport,
-		userAgent: defaultUserAgent,
+	// Create new transport directly with connection pooling for better performance
+	customTransport := &http.Transport{
+		MaxIdleConns:        maxIdleConns,
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,
+		MaxConnsPerHost:     maxConnsPerHost,
+		IdleConnTimeout:     idleConnTimeout,
 	}
 
-	// Set reasonable connection pool limits to prevent resource exhaustion
-	if baseTransport, ok := http.DefaultTransport.(*http.Transport); ok {
-		customTransport := baseTransport.Clone()
-		customTransport.MaxIdleConns = maxIdleConns
-		customTransport.MaxIdleConnsPerHost = maxIdleConnsPerHost
-		customTransport.MaxConnsPerHost = maxConnsPerHost
-		customTransport.IdleConnTimeout = idleConnTimeout
-		transport.base = customTransport
+	// Wrap with consistent headers
+	transport := &consistentTransport{
+		base:      customTransport,
+		userAgent: defaultUserAgent,
 	}
 
 	httpClient := &http.Client{
