@@ -438,6 +438,46 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 
 const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+// Connection pool settings for HTTP clients
+const (
+	maxIdleConns        = 100
+	maxIdleConnsPerHost = 10
+	maxConnsPerHost     = 0 // 0 = unlimited concurrent connections per host
+	idleConnTimeout     = 90 * time.Second
+)
+
+// Package-level shared HTTP client with connection pooling
+// This client is reused across all HTTP requests to enable connection reuse
+var (
+	sharedHTTPClient     *http.Client
+	sharedHTTPClientOnce sync.Once
+)
+
+// getSharedHTTPClient returns a client with shared transport and custom timeout
+func getSharedHTTPClient(timeout time.Duration) *http.Client {
+	sharedHTTPClientOnce.Do(func() {
+		transport := &http.Transport{
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			MaxConnsPerHost:     maxConnsPerHost,
+			IdleConnTimeout:     idleConnTimeout,
+		}
+		// Wrap with consistentTransport for browser-like headers
+		consistentTrans := &consistentTransport{
+			base:      transport,
+			userAgent: defaultUserAgent,
+		}
+		sharedHTTPClient = &http.Client{
+			Transport: consistentTrans,
+		}
+	})
+	// Return new client with shared transport but custom timeout
+	return &http.Client{
+		Transport: sharedHTTPClient.Transport,
+		Timeout:   timeout,
+	}
+}
+
 type consistentTransport struct {
 	base      http.RoundTripper
 	userAgent string
@@ -462,8 +502,17 @@ func newClient(opts Options) *youtube.Client {
 	// Create cookie jar for persistent cookies across requests
 	jar, _ := cookiejar.New(nil)
 
+	// Create new transport directly with connection pooling for better performance
+	customTransport := &http.Transport{
+		MaxIdleConns:        maxIdleConns,
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,
+		MaxConnsPerHost:     maxConnsPerHost,
+		IdleConnTimeout:     idleConnTimeout,
+	}
+
+	// Wrap with consistent headers
 	transport := &consistentTransport{
-		base:      http.DefaultTransport,
+		base:      customTransport,
 		userAgent: defaultUserAgent,
 	}
 
@@ -504,7 +553,7 @@ func ffmpegAvailable() bool {
 }
 
 // downloadWithFFmpegFallback downloads a progressive format and extracts audio using ffmpeg
-func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, audioOutputPath string, progress *progressWriter) (downloadResult, error) {
+func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath string, progress *progressWriter) (downloadResult, error) {
 	result := downloadResult{}
 
 	// Find the best progressive format with high-quality audio
@@ -1035,7 +1084,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 				printer.Log(LogInfo, "ffmpeg fallback: download video → extract audio → encode Opus @ 160kbps")
 				file.Close()
 				os.Remove(outputPath)
-				return downloadWithFFmpegFallback(ctx, client, video, opts, ctxInfo, printer, prefix, outputPath, progress)
+				return downloadWithFFmpegFallback(ctx, client, video, opts, printer, prefix, outputPath, progress)
 			}
 			return result, wrapCategory(CategoryNetwork, fmt.Errorf("download failed: %w", err))
 		}
@@ -1771,7 +1820,7 @@ func fetchMusicPlaylistEntries(ctx context.Context, playlistID string, opts Opti
 
 func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Duration) (musicConfig, error) {
 	playlistURL := "https://music.youtube.com/playlist?list=" + url.QueryEscape(playlistID)
-	client := &http.Client{Timeout: timeout}
+	client := getSharedHTTPClient(timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
 	if err != nil {
 		return musicConfig{}, err
@@ -1818,7 +1867,7 @@ func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Durat
 func fetchMusicPlaylistTitle(ctx context.Context, playlistID string, timeout time.Duration) (string, error) {
 	// Fetch the HTML page and extract og:title meta tag
 	playlistURL := "https://music.youtube.com/playlist?list=" + url.QueryEscape(playlistID)
-	client := &http.Client{Timeout: timeout}
+	client := getSharedHTTPClient(timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
 	if err != nil {
 		return "", err
@@ -1869,7 +1918,7 @@ func fetchMusicBrowse(ctx context.Context, apiKey string, payload map[string]any
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: timeout}
+	client := getSharedHTTPClient(timeout)
 	endpoint := "https://music.youtube.com/youtubei/v1/browse?key=" + apiKey
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
 	if err != nil {

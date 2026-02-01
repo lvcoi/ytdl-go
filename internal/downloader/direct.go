@@ -118,7 +118,8 @@ func probeDirectURL(ctx context.Context, rawURL string, timeout time.Duration) (
 }
 
 func headOrGet(ctx context.Context, rawURL string, timeout time.Duration) (*http.Response, error) {
-	client := &http.Client{Timeout: timeout}
+	// Use shared client with connection pooling for better performance
+	client := getSharedHTTPClient(timeout)
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -303,7 +304,8 @@ func saveFileResume(path string, state fileResumeState) error {
 }
 
 func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*http.Response, error) {
-	client := &http.Client{Timeout: timeout}
+	// Use shared client for all retry attempts to enable connection pooling
+	client := getSharedHTTPClient(timeout)
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		resp, err := client.Do(req)

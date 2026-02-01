@@ -293,14 +293,16 @@ type progressModel struct {
 }
 
 type progressTask struct {
-	id      string
-	label   string
-	total   int64
-	current int64
-	started time.Time
-	percent float64
-	bar     progressbar.Model
-	spin    spinner.Model
+	id       string
+	label    string
+	total    int64
+	current  int64
+	started  time.Time
+	finished time.Time
+	percent  float64
+	bar      progressbar.Model
+	spin     spinner.Model
+	done     bool
 }
 
 func newProgressModel() *progressModel {
@@ -389,6 +391,8 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case finishMsg:
 		if task, ok := m.tasks[msg.id]; ok {
 			task.percent = 1
+			task.done = true
+			task.finished = time.Now()
 			return m, task.bar.SetPercent(1)
 		}
 	case logMsg:
@@ -583,17 +587,32 @@ func (m *progressModel) View() string {
 				continue
 			}
 
-			elapsed := time.Since(task.started)
-			eta := estimateETA(task.current, task.total, elapsed)
-			rate := formatRate(task.current, elapsed)
+			var elapsed time.Duration
+			var eta time.Duration
+			var rate string
+
+			if task.done {
+				// For finished tasks, use the total time from start to finish
+				elapsed = task.finished.Sub(task.started)
+				eta = 0
+				rate = formatRate(task.current, elapsed)
+			} else {
+				// For ongoing tasks, calculate current elapsed time and ETA
+				elapsed = time.Since(task.started)
+				eta = estimateETA(task.current, task.total, elapsed)
+				rate = formatRate(task.current, elapsed)
+			}
 
 			percentText := percentStyle.Render(fmt.Sprintf("%5.1f%%", task.percent*100))
 			labelText := labelStyle.Render(task.label)
 
 			// First line: percentage and label
-			spinText := task.spin.View()
-			if spinText != "" {
-				spinText = spinnerStyle.Render(spinText)
+			spinText := ""
+			if !task.done {
+				spinText = task.spin.View()
+				if spinText != "" {
+					spinText = spinnerStyle.Render(spinText)
+				}
 			}
 			b.WriteString(fmt.Sprintf("%s %s %s\n", spinText, percentText, labelText))
 
@@ -610,10 +629,15 @@ func (m *progressModel) View() string {
 			)
 			b.WriteString(fmt.Sprintf("        %s\n", etaStyle.Render(bytesLine)))
 
-			// Fourth line: ETA
-			etaText := etaStyle.Render(fmt.Sprintf("elapsed %s · eta %s",
-				formatDurationShort(elapsed),
-				formatDurationShort(eta)))
+			// Fourth line: ETA or completion time
+			var etaText string
+			if task.done {
+				etaText = etaStyle.Render(fmt.Sprintf("completed in %s", formatDurationShort(elapsed)))
+			} else {
+				etaText = etaStyle.Render(fmt.Sprintf("elapsed %s · eta %s",
+					formatDurationShort(elapsed),
+					formatDurationShort(eta)))
+			}
 			b.WriteString(fmt.Sprintf("        %s\n", etaText))
 		}
 	}
