@@ -38,6 +38,10 @@ var (
 				Foreground(lipgloss.Color("#EAEAEA"))
 )
 
+const (
+	digitBufferTimeout = 1500 * time.Millisecond
+)
+
 type formatSelectorModel struct {
 	viewport      viewport.Model
 	title         string
@@ -146,7 +150,7 @@ func (m *formatSelectorModel) Init() tea.Cmd {
 
 // resetDigitBufferIfExpired clears the digit buffer if enough time has passed since the last digit
 func (m *formatSelectorModel) resetDigitBufferIfExpired() {
-	if !m.lastDigitTime.IsZero() && time.Since(m.lastDigitTime) > 1500*time.Millisecond {
+	if !m.lastDigitTime.IsZero() && time.Since(m.lastDigitTime) > digitBufferTimeout {
 		m.digitBuffer = ""
 	}
 }
@@ -250,12 +254,14 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastDigitTime = time.Now()
 			
 			// Try to find exact match first
-			targetItag, _ := strconv.Atoi(m.digitBuffer)
+			targetItag, err := strconv.Atoi(m.digitBuffer)
 			exactMatch := -1
-			for i, f := range m.formats {
-				if f.ItagNo == targetItag {
-					exactMatch = i
-					break
+			if err == nil {
+				for i, f := range m.formats {
+					if f.ItagNo == targetItag {
+						exactMatch = i
+						break
+					}
 				}
 			}
 			
@@ -352,7 +358,7 @@ func (m *formatSelectorModel) View() string {
 	// Help line at bottom
 	b.WriteString("\n")
 	if !m.quitting {
-		b.WriteString(selectorHelpStyle.Render("Tips: Type digits 0-9 to select itag (e.g., type 101 for itag 101), Home/End for first/last, b to go back"))
+		b.WriteString(selectorHelpStyle.Render("Type digits to select itag (e.g., 101), Home/End for first/last, b to go back"))
 	}
 
 	return b.String()
