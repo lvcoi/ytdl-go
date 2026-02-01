@@ -468,37 +468,14 @@ func (m *seamlessModel) viewProgress() string {
 }
 
 func seamlessBarWidth(total int) int {
-	width := total - 10
-	if width < 10 {
-		return 10
-	}
-	return width
+	return barWidth(total)
 }
-
 func seamlessFormatRate(current int64, elapsed time.Duration) string {
-	if elapsed <= 0 {
-		return "--/s"
-	}
-	rate := int64(float64(current) / elapsed.Seconds())
-	if rate <= 0 {
-		return "--/s"
-	}
-	return humanBytes(rate) + "/s"
+	return formatRate(current, elapsed)
 }
 
 func seamlessEstimateETA(current, total int64, elapsed time.Duration) time.Duration {
-	if total <= 0 || current <= 0 {
-		return 0
-	}
-	remaining := total - current
-	if remaining <= 0 {
-		return 0
-	}
-	rate := float64(current) / elapsed.Seconds()
-	if rate <= 0 {
-		return 0
-	}
-	return time.Duration(float64(remaining)/rate) * time.Second
+	return estimateETA(current, total, elapsed)
 }
 
 func seamlessFormatDuration(d time.Duration) string {
@@ -510,15 +487,11 @@ func seamlessFormatDuration(d time.Duration) string {
 	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
 }
 
-// RunSeamlessFormatSelector runs the format selector with seamless transition to progress.
-// It returns the selected itag and a SeamlessTUI that can be used for progress updates.
-// If the user cancels, itag will be 0 and tui will be nil.
-func RunSeamlessFormatSelector(ctx context.Context, video *youtube.Video, title string) (int, *SeamlessTUI) {
-	tui := NewSeamlessTUI(video, title)
-	tui.Start(ctx)
-	itag := tui.WaitForSelection()
-	if itag == 0 {
-		return 0, nil
+func seamlessFormatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%.0fs", d.Seconds())
+	} else if d < time.Hour {
+		return fmt.Sprintf("%.0fm%.0fs", d.Minutes(), math.Mod(d.Seconds(), 60))
 	}
-	return itag, tui
+	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
 }

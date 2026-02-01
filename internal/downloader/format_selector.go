@@ -38,12 +38,6 @@ var (
 				Foreground(lipgloss.Color("#EAEAEA"))
 )
 
-// FormatSelectorResult is sent when the format selector completes
-type FormatSelectorResult struct {
-	Itag     int
-	Selected bool
-}
-
 type formatSelectorModel struct {
 	viewport      viewport.Model
 	title         string
@@ -281,10 +275,14 @@ func (m *formatSelectorModel) updateContent() {
 
 		// Scroll up if selection is above viewport
 		if targetLine < viewportTop {
-			m.viewport.YOffset = targetLine
+			m.viewport.SetYOffset(targetLine)
 		} else if targetLine >= viewportBottom {
 			// Scroll down if selection is below viewport
-			m.viewport.YOffset = targetLine - m.viewport.Height + 3
+			newOffset := targetLine - m.viewport.Height + 3
+			if newOffset < 0 {
+				newOffset = 0
+			}
+			m.viewport.SetYOffset(newOffset)
 		}
 	}
 }
