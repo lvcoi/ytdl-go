@@ -12,7 +12,8 @@ import (
 
 	progressbar "github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -290,6 +291,8 @@ type progressModel struct {
 	promptResp   chan promptChoice
 	promptQueue  []promptMsg
 	promptIndex  int
+	vp           viewport.Model
+	vpReady      bool
 }
 
 type progressTask struct {
@@ -306,11 +309,17 @@ type progressTask struct {
 }
 
 func newProgressModel() *progressModel {
+	vp := viewport.New(80, 20)
+	vp.MouseWheelEnabled = true
+	vp.Style = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#7FDBFF"))
 	return &progressModel{
 		tasks:  make(map[string]*progressTask),
 		order:  make([]string, 0),
 		width:  80,
 		height: 24,
+		vp:     vp,
 	}
 }
 
@@ -341,6 +350,12 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		headerHeight := 2
+		borderHeight := 2
+		m.vp.Width = msg.Width - 2
+		m.vp.Height = msg.Height - headerHeight - borderHeight
+		m.vp, _ = m.vp.Update(msg)
+		m.vpReady = true
 		for _, task := range m.tasks {
 			task.bar.Width = barWidth(m.width)
 		}
@@ -413,6 +428,20 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if !m.promptActive {
+			switch msg.String() {
+			case "up", "k":
+				m.vp.SetYOffset(m.vp.YOffset - 1)
+			case "down", "j":
+				m.vp.SetYOffset(m.vp.YOffset + 1)
+			case "pgup", "b":
+				m.vp.HalfViewUp()
+			case "pgdown", "f", " ":
+				m.vp.HalfViewDown()
+			case "home", "g":
+				m.vp.GotoTop()
+			case "end", "G":
+				m.vp.GotoBottom()
+			}
 			return m, nil
 		}
 		choice := promptChoice(-1)
@@ -576,11 +605,9 @@ func (m *progressModel) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 	}
 
-	// Render downloads
+	// Render downloads through viewport for scrolling
 	if len(m.order) > 0 {
-		b.WriteString(titleStyle.Render(" Downloads"))
-		b.WriteString("\n")
-
+		var taskContent strings.Builder
 		for _, id := range m.order {
 			task, ok := m.tasks[id]
 			if !ok {
@@ -592,12 +619,10 @@ func (m *progressModel) View() string {
 			var rate string
 
 			if task.done {
-				// For finished tasks, use the total time from start to finish
 				elapsed = task.finished.Sub(task.started)
 				eta = 0
 				rate = formatRate(task.current, elapsed)
 			} else {
-				// For ongoing tasks, calculate current elapsed time and ETA
 				elapsed = time.Since(task.started)
 				eta = estimateETA(task.current, task.total, elapsed)
 				rate = formatRate(task.current, elapsed)
@@ -606,7 +631,6 @@ func (m *progressModel) View() string {
 			percentText := percentStyle.Render(fmt.Sprintf("%5.1f%%", task.percent*100))
 			labelText := labelStyle.Render(task.label)
 
-			// First line: percentage and label
 			spinText := ""
 			if !task.done {
 				spinText = task.spin.View()
@@ -614,22 +638,19 @@ func (m *progressModel) View() string {
 					spinText = spinnerStyle.Render(spinText)
 				}
 			}
-			b.WriteString(fmt.Sprintf("%s %s %s\n", spinText, percentText, labelText))
+			taskContent.WriteString(fmt.Sprintf("%s %s %s\n", spinText, percentText, labelText))
 
-			// Second line: progress bar
 			bar := task.bar.View()
-			b.WriteString(progressBarStyle.Render(bar))
-			b.WriteString("\n")
+			taskContent.WriteString(progressBarStyle.Render(bar))
+			taskContent.WriteString("\n")
 
-			// Third line: bytes and rate
 			bytesLine := fmt.Sprintf("%s / %s · %s",
 				humanBytes(task.current),
 				humanBytes(task.total),
 				rate,
 			)
-			b.WriteString(fmt.Sprintf("        %s\n", etaStyle.Render(bytesLine)))
+			taskContent.WriteString(fmt.Sprintf("        %s\n", etaStyle.Render(bytesLine)))
 
-			// Fourth line: ETA or completion time
 			var etaText string
 			if task.done {
 				etaText = etaStyle.Render(fmt.Sprintf("completed in %s", formatDurationShort(elapsed)))
@@ -638,12 +659,18 @@ func (m *progressModel) View() string {
 					formatDurationShort(elapsed),
 					formatDurationShort(eta)))
 			}
-			b.WriteString(fmt.Sprintf("        %s\n", etaText))
+			taskContent.WriteString(fmt.Sprintf("        %s\n", etaText))
 		}
+
+		m.vp.SetContent(taskContent.String())
+		b.WriteString(titleStyle.Render(" Downloads"))
+		b.WriteString(" ")
+		b.WriteString(etaStyle.Render(fmt.Sprintf("(↑/↓ scroll, %d items)", len(m.order))))
+		b.WriteString("\n")
+		b.WriteString(m.vp.View())
 	}
 
-	content := b.String()
-	return lipgloss.NewStyle().Width(m.width).Height(m.height).Render(content)
+	return b.String()
 }
 
 func formatRate(current int64, elapsed time.Duration) string {

@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -336,51 +337,62 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	return nil
 }
 
-func renderFormats(video *youtube.Video, header string, opts Options, playlistID, playlistTitle string, index, total int) error {
-	if opts.JSON {
-		payload := struct {
-			Type          string       `json:"type"`
-			PlaylistID    string       `json:"playlist_id,omitempty"`
-			PlaylistTitle string       `json:"playlist_title,omitempty"`
-			Index         int          `json:"index,omitempty"`
-			Total         int          `json:"total,omitempty"`
-			ID            string       `json:"id"`
-			Title         string       `json:"title"`
-			Formats       []formatInfo `json:"formats"`
-		}{
-			Type:          "formats",
-			PlaylistID:    playlistID,
-			PlaylistTitle: playlistTitle,
-			Index:         index,
-			Total:         total,
-			ID:            video.ID,
-			Title:         video.Title,
-		}
-		for _, f := range video.Formats {
-			payload.Formats = append(payload.Formats, formatInfo{
-				Itag:         f.ItagNo,
-				MimeType:     f.MimeType,
-				Quality:      f.Quality,
-				QualityLabel: f.QualityLabel,
-				Bitrate:      f.Bitrate,
-				AvgBitrate:   f.AverageBitrate,
-				AudioQuality: f.AudioQuality,
-				SampleRate:   f.AudioSampleRate,
-				Channels:     f.AudioChannels,
-				Width:        f.Width,
-				Height:       f.Height,
-				Size:         int64(f.ContentLength),
-				Ext:          mimeToExt(f.MimeType),
-			})
-		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetEscapeHTML(false)
-		return enc.Encode(payload)
+func renderFormatsJSON(video *youtube.Video, playlistID, playlistTitle string, index, total int) error {
+	payload := struct {
+		Type          string       `json:"type"`
+		PlaylistID    string       `json:"playlist_id,omitempty"`
+		PlaylistTitle string       `json:"playlist_title,omitempty"`
+		Index         int          `json:"index,omitempty"`
+		Total         int          `json:"total,omitempty"`
+		ID            string       `json:"id"`
+		Title         string       `json:"title"`
+		Formats       []formatInfo `json:"formats"`
+	}{
+		Type:          "formats",
+		PlaylistID:    playlistID,
+		PlaylistTitle: playlistTitle,
+		Index:         index,
+		Total:         total,
+		ID:            video.ID,
+		Title:         video.Title,
 	}
-
-	fmt.Fprintln(os.Stdout, header)
-	fmt.Fprintln(os.Stdout, "itag  ext   quality    size     audio  video")
 	for _, f := range video.Formats {
+		payload.Formats = append(payload.Formats, formatInfo{
+			Itag:         f.ItagNo,
+			MimeType:     f.MimeType,
+			Quality:      f.Quality,
+			QualityLabel: f.QualityLabel,
+			Bitrate:      f.Bitrate,
+			AvgBitrate:   f.AverageBitrate,
+			AudioQuality: f.AudioQuality,
+			SampleRate:   f.AudioSampleRate,
+			Channels:     f.AudioChannels,
+			Width:        f.Width,
+			Height:       f.Height,
+			Size:         int64(f.ContentLength),
+			Ext:          mimeToExt(f.MimeType),
+		})
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(payload)
+}
+
+func formatVideoFormats(video *youtube.Video, header string) string {
+	var b strings.Builder
+	if header != "" {
+		b.WriteString(header)
+		b.WriteString("\n")
+	}
+	b.WriteString("itag   ext    quality      size       audio   video\n")
+
+	formats := make([]youtube.Format, len(video.Formats))
+	copy(formats, video.Formats)
+	sort.Slice(formats, func(i, j int) bool {
+		return formats[i].ItagNo < formats[j].ItagNo
+	})
+
+	for _, f := range formats {
 		size := "-"
 		if f.ContentLength > 0 {
 			size = humanBytes(int64(f.ContentLength))
@@ -397,26 +409,64 @@ func renderFormats(video *youtube.Video, header string, opts Options, playlistID
 		if qual == "" {
 			qual = f.Quality
 		}
-		fmt.Fprintf(os.Stdout, "%4d  %-4s %-10s %-8s %-5s %-8s\n",
+		b.WriteString(fmt.Sprintf("%5d   %-5s  %-12s %-10s %-7s %s\n",
 			f.ItagNo,
 			mimeToExt(f.MimeType),
 			qual,
 			size,
 			audio,
 			videoRes,
-		)
+		))
 	}
+	return b.String()
+}
+
+func renderFormats(video *youtube.Video, header string, opts Options, playlistID, playlistTitle string, index, total int) error {
+	if opts.JSON {
+		return renderFormatsJSON(video, playlistID, playlistTitle, index, total)
+	}
+	title := fmt.Sprintf(" Formats: %s ", video.Title)
+	selectedItag, err := RunFormatSelector(video, title, playlistID, playlistTitle, index, total)
+	if err != nil {
+		return err
+	}
+	if selectedItag > 0 {
+		// User selected a format - download it
+		opts.Itag = selectedItag
+		opts.ListFormats = false
+
+		ctx := context.Background()
+		client := newClient(opts)
+		pm := NewProgressManager(opts)
+		pm.Start(ctx)
+		defer pm.Stop()
+		printer := newPrinter(opts, pm)
+
+		ctxInfo := outputContext{}
+		if playlistID != "" {
+			ctxInfo.Index = index
+			ctxInfo.Total = total
+		}
+		prefix := printer.Prefix(1, 1, video.Title)
+		result, err := downloadVideo(ctx, client, video, opts, ctxInfo, printer, prefix)
+		if err != nil {
+			printer.ItemResult(prefix, result, err)
+		}
+		return err
+	}
+	// User cancelled
 	return nil
 }
 
 func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts Options, _ *Printer) error {
-	// Allow listing formats even for empty playlists (will just render nothing)
 	if len(playlist.Videos) == 0 {
 		return nil
 	}
 
 	youtube.DefaultClient = youtube.AndroidClient
 	client := newClient(opts)
+
+	var allContent strings.Builder
 	for i, entry := range playlist.Videos {
 		if entry == nil || entry.ID == "" {
 			continue
@@ -425,13 +475,21 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 		if err != nil {
 			return wrapFetchError(err, "fetching video metadata")
 		}
-		header := fmt.Sprintf("[%d/%d] %s (%s)", i+1, len(playlist.Videos), entryTitle(entry), entry.ID)
-		if err := renderFormats(video, header, opts, playlist.ID, playlist.Title, i+1, len(playlist.Videos)); err != nil {
-			return err
+
+		if opts.JSON {
+			if err := renderFormatsJSON(video, playlist.ID, playlist.Title, i+1, len(playlist.Videos)); err != nil {
+				return err
+			}
+		} else {
+			header := fmt.Sprintf("[%d/%d] %s (%s)", i+1, len(playlist.Videos), entryTitle(entry), entry.ID)
+			allContent.WriteString(formatVideoFormats(video, header))
+			allContent.WriteString("\n")
 		}
-		if !opts.JSON {
-			fmt.Fprintln(os.Stdout)
-		}
+	}
+
+	if !opts.JSON {
+		title := fmt.Sprintf(" Playlist Formats: %s ", playlist.Title)
+		return RunPager(title, allContent.String())
 	}
 	return nil
 }
