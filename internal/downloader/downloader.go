@@ -421,7 +421,7 @@ func formatVideoFormats(video *youtube.Video, header string) string {
 	return b.String()
 }
 
-func renderFormats(video *youtube.Video, header string, opts Options, playlistID, playlistTitle string, index, total int) error {
+func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle string, index, total int) error {
 	if opts.JSON {
 		return renderFormatsJSON(video, playlistID, playlistTitle, index, total)
 	}
