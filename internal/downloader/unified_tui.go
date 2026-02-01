@@ -509,16 +509,3 @@ func seamlessFormatDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
 }
-
-// RunSeamlessFormatSelector runs the format selector with seamless transition to progress.
-// It returns the selected itag and a SeamlessTUI that can be used for progress updates.
-// If the user cancels, itag will be 0 and tui will be nil.
-func RunSeamlessFormatSelector(ctx context.Context, video *youtube.Video, title string) (int, *SeamlessTUI) {
-	tui := NewSeamlessTUI(video, title)
-	tui.Start(ctx)
-	itag := tui.WaitForSelection()
-	if itag == 0 {
-		return 0, nil
-	}
-	return itag, tui
-}
