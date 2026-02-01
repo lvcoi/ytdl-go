@@ -476,14 +476,7 @@ func seamlessBarWidth(total int) int {
 }
 
 func seamlessFormatRate(current int64, elapsed time.Duration) string {
-	if elapsed <= 0 {
-		return "--/s"
-	}
-	rate := int64(float64(current) / elapsed.Seconds())
-	if rate <= 0 {
-		return "--/s"
-	}
-	return humanBytes(rate) + "/s"
+	return formatRate(current, elapsed)
 }
 
 func seamlessEstimateETA(current, total int64, elapsed time.Duration) time.Duration {
