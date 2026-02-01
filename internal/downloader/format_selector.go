@@ -38,12 +38,6 @@ var (
 				Foreground(lipgloss.Color("#EAEAEA"))
 )
 
-// FormatSelectorResult is sent when the format selector completes
-type FormatSelectorResult struct {
-	Itag     int
-	Selected bool
-}
-
 type formatSelectorModel struct {
 	viewport      viewport.Model
 	title         string
