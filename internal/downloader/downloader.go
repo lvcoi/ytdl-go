@@ -439,12 +439,12 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 // sharedTransport is a global HTTP transport with proper connection pooling settings
-// to avoid resource exhaustion from creating new connections for each request
+// to avoid resource exhaustion from creating new connections for each request.
+// This transport is immutable after initialization and safe for concurrent use.
 var sharedTransport = &http.Transport{
 	MaxIdleConns:        100,              // Maximum idle connections across all hosts
 	MaxIdleConnsPerHost: 10,               // Maximum idle connections per host
 	IdleConnTimeout:     90 * time.Second, // How long idle connections are kept alive
-	DisableKeepAlives:   false,            // Enable connection reuse
 }
 
 type consistentTransport struct {
