@@ -433,7 +433,7 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.vp.SetYOffset(m.vp.YOffset - 1)
 			case "down", "j":
 				m.vp.SetYOffset(m.vp.YOffset + 1)
-			case "pgup", "b":
+			case "pgup":
 				m.vp.HalfViewUp()
 			case "pgdown", "f", " ":
 				m.vp.HalfViewDown()
