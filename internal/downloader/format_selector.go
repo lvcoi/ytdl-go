@@ -59,7 +59,6 @@ type formatSelectorModel struct {
 	digitBuffer   string
 	lastDigitTime time.Time
 	lastDigit     string
-	cycleIndex    int
 }
 
 type quitMsg struct{}
@@ -101,7 +100,6 @@ func newFormatSelectorModel(video *youtube.Video, title string, playlistID, play
 		digitBuffer:   "",
 		lastDigitTime: time.Time{},
 		lastDigit:     "",
-		cycleIndex:    -1,
 	}
 }
 
@@ -161,7 +159,6 @@ func (m *formatSelectorModel) resetDigitBufferIfExpired() {
 	if !m.lastDigitTime.IsZero() && time.Since(m.lastDigitTime) > digitBufferTimeout {
 		m.digitBuffer = ""
 		m.lastDigit = ""
-		m.cycleIndex = -1
 	}
 }
 
@@ -297,7 +294,6 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						nextPos = (currentPos + 1) % len(matches)
 					}
 					m.selected = matches[nextPos]
-					m.cycleIndex = matches[nextPos]
 					m.lastDigit = digit
 					m.lastDigitTime = now
 					m.updateContent()
@@ -308,7 +304,6 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.digitBuffer += digit
 				m.lastDigit = digit
 				m.lastDigitTime = now
-				m.cycleIndex = -1
 				
 				// Try to find exact match first
 				targetItag, err := strconv.Atoi(m.digitBuffer)
@@ -327,7 +322,6 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.selected = exactMatch
 					m.digitBuffer = ""
 					m.lastDigit = ""
-					m.cycleIndex = -1
 					m.updateContent()
 					return m, nil
 				} else {
@@ -337,7 +331,6 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						itagStr := strconv.Itoa(f.ItagNo)
 						if strings.HasPrefix(itagStr, m.digitBuffer) {
 							m.selected = i
-							m.cycleIndex = i
 							found = true
 							break
 						}
@@ -349,7 +342,6 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						// No match - reset buffer
 						m.digitBuffer = ""
 						m.lastDigit = ""
-						m.cycleIndex = -1
 						return m, nil
 					}
 				}
@@ -361,7 +353,6 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.lastDigitTime.IsZero() && msg.expireTime.Equal(m.lastDigitTime) {
 			m.digitBuffer = ""
 			m.lastDigit = ""
-			m.cycleIndex = -1
 		}
 		return m, nil
 	case tea.MouseMsg:
