@@ -294,7 +294,7 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 	var progress *progressWriter
 	if !opts.Quiet {
 		progress = newProgressWriter(0, printer, prefix)
-		progress.total = state.BytesWritten
+		progress.total.Store(state.BytesWritten)
 		writer = io.MultiWriter(file, progress)
 	}
 
@@ -309,7 +309,7 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 
 		state.NextIndex = idx + 1
 		if progress != nil {
-			state.BytesWritten = progress.total
+			state.BytesWritten = progress.total.Load()
 		}
 		if err := saveHLSResume(resumePath, state); err != nil {
 			return downloadResult{}, err

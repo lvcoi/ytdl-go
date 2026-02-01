@@ -382,7 +382,7 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 	var progress *progressWriter
 	if !opts.Quiet {
 		progress = newProgressWriter(0, printer, prefix)
-		progress.total = state.BytesWritten
+		progress.total.Store(state.BytesWritten)
 		writer = io.MultiWriter(file, progress)
 	}
 
@@ -392,7 +392,7 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 		}
 		state.InitDone = true
 		if progress != nil {
-			state.BytesWritten = progress.total
+			state.BytesWritten = progress.total.Load()
 		}
 		if err := saveDASHResume(resumePath, state); err != nil {
 			return downloadResult{}, err
@@ -408,7 +408,7 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 		}
 		state.NextIndex = idx + 1
 		if progress != nil {
-			state.BytesWritten = progress.total
+			state.BytesWritten = progress.total.Load()
 		}
 		if err := saveDASHResume(resumePath, state); err != nil {
 			return downloadResult{}, err

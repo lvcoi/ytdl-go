@@ -20,18 +20,27 @@ type segmentDownloadPlan struct {
 	Concurrency int
 }
 
+const (
+	// minConcurrentDownloads is the minimum number of concurrent downloads
+	// for I/O-bound operations, even on single-core systems
+	minConcurrentDownloads = 4
+	
+	// ioMultiplier determines how many concurrent downloads per CPU core
+	// Set to 1x to match CPU cores (users can adjust with -playlist-concurrency flag)
+	ioMultiplier = 1
+)
+
 func defaultSegmentConcurrency(value int) int {
 	if value > 0 {
 		return value
 	}
+	// Use workers based on CPU count for playlist downloads
+	// Users can adjust concurrency with the -playlist-concurrency flag
 	cpu := runtime.NumCPU()
 	if cpu < 2 {
-		return 2
+		return minConcurrentDownloads
 	}
-	if cpu > 8 {
-		return 8
-	}
-	return cpu
+	return cpu * ioMultiplier
 }
 
 func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {

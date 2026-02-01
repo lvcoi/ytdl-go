@@ -485,6 +485,15 @@ func newClient(opts Options) *youtube.Client {
 	// Create cookie jar for persistent cookies across requests
 	jar, _ := cookiejar.New(nil)
 
+	// Create new transport directly with connection pooling for better performance
+	customTransport := &http.Transport{
+		MaxIdleConns:        maxIdleConns,
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,
+		MaxConnsPerHost:     maxConnsPerHost,
+		IdleConnTimeout:     idleConnTimeout,
+	}
+
+	// Wrap with consistent headers
 	transport := &consistentTransport{
 		base:      sharedTransport,
 		userAgent: defaultUserAgent,
@@ -527,7 +536,7 @@ func ffmpegAvailable() bool {
 }
 
 // downloadWithFFmpegFallback downloads a progressive format and extracts audio using ffmpeg
-func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, audioOutputPath string, progress *progressWriter) (downloadResult, error) {
+func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath string, progress *progressWriter) (downloadResult, error) {
 	result := downloadResult{}
 
 	// Find the best progressive format with high-quality audio
@@ -1058,7 +1067,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 				printer.Log(LogInfo, "ffmpeg fallback: download video → extract audio → encode Opus @ 160kbps")
 				file.Close()
 				os.Remove(outputPath)
-				return downloadWithFFmpegFallback(ctx, client, video, opts, ctxInfo, printer, prefix, outputPath, progress)
+				return downloadWithFFmpegFallback(ctx, client, video, opts, printer, prefix, outputPath, progress)
 			}
 			return result, wrapCategory(CategoryNetwork, fmt.Errorf("download failed: %w", err))
 		}
