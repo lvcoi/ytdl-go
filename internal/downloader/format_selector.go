@@ -52,6 +52,8 @@ type formatSelectorModel struct {
 	index         int
 	total         int
 	quitting      bool
+	digitBuffer   string
+	lastDigitTime time.Time
 }
 
 type quitMsg struct{}
@@ -86,6 +88,8 @@ func newFormatSelectorModel(video *youtube.Video, title string, playlistID, play
 		index:         index,
 		total:         total,
 		quitting:      false,
+		digitBuffer:   "",
+		lastDigitTime: time.Time{},
 	}
 }
 
@@ -138,6 +142,13 @@ func buildFormatContent(formats []youtube.Format, selected int) string {
 
 func (m *formatSelectorModel) Init() tea.Cmd {
 	return nil
+}
+
+// resetDigitBufferIfExpired clears the digit buffer if enough time has passed since the last digit
+func (m *formatSelectorModel) resetDigitBufferIfExpired() {
+	if !m.lastDigitTime.IsZero() && time.Since(m.lastDigitTime) > 1500*time.Millisecond {
+		m.digitBuffer = ""
+	}
 }
 
 func quitAfterDelay() tea.Cmd {
@@ -230,18 +241,45 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, quitAfterDelay()
 			}
-		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			// Quick select by number (digit)
-			digit := strings.TrimSpace(msg.String())
-			if digit != "" {
-				// Find format with itag starting with this digit
+		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			// Multi-digit itag selection
+			m.resetDigitBufferIfExpired()
+			
+			digit := msg.String()
+			m.digitBuffer += digit
+			m.lastDigitTime = time.Now()
+			
+			// Try to find exact match first
+			targetItag, _ := strconv.Atoi(m.digitBuffer)
+			exactMatch := -1
+			for i, f := range m.formats {
+				if f.ItagNo == targetItag {
+					exactMatch = i
+					break
+				}
+			}
+			
+			if exactMatch >= 0 {
+				// Found exact match - select it
+				m.selected = exactMatch
+				m.digitBuffer = ""
+				m.updateContent()
+			} else {
+				// No exact match yet - find first format with itag starting with buffer
+				found := false
 				for i, f := range m.formats {
 					itagStr := strconv.Itoa(f.ItagNo)
-					if strings.HasPrefix(itagStr, digit) {
+					if strings.HasPrefix(itagStr, m.digitBuffer) {
 						m.selected = i
-						m.updateContent()
+						found = true
 						break
 					}
+				}
+				if found {
+					m.updateContent()
+				} else {
+					// No match - reset buffer
+					m.digitBuffer = ""
 				}
 			}
 		}
@@ -299,6 +337,9 @@ func (m *formatSelectorModel) View() string {
 		} else {
 			b.WriteString(selectorHelpStyle.Render("Cancelled"))
 		}
+	} else if m.digitBuffer != "" {
+		// Show digit buffer when typing
+		b.WriteString(selectorHelpStyle.Render(fmt.Sprintf("Typing itag: %s_", m.digitBuffer)))
 	} else if m.selected >= 0 && m.selected < len(m.formats) {
 		selectedFormat := m.formats[m.selected]
 		b.WriteString(selectorHelpStyle.Render(fmt.Sprintf("Selected: itag %d · Enter to download", selectedFormat.ItagNo)))
@@ -311,7 +352,7 @@ func (m *formatSelectorModel) View() string {
 	// Help line at bottom
 	b.WriteString("\n")
 	if !m.quitting {
-		b.WriteString(selectorHelpStyle.Render("Tips: Press 1-9 to jump to itag, Home/End for first/last, b to go back"))
+		b.WriteString(selectorHelpStyle.Render("Tips: Type digits 0-9 to select itag (e.g., type 101 for itag 101), Home/End for first/last, b to go back"))
 	}
 
 	return b.String()
