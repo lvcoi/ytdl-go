@@ -444,6 +444,7 @@ const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 var sharedTransport = &http.Transport{
 	MaxIdleConns:        100,              // Maximum idle connections across all hosts
 	MaxIdleConnsPerHost: 10,               // Maximum idle connections per host
+	MaxConnsPerHost:     0,                // Unlimited concurrent connections per host
 	IdleConnTimeout:     90 * time.Second, // How long idle connections are kept alive
 }
 
@@ -467,11 +468,16 @@ func (t *consistentTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	return t.base.RoundTrip(req)
 }
 
-// newHTTPClient creates an HTTP client with the shared transport and given timeout
+// newHTTPClient creates an HTTP client with a consistent transport and given timeout
 func newHTTPClient(timeout time.Duration) *http.Client {
+	transport := &consistentTransport{
+		base:      sharedTransport,
+		userAgent: defaultUserAgent,
+	}
+
 	return &http.Client{
 		Timeout:   timeout,
-		Transport: sharedTransport,
+		Transport: transport,
 	}
 }
 
