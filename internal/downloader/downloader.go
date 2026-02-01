@@ -286,7 +286,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return printVideoInfo(video)
 	}
 	if opts.ListFormats {
-		return renderFormats(video, "", opts, "", "", 0, 0)
+		return renderFormats(video, opts, "", "", 0, 0)
 	}
 
 	ctxInfo := outputContext{}
