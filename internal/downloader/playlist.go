@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/kkdai/youtube/v2"
 )
@@ -181,77 +180,23 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	skipped := 0
 	var totalBytes int64
 
-	concurrency := defaultSegmentConcurrency(opts.PlaylistConcurrency)
-	if !printer.progressEnabled {
-		concurrency = 1
-	}
-	if concurrency < 1 {
-		concurrency = 1
-	}
-	if concurrency > len(playlist.Videos) {
-		concurrency = len(playlist.Videos)
-	}
-
-	if concurrency <= 1 {
-		for i, entry := range playlist.Videos {
-			outcome := handleEntry(i, entry)
-			if outcome.skipped {
-				skipped++
-				continue
-			}
-			if outcome.failed {
-				failures++
-				continue
-			}
-			if outcome.ok {
-				successes++
-				totalBytes += outcome.bytes
-			}
+	// Always download sequentially to:
+	// 1. Avoid bandwidth contention between concurrent downloads
+	// 2. Properly clean up connections after each download
+	// 3. Prevent zombie processes from accumulating
+	for i, entry := range playlist.Videos {
+		outcome := handleEntry(i, entry)
+		if outcome.skipped {
+			skipped++
+			continue
 		}
-	} else {
-		type job struct {
-			index int
-			entry *youtube.PlaylistEntry
+		if outcome.failed {
+			failures++
+			continue
 		}
-		jobs := make(chan job)
-		results := make(chan playlistOutcome, len(playlist.Videos))
-		var wg sync.WaitGroup
-
-		worker := func() {
-			defer wg.Done()
-			for j := range jobs {
-				results <- handleEntry(j.index, j.entry)
-			}
-		}
-
-		for i := 0; i < concurrency; i++ {
-			wg.Add(1)
-			go worker()
-		}
-
-		for i, entry := range playlist.Videos {
-			jobs <- job{index: i, entry: entry}
-		}
-		close(jobs)
-
-		go func() {
-			wg.Wait()
-			close(results)
-		}()
-
-		for outcome := range results {
-			if outcome.skipped {
-				skipped++
-				continue
-			}
-			if outcome.failed {
-				failures++
-				continue
-			}
-			if outcome.ok {
-				successes++
-				totalBytes += outcome.bytes
-			}
+		if outcome.ok {
+			successes++
+			totalBytes += outcome.bytes
 		}
 	}
 

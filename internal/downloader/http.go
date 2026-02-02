@@ -21,6 +21,12 @@ var sharedTransport = &http.Transport{
 	IdleConnTimeout:     90 * time.Second, // How long idle connections are kept alive
 }
 
+// CloseIdleConnections closes any idle connections in the shared transport.
+// Call this at program exit to ensure clean shutdown.
+func CloseIdleConnections() {
+	sharedTransport.CloseIdleConnections()
+}
+
 type consistentTransport struct {
 	base      http.RoundTripper
 	userAgent string
