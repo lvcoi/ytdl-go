@@ -38,6 +38,11 @@ var (
 				Foreground(lipgloss.Color("#EAEAEA"))
 )
 
+const (
+	digitBufferTimeout = 1500 * time.Millisecond
+	cycleWindowTimeout = 500 * time.Millisecond
+)
+
 type formatSelectorModel struct {
 	viewport      viewport.Model
 	title         string
@@ -52,9 +57,16 @@ type formatSelectorModel struct {
 	index         int
 	total         int
 	quitting      bool
+	digitBuffer   string
+	lastDigitTime time.Time
+	lastDigit     string
 }
 
 type quitMsg struct{}
+
+type digitBufferExpireMsg struct {
+	expireTime time.Time
+}
 
 func newFormatSelectorModel(video *youtube.Video, title string, playlistID, playlistTitle string, index, total int) *formatSelectorModel {
 	vp := viewport.New(80, 20)
@@ -86,6 +98,9 @@ func newFormatSelectorModel(video *youtube.Video, title string, playlistID, play
 		index:         index,
 		total:         total,
 		quitting:      false,
+		digitBuffer:   "",
+		lastDigitTime: time.Time{},
+		lastDigit:     "",
 	}
 }
 
@@ -138,6 +153,20 @@ func buildFormatContent(formats []youtube.Format, selected int) string {
 
 func (m *formatSelectorModel) Init() tea.Cmd {
 	return nil
+}
+
+// resetDigitBufferIfExpired clears the digit buffer if enough time has passed since the last digit
+func (m *formatSelectorModel) resetDigitBufferIfExpired() {
+	if !m.lastDigitTime.IsZero() && time.Since(m.lastDigitTime) > digitBufferTimeout {
+		m.digitBuffer = ""
+		m.lastDigit = ""
+	}
+}
+
+func scheduleDigitBufferExpiry(expireTime time.Time) tea.Cmd {
+	return tea.Tick(digitBufferTimeout, func(time.Time) tea.Msg {
+		return digitBufferExpireMsg{expireTime: expireTime}
+	})
 }
 
 func quitAfterDelay() tea.Cmd {
@@ -230,20 +259,103 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, quitAfterDelay()
 			}
-		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			// Quick select by number (digit)
-			digit := strings.TrimSpace(msg.String())
-			if digit != "" {
-				// Find format with itag starting with this digit
+		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			// Multi-digit itag selection with cycling support
+			m.resetDigitBufferIfExpired()
+
+			digit := msg.String()
+			now := time.Now()
+
+			// Check if this is a repeated single digit press within cycle window (for cycling)
+			// Only cycle if the same digit is pressed within 500ms (not the full 1.5s buffer timeout)
+			withinCycleWindow := !m.lastDigitTime.IsZero() && now.Sub(m.lastDigitTime) <= cycleWindowTimeout
+			if m.digitBuffer == digit && m.lastDigit == digit && len(m.digitBuffer) == 1 && withinCycleWindow {
+				// Cycle to next matching format
+				matches := []int{}
 				for i, f := range m.formats {
 					itagStr := strconv.Itoa(f.ItagNo)
 					if strings.HasPrefix(itagStr, digit) {
-						m.selected = i
+						matches = append(matches, i)
+					}
+				}
+
+				if len(matches) > 0 {
+					// Find current position in matches and move to next
+					currentPos := -1
+					for i, idx := range matches {
+						if idx == m.selected {
+							currentPos = i
+							break
+						}
+					}
+
+					// If not found in matches, start from first; otherwise move to next
+					var nextPos int
+					if currentPos == -1 {
+						nextPos = 0
+					} else {
+						nextPos = (currentPos + 1) % len(matches)
+					}
+					m.selected = matches[nextPos]
+					m.lastDigit = digit
+					m.lastDigitTime = now
+					m.updateContent()
+					return m, scheduleDigitBufferExpiry(now)
+				}
+			} else {
+				// New digit or different digit - reset cycling
+				m.digitBuffer += digit
+				m.lastDigit = digit
+				m.lastDigitTime = now
+
+				// Try to find exact match first
+				targetItag, err := strconv.Atoi(m.digitBuffer)
+				exactMatch := -1
+				if err == nil {
+					for i, f := range m.formats {
+						if f.ItagNo == targetItag {
+							exactMatch = i
+							break
+						}
+					}
+				}
+
+				if exactMatch >= 0 {
+					// Found exact match - select it and clear buffer
+					m.selected = exactMatch
+					m.digitBuffer = ""
+					m.lastDigit = ""
+					m.updateContent()
+					return m, nil
+				} else {
+					// No exact match yet - find first format with itag starting with buffer
+					found := false
+					for i, f := range m.formats {
+						itagStr := strconv.Itoa(f.ItagNo)
+						if strings.HasPrefix(itagStr, m.digitBuffer) {
+							m.selected = i
+							found = true
+							break
+						}
+					}
+					if found {
 						m.updateContent()
-						break
+						return m, scheduleDigitBufferExpiry(now)
+					} else {
+						// No match - reset buffer
+						m.digitBuffer = ""
+						m.lastDigit = ""
+						return m, nil
 					}
 				}
 			}
+		}
+		return m, nil
+	case digitBufferExpireMsg:
+		// Only clear if this expiry matches the current lastDigitTime
+		if !m.lastDigitTime.IsZero() && msg.expireTime.Equal(m.lastDigitTime) {
+			m.digitBuffer = ""
+			m.lastDigit = ""
 		}
 		return m, nil
 	case tea.MouseMsg:
@@ -310,6 +422,9 @@ func (m *formatSelectorModel) View() string {
 		} else {
 			b.WriteString(selectorHelpStyle.Render("Cancelled"))
 		}
+	} else if m.digitBuffer != "" {
+		// Show digit buffer when typing
+		b.WriteString(selectorHelpStyle.Render(fmt.Sprintf("Typing itag: %s_", m.digitBuffer)))
 	} else if m.selected >= 0 && m.selected < len(m.formats) {
 		selectedFormat := m.formats[m.selected]
 		b.WriteString(selectorHelpStyle.Render(fmt.Sprintf("Selected: itag %d · Enter to download", selectedFormat.ItagNo)))
@@ -322,7 +437,7 @@ func (m *formatSelectorModel) View() string {
 	// Help line at bottom
 	b.WriteString("\n")
 	if !m.quitting {
-		b.WriteString(selectorHelpStyle.Render("Tips: Press 1-9 to jump to itag, Home/End for first/last, b to go back"))
+		b.WriteString(selectorHelpStyle.Render("Type digits for itag (e.g., 101), repeat quickly to cycle, Home/End, b to go back"))
 	}
 
 	return b.String()
