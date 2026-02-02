@@ -451,11 +451,11 @@ func (m *seamlessModel) viewProgress() string {
 
 			var etaText string
 			if task.done {
-				etaText = etaStyle.Render(fmt.Sprintf("completed in %s", seamlessFormatDuration(elapsed)))
+				etaText = etaStyle.Render(fmt.Sprintf("completed in %s", formatDurationShort(elapsed)))
 			} else {
 				etaText = etaStyle.Render(fmt.Sprintf("elapsed %s · eta %s",
-					seamlessFormatDuration(elapsed),
-					seamlessFormatDuration(eta)))
+					formatDurationShort(elapsed),
+					formatDurationShort(eta)))
 			}
 			taskContent.WriteString(fmt.Sprintf("        %s\n", etaText))
 		}
@@ -468,13 +468,8 @@ func (m *seamlessModel) viewProgress() string {
 }
 
 func seamlessBarWidth(total int) int {
-	width := total - 10
-	if width < 10 {
-		return 10
-	}
-	return width
+	return barWidth(total)
 }
-
 func seamlessFormatRate(current int64, elapsed time.Duration) string {
 	return formatRate(current, elapsed)
 }
