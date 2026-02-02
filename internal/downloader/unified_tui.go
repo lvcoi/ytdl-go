@@ -468,13 +468,8 @@ func (m *seamlessModel) viewProgress() string {
 }
 
 func seamlessBarWidth(total int) int {
-	width := total - 10
-	if width < 10 {
-		return 10
-	}
-	return width
+	return barWidth(total)
 }
-
 func seamlessFormatRate(current int64, elapsed time.Duration) string {
 	return formatRate(current, elapsed)
 }
