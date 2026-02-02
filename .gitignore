@@ -29,6 +29,7 @@ go.work
 
 # Build artifacts
 build/
+media
 dist/
 bin/
 
