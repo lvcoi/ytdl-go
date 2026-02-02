@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"fmt"
-	"math"
 	"time"
 )
 

@@ -286,7 +286,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return printVideoInfo(video)
 	}
 	if opts.ListFormats {
-		return renderFormats(ctx, video, "", opts, "", "", 0, 0)
+		return renderFormats(ctx, video, opts, "", "", 0, 0)
 	}
 
 	ctxInfo := outputContext{}
@@ -421,7 +421,7 @@ func formatVideoFormats(video *youtube.Video, header string) string {
 	return b.String()
 }
 
-func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle string, index, total int) error {
+func renderFormats(ctx context.Context, video *youtube.Video, opts Options, playlistID, playlistTitle string, index, total int) error {
 	if opts.JSON {
 		return renderFormatsJSON(video, playlistID, playlistTitle, index, total)
 	}
