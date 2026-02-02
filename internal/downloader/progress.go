@@ -157,3 +157,30 @@ func copyWithContext(ctx context.Context, dst io.Writer, src io.Reader) (int64, 
 	reader := &contextReader{ctx: ctx, r: src}
 	return io.Copy(dst, reader)
 }
+
+// formatDurationShort formats a duration in a compact human-readable form
+func formatDurationShort(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	if d < time.Second {
+		return "0s"
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		m := int(d.Minutes())
+		s := int(d.Seconds()) % 60
+		if s == 0 {
+			return fmt.Sprintf("%dm", m)
+		}
+		return fmt.Sprintf("%dm%ds", m, s)
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	if m == 0 {
+		return fmt.Sprintf("%dh", h)
+	}
+	return fmt.Sprintf("%dh%dm", h, m)
+}

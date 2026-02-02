@@ -115,7 +115,6 @@ func NewSeamlessTUI(video *youtube.Video, title string) *SeamlessTUI {
 
 	progressVP := viewport.New(80, 20)
 	progressVP.MouseWheelEnabled = true
-	progressVP.KeyMap = viewport.KeyMap{} // Disable viewport's default key handling
 	progressVP.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7FDBFF"))
@@ -150,7 +149,6 @@ func (st *SeamlessTUI) Start(ctx context.Context) {
 	st.program = tea.NewProgram(st.model,
 		tea.WithAltScreen(),
 		tea.WithOutput(os.Stderr),
-		tea.WithInputTTY(),
 	)
 
 	go func() {
