@@ -262,10 +262,10 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
 			// Multi-digit itag selection with cycling support
 			m.resetDigitBufferIfExpired()
-			
+
 			digit := msg.String()
 			now := time.Now()
-			
+
 			// Check if this is a repeated single digit press within cycle window (for cycling)
 			// Only cycle if the same digit is pressed within 500ms (not the full 1.5s buffer timeout)
 			withinCycleWindow := !m.lastDigitTime.IsZero() && now.Sub(m.lastDigitTime) <= cycleWindowTimeout
@@ -278,7 +278,7 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						matches = append(matches, i)
 					}
 				}
-				
+
 				if len(matches) > 0 {
 					// Find current position in matches and move to next
 					currentPos := -1
@@ -288,7 +288,7 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break
 						}
 					}
-					
+
 					// If not found in matches, start from first; otherwise move to next
 					var nextPos int
 					if currentPos == -1 {
@@ -307,7 +307,7 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.digitBuffer += digit
 				m.lastDigit = digit
 				m.lastDigitTime = now
-				
+
 				// Try to find exact match first
 				targetItag, err := strconv.Atoi(m.digitBuffer)
 				exactMatch := -1
@@ -319,7 +319,7 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
-				
+
 				if exactMatch >= 0 {
 					// Found exact match - select it and clear buffer
 					m.selected = exactMatch

@@ -477,12 +477,3 @@ func seamlessFormatRate(current int64, elapsed time.Duration) string {
 func seamlessEstimateETA(current, total int64, elapsed time.Duration) time.Duration {
 	return estimateETA(current, total, elapsed)
 }
-
-func seamlessFormatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.0fs", d.Seconds())
-	} else if d < time.Hour {
-		return fmt.Sprintf("%.0fm%.0fs", d.Minutes(), math.Mod(d.Seconds(), 60))
-	}
-	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
-}
