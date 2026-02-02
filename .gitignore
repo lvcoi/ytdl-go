@@ -18,7 +18,7 @@ ytdl-go.exe
 
 # Go workspace file
 go.work
-
+*.code-workspace
 # IDE specific files
 .vscode/
 .idea/

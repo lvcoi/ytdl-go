@@ -36,12 +36,12 @@ func fetchPageMetadata(ctx context.Context, pageURL string, timeout time.Duratio
 	}
 
 	content := string(body)
-	title := firstNonEmpty(
+	title := stringsOrFallback(
 		findMeta(content, "og:title"),
 		findMeta(content, "twitter:title"),
 		findTitleTag(content),
 	)
-	author := firstNonEmpty(
+	author := stringsOrFallback(
 		findMeta(content, "author"),
 		findMeta(content, "og:site_name"),
 	)
@@ -115,13 +115,4 @@ func findOEmbedURL(html string) string {
 func htmlUnescape(value string) string {
 	replacer := strings.NewReplacer("&amp;", "&", "&quot;", "\"", "&#39;", "'", "&lt;", "<", "&gt;", ">")
 	return replacer.Replace(value)
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

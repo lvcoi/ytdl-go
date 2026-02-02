@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -157,14 +156,7 @@ func bestThumbnailURL(thumbnails youtube.Thumbnails) string {
 }
 
 func extractorVersion() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, dep := range info.Deps {
-			if dep.Path == "github.com/kkdai/youtube/v2" {
-				return dep.Version
-			}
-		}
-	}
-	return ""
+	return "unknown"
 }
 
 func formatDate(value time.Time) string {
