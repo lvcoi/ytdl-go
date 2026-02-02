@@ -286,7 +286,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return printVideoInfo(video)
 	}
 	if opts.ListFormats {
-		return renderFormats(ctx, video, opts, "", "", 0, 0)
+		return renderFormats(video, opts, "", "", 0, 0)
 	}
 
 	ctxInfo := outputContext{}
@@ -435,6 +435,7 @@ func renderFormats(ctx context.Context, video *youtube.Video, opts Options, play
 		opts.Itag = selectedItag
 		opts.ListFormats = false
 
+		ctx := context.Background()
 		client := newClient(opts)
 		pm := NewProgressManager(opts)
 		pm.Start(ctx)
@@ -465,7 +466,6 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 	youtube.DefaultClient = youtube.AndroidClient
 	client := newClient(opts)
 
-	var allContent strings.Builder
 	for i, entry := range playlist.Videos {
 		if entry == nil || entry.ID == "" {
 			continue
@@ -475,20 +475,9 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 			return wrapFetchError(err, "fetching video metadata")
 		}
 
-		if opts.JSON {
-			if err := renderFormatsJSON(video, playlist.ID, playlist.Title, i+1, len(playlist.Videos)); err != nil {
-				return err
-			}
-		} else {
-			header := fmt.Sprintf("[%d/%d] %s (%s)", i+1, len(playlist.Videos), entryTitle(entry), entry.ID)
-			allContent.WriteString(formatVideoFormats(video, header))
-			allContent.WriteString("\n")
+		if err := renderFormats(video, opts, playlist.ID, playlist.Title, i+1, len(playlist.Videos)); err != nil {
+			return err
 		}
-	}
-
-	if !opts.JSON {
-		title := fmt.Sprintf(" Playlist Formats: %s ", playlist.Title)
-		return RunPager(title, allContent.String())
 	}
 	return nil
 }

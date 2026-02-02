@@ -477,3 +477,8 @@ func seamlessFormatRate(current int64, elapsed time.Duration) string {
 func seamlessEstimateETA(current, total int64, elapsed time.Duration) time.Duration {
 	return estimateETA(current, total, elapsed)
 }
+
+
+func seamlessFormatDuration(d time.Duration) string {
+	return formatDurationShort(d)
+}

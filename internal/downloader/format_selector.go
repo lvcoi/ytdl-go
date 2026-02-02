@@ -408,6 +408,13 @@ func (m *formatSelectorModel) View() string {
 	b.WriteString(selectorTitleStyle.Render(m.title))
 	b.WriteString(" ")
 
+	// Display playlist context if available
+	if m.playlistID != "" && m.total > 0 {
+		playlistInfo := fmt.Sprintf("[%d/%d] %s", m.index, m.total, m.playlistTitle)
+		b.WriteString(selectorHelpStyle.Render(playlistInfo))
+		b.WriteString(" ")
+	}
+
 	if m.quitting {
 		if m.selected >= 0 && m.selected < len(m.formats) {
 			selectedFormat := m.formats[m.selected]
