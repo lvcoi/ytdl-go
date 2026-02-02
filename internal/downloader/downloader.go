@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -378,50 +377,7 @@ func renderFormatsJSON(video *youtube.Video, playlistID, playlistTitle string, i
 	return enc.Encode(payload)
 }
 
-func formatVideoFormats(video *youtube.Video, header string) string {
-	var b strings.Builder
-	if header != "" {
-		b.WriteString(header)
-		b.WriteString("\n")
-	}
-	b.WriteString("itag   ext    quality      size       audio   video\n")
-
-	formats := make([]youtube.Format, len(video.Formats))
-	copy(formats, video.Formats)
-	sort.Slice(formats, func(i, j int) bool {
-		return formats[i].ItagNo < formats[j].ItagNo
-	})
-
-	for _, f := range formats {
-		size := "-"
-		if f.ContentLength > 0 {
-			size = humanBytes(int64(f.ContentLength))
-		}
-		audio := "-"
-		if f.AudioChannels > 0 {
-			audio = fmt.Sprintf("%dch", f.AudioChannels)
-		}
-		videoRes := "-"
-		if f.Width > 0 || f.Height > 0 {
-			videoRes = fmt.Sprintf("%dx%d", f.Width, f.Height)
-		}
-		qual := f.QualityLabel
-		if qual == "" {
-			qual = f.Quality
-		}
-		b.WriteString(fmt.Sprintf("%5d   %-5s  %-12s %-10s %-7s %s\n",
-			f.ItagNo,
-			mimeToExt(f.MimeType),
-			qual,
-			size,
-			audio,
-			videoRes,
-		))
-	}
-	return b.String()
-}
-
-func renderFormats(ctx context.Context, video *youtube.Video, opts Options, playlistID, playlistTitle string, index, total int) error {
+func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle string, index, total int) error {
 	if opts.JSON {
 		return renderFormatsJSON(video, playlistID, playlistTitle, index, total)
 	}
