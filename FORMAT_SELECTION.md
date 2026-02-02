@@ -41,9 +41,9 @@ When using the `--list-formats` flag, ytdl-go now provides an interactive format
 
 - Type "1" → selects first format with itag starting with 1 (e.g., itag 18)
 - Press "1" again quickly (within 500ms) → cycles to next itag starting with 1 (e.g., itag 140)
-- Type "1", wait, then "0" → buffer becomes "10", selects first itag starting with 10
+- Type "1", wait, then "0" → buffer becomes "10", selects first format whose itag starts with "10" (e.g., itag 10, 100, or 101)
 - Type "1", "0", "1" → buffer becomes "101", exact match selects itag 101
-- Type "2", "2" slowly (pausing between) → buffer becomes "22", selects itag 22
+- Type "2", "2" slowly (pausing between) → buffer becomes "22", selects itag 22 if it exists, or first itag starting with "22"
 - Wait 1.5 seconds → buffer automatically resets
 
 The interactive selector replaces the previous read-only pager, making it much easier to select and download specific formats without having to remember itag numbers.

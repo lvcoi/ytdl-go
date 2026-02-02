@@ -430,7 +430,7 @@ func (m *formatSelectorModel) View() string {
 	// Help line at bottom
 	b.WriteString("\n")
 	if !m.quitting {
-		b.WriteString(selectorHelpStyle.Render("Type digits 0-9 for itag (multi-digit with timeout; repeat digits to cycle), Home/End for first/last, b to go back"))
+		b.WriteString(selectorHelpStyle.Render("Type digits for itag (e.g., 101), repeat quickly to cycle, Home/End, b to go back"))
 	}
 
 	return b.String()
