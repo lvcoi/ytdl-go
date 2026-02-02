@@ -451,11 +451,11 @@ func (m *seamlessModel) viewProgress() string {
 
 			var etaText string
 			if task.done {
-				etaText = etaStyle.Render(fmt.Sprintf("completed in %s", seamlessFormatDuration(elapsed)))
+				etaText = etaStyle.Render(fmt.Sprintf("completed in %s", formatDurationShort(elapsed)))
 			} else {
 				etaText = etaStyle.Render(fmt.Sprintf("elapsed %s · eta %s",
-					seamlessFormatDuration(elapsed),
-					seamlessFormatDuration(eta)))
+					formatDurationShort(elapsed),
+					formatDurationShort(eta)))
 			}
 			taskContent.WriteString(fmt.Sprintf("        %s\n", etaText))
 		}
@@ -476,22 +476,4 @@ func seamlessFormatRate(current int64, elapsed time.Duration) string {
 
 func seamlessEstimateETA(current, total int64, elapsed time.Duration) time.Duration {
 	return estimateETA(current, total, elapsed)
-}
-
-func seamlessFormatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.0fs", d.Seconds())
-	} else if d < time.Hour {
-		return fmt.Sprintf("%.0fm%.0fs", d.Minutes(), math.Mod(d.Seconds(), 60))
-	}
-	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
-}
-
-func seamlessFormatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.0fs", d.Seconds())
-	} else if d < time.Hour {
-		return fmt.Sprintf("%.0fm%.0fs", d.Minutes(), math.Mod(d.Seconds(), 60))
-	}
-	return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
 }
