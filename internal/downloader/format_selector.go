@@ -269,7 +269,7 @@ func (m *formatSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Check if this is a repeated single digit press within cycle window (for cycling)
 			// Only cycle if the same digit is pressed within 500ms (not the full 1.5s buffer timeout)
 			withinCycleWindow := !m.lastDigitTime.IsZero() && now.Sub(m.lastDigitTime) <= cycleWindowTimeout
-			if m.digitBuffer == digit && m.lastDigit == digit && len(digit) == 1 && withinCycleWindow {
+			if m.digitBuffer == digit && m.lastDigit == digit && len(m.digitBuffer) == 1 && withinCycleWindow {
 				// Cycle to next matching format
 				matches := []int{}
 				for i, f := range m.formats {
