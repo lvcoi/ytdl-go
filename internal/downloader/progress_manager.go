@@ -133,6 +133,14 @@ func (pm *ProgressManager) send(msg tea.Msg) {
 	}
 }
 
+// ProgressRenderer is the interface for progress tracking implementations
+type ProgressRenderer interface {
+	Register(prefix string, size int64) string
+	Update(id string, current, total int64)
+	Finish(id string)
+	Log(level LogLevel, msg string)
+}
+
 type progressRenderer struct {
 	manager *ProgressManager
 }

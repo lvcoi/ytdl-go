@@ -71,6 +71,7 @@ type digitBufferExpireMsg struct {
 func newFormatSelectorModel(video *youtube.Video, title string, playlistID, playlistTitle string, index, total int) *formatSelectorModel {
 	vp := viewport.New(80, 20)
 	vp.MouseWheelEnabled = true
+	vp.KeyMap = viewport.KeyMap{} // Disable viewport's default key handling
 	vp.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7FDBFF"))

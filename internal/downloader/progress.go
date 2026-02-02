@@ -18,12 +18,12 @@ type progressWriter struct {
 	prefix     string
 	printer    *Printer
 	taskID     string
-	renderer   *progressRenderer
+	renderer   ProgressRenderer
 }
 
 func newProgressWriter(size int64, printer *Printer, prefix string) *progressWriter {
 	taskID := ""
-	var renderer *progressRenderer
+	var renderer ProgressRenderer
 	if printer != nil && printer.renderer != nil {
 		renderer = printer.renderer
 		taskID = renderer.Register(prefix, size)

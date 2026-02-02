@@ -57,16 +57,14 @@ Split the 2182-line `downloader.go` monolith into focused modules while keeping 
 | `adaptive.go`           | 391   | ✅ HLS/DASH streaming                  |
 | `dash.go`               | 469   | ✅ DASH manifest parsing               |
 | `direct.go`             | 317   | ✅ Non-YouTube URL downloads           |
-| `segments.go`           | 189   | ✅ HLS/DASH segment parsing            |
-| `segment_downloader.go` | 188   | ✅ Parallel segment downloads          |
-| `metadata.go`           | 224   | ✅ Item metadata & sidecar             |
-| `metadata_web.go`       | 128   | ✅ Web page metadata extraction        |
+| `segments.go`           | 357   | ✅ HLS/DASH parsing + parallel downloads  |
+| `metadata.go`           | 330   | ✅ Item metadata, sidecar & web extraction |
 | `tags.go`               | 53    | ✅ ID3 tag embedding                   |
 | `utils.go`              | 25    | ✅ Duration formatting                 |
 
-| `unified_tui.go`        | 469   | ⏳ Seamless format→download TUI (pending integration) |
+| `unified_tui.go`        | 569   | ✅ Seamless format→download TUI (integrated) |
 
-**Total: 25 files, well-organized by concern**
+**Total: 23 files, well-organized by concern**
 
 ---
 
@@ -94,11 +92,12 @@ Split the 2182-line `downloader.go` monolith into focused modules while keeping 
 - [x] **Moved `musicUserAgent` to `http.go`**
   - All user agent constants now in `http.go`
 
-### Pending Integration
+### Pending Integration ✅
 
-- [ ] **Integrate `unified_tui.go`** — SeamlessTUI for format selection → download transition
+- [x] **Integrate `unified_tui.go`** — SeamlessTUI for format selection → download transition
   - Provides seamless viewport transition without terminal flash
-  - Not yet wired into main flow
+  - Wired into `-list-formats` flow via `RunSeamlessFormatSelector`
+  - Uses `ProgressRenderer` interface for unified progress tracking
 
 ---
 
@@ -115,15 +114,15 @@ Split the 2182-line `downloader.go` monolith into focused modules while keeping 
 
 ## Summary
 
-**Refactor Status: ✅ COMPLETE**
+### **Refactor Status**: ✅ COMPLETE
 
 The original 2182-line monolith has been successfully split into 24 focused modules.
 
 **Cleanup completed:**
+
 - ✅ Removed unused error sentinels (`ErrEncryptedHLS`, `ErrEncryptedDASH`)
 - ✅ Merged `output.go` + `output_validate.go`
 - ✅ Consolidated `stringsOrFallback`/`firstNonEmpty` into single function
 - ✅ Moved `musicUserAgent` to `http.go`
 
-**Pending:**
-- ⏳ Integrate `unified_tui.go` (SeamlessTUI) into `-list-formats` flow
+**All tasks complete.**

@@ -231,34 +231,36 @@ func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle
 		return renderFormatsJSON(video, playlistID, playlistTitle, index, total)
 	}
 	title := fmt.Sprintf(" Formats: %s ", video.Title)
-	selectedItag, err := RunFormatSelector(video, title, playlistID, playlistTitle, index, total)
+
+	ctx := context.Background()
+	selectedItag, tui, err := RunSeamlessFormatSelector(ctx, video, title, playlistID, playlistTitle, index, total)
 	if err != nil {
 		return err
 	}
-	if selectedItag > 0 {
-		// User selected a format - download it
-		opts.Itag = selectedItag
-		opts.ListFormats = false
-
-		ctx := context.Background()
-		client := newClient(opts)
-		pm := NewProgressManager(opts)
-		pm.Start(ctx)
-		defer pm.Stop()
-		printer := newPrinter(opts, pm)
-
-		ctxInfo := outputContext{}
-		if playlistID != "" {
-			ctxInfo.Index = index
-			ctxInfo.Total = total
-		}
-		prefix := printer.Prefix(1, 1, video.Title)
-		result, err := downloadVideo(ctx, client, video, opts, ctxInfo, printer, prefix)
-		if err != nil {
-			printer.ItemResult(prefix, result, err)
-		}
-		return err
+	if selectedItag == 0 || tui == nil {
+		// User cancelled
+		return nil
 	}
-	// User cancelled
-	return nil
+
+	// User selected a format - transition to progress view and download
+	opts.Itag = selectedItag
+	opts.ListFormats = false
+
+	tui.TransitionToProgress()
+	defer tui.Stop()
+
+	client := newClient(opts)
+	printer := NewSeamlessPrinter(opts, tui)
+
+	ctxInfo := outputContext{}
+	if playlistID != "" {
+		ctxInfo.Index = index
+		ctxInfo.Total = total
+	}
+	prefix := printer.Prefix(1, 1, video.Title)
+	result, err := downloadVideo(ctx, client, video, opts, ctxInfo, printer, prefix)
+	if err != nil {
+		printer.ItemResult(prefix, result, err)
+	}
+	return err
 }

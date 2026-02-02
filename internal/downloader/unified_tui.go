@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -28,12 +29,13 @@ const (
 // SeamlessTUI provides a unified TUI that handles format selection and progress
 // display in a single program, enabling seamless transitions without alt screen flicker.
 type SeamlessTUI struct {
-	mu         sync.Mutex
-	program    *tea.Program
-	model      *seamlessModel
-	resultChan chan int
-	ctx        context.Context
-	cancel     context.CancelFunc
+	mu            sync.Mutex
+	program       *tea.Program
+	model         *seamlessModel
+	selectionChan chan int      // Receives selection when user picks a format (doesn't quit TUI)
+	doneChan      chan struct{} // Closed when TUI program exits
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
 type seamlessModel struct {
@@ -44,16 +46,22 @@ type seamlessModel struct {
 	width          int
 	height         int
 	quitting       bool
+	selectionChan  chan int // Channel to signal selection without quitting TUI
 }
 
 type seamlessProgressModel struct {
-	tasks   map[string]*seamlessTask
-	order   []string
-	log     string
-	vp      viewport.Model
-	vpReady bool
-	width   int
-	height  int
+	tasks        map[string]*seamlessTask
+	order        []string
+	log          string
+	vp           viewport.Model
+	vpReady      bool
+	width        int
+	height       int
+	promptActive bool
+	promptPath   string
+	promptResp   chan promptChoice
+	promptQueue  []seamlessPromptMsg
+	promptIndex  int
 }
 
 type seamlessTask struct {
@@ -96,12 +104,18 @@ type seamlessStopMsg struct{}
 
 type seamlessTransitionMsg struct{}
 
+type seamlessPromptMsg struct {
+	path string
+	resp chan promptChoice
+}
+
 // NewSeamlessTUI creates a new seamless TUI for format selection with progress display
 func NewSeamlessTUI(video *youtube.Video, title string) *SeamlessTUI {
 	formatSelector := newFormatSelectorModel(video, title, "", "", 0, 0)
 
 	progressVP := viewport.New(80, 20)
 	progressVP.MouseWheelEnabled = true
+	progressVP.KeyMap = viewport.KeyMap{} // Disable viewport's default key handling
 	progressVP.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#7FDBFF"))
@@ -117,8 +131,9 @@ func NewSeamlessTUI(video *youtube.Video, title string) *SeamlessTUI {
 	}
 
 	return &SeamlessTUI{
-		model:      model,
-		resultChan: make(chan int, 1),
+		model:         model,
+		selectionChan: make(chan int, 1),
+		doneChan:      make(chan struct{}),
 	}
 }
 
@@ -128,19 +143,19 @@ func (st *SeamlessTUI) Start(ctx context.Context) {
 	defer st.mu.Unlock()
 
 	st.ctx, st.cancel = context.WithCancel(ctx)
+
+	// Pass selectionChan to model so it can signal selection without quitting
+	st.model.selectionChan = st.selectionChan
+
 	st.program = tea.NewProgram(st.model,
 		tea.WithAltScreen(),
 		tea.WithOutput(os.Stderr),
+		tea.WithInputTTY(),
 	)
 
 	go func() {
-		result, _ := st.program.Run()
-		if m, ok := result.(*seamlessModel); ok && m.selectedItag > 0 {
-			st.resultChan <- m.selectedItag
-		} else {
-			st.resultChan <- 0
-		}
-		close(st.resultChan)
+		st.program.Run()
+		close(st.doneChan)
 	}()
 
 	go func() {
@@ -151,7 +166,13 @@ func (st *SeamlessTUI) Start(ctx context.Context) {
 
 // WaitForSelection blocks until user selects a format, returns the itag (0 if cancelled)
 func (st *SeamlessTUI) WaitForSelection() int {
-	return <-st.resultChan
+	select {
+	case itag := <-st.selectionChan:
+		return itag
+	case <-st.doneChan:
+		// TUI quit without selection (user cancelled)
+		return 0
+	}
 }
 
 // TransitionToProgress switches from format selector to progress view
@@ -194,6 +215,25 @@ func (st *SeamlessTUI) Finish(id string) {
 // Log displays a log message
 func (st *SeamlessTUI) Log(level LogLevel, msg string) {
 	st.Send(seamlessLogMsg{level: level, text: msg})
+}
+
+// PromptDuplicate shows a duplicate file prompt and returns the user's choice
+func (st *SeamlessTUI) PromptDuplicate(path string) (promptChoice, error) {
+	if st == nil {
+		return promptQuit, errors.New("no seamless TUI")
+	}
+	resp := make(chan promptChoice, 1)
+	st.Send(seamlessPromptMsg{path: path, resp: resp})
+	if st.ctx == nil {
+		choice := <-resp
+		return choice, nil
+	}
+	select {
+	case choice := <-resp:
+		return choice, nil
+	case <-st.ctx.Done():
+		return promptQuit, st.ctx.Err()
+	}
 }
 
 // Stop stops the TUI
@@ -249,11 +289,21 @@ func (m *seamlessModel) updateFormatSelector(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, ok := msg.(quitMsg); ok {
 		if m.formatSelector.selected >= 0 && m.formatSelector.selected < len(m.formatSelector.formats) {
 			m.selectedItag = m.formatSelector.formats[m.formatSelector.selected].ItagNo
+			// Signal selection through channel (non-blocking)
+			if m.selectionChan != nil {
+				select {
+				case m.selectionChan <- m.selectedItag:
+				default:
+				}
+			}
 			// Transition to progress view instead of quitting
 			m.view = SeamlessViewProgress
 			m.progress.width = m.width
 			m.progress.height = m.height
-			return m, nil
+			// Return a WindowSizeMsg to initialize the progress viewport
+			return m, func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			}
 		}
 		// User cancelled
 		return m, tea.Quit
@@ -272,14 +322,30 @@ func (m *seamlessModel) updateProgress(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		if m.progress.promptActive {
+			return m.handlePromptKey(msg)
+		}
 		switch msg.String() {
-		case "q", "esc", "ctrl+c":
+		case "q", "esc":
 			return m, tea.Quit
 		case "up", "k":
 			m.progress.vp.SetYOffset(m.progress.vp.YOffset - 1)
 		case "down", "j":
 			m.progress.vp.SetYOffset(m.progress.vp.YOffset + 1)
 		}
+	case seamlessPromptMsg:
+		if m.progress.promptActive {
+			m.progress.promptQueue = append(m.progress.promptQueue, msg)
+			return m, nil
+		}
+		m.progress.promptActive = true
+		m.progress.promptPath = msg.path
+		m.progress.promptResp = msg.resp
+		m.progress.promptIndex = 0
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.progress.width = msg.Width
 		m.progress.height = msg.Height
@@ -373,6 +439,77 @@ func (m *seamlessModel) updateProgress(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *seamlessModel) handlePromptKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	choice := promptChoice(-1)
+	switch msg.String() {
+	case "up", "k":
+		if m.progress.promptIndex > 0 {
+			m.progress.promptIndex--
+		} else {
+			m.progress.promptIndex = 6
+		}
+		return m, nil
+	case "down", "j", "tab":
+		if m.progress.promptIndex < 6 {
+			m.progress.promptIndex++
+		} else {
+			m.progress.promptIndex = 0
+		}
+		return m, nil
+	case "enter":
+		choice = promptChoiceForIndex(m.progress.promptIndex)
+	case "o":
+		choice = promptOverwrite
+	case "O":
+		choice = promptOverwriteAll
+	case "s":
+		choice = promptSkip
+	case "S":
+		choice = promptSkipAll
+	case "r":
+		choice = promptRename
+	case "R":
+		choice = promptRenameAll
+	case "q", "esc":
+		choice = promptQuit
+	}
+	if choice >= 0 {
+		if m.progress.promptResp != nil {
+			select {
+			case m.progress.promptResp <- choice:
+			default:
+			}
+		}
+		// Handle "all" choices for queued prompts
+		if choice == promptOverwriteAll || choice == promptSkipAll || choice == promptRenameAll || choice == promptQuit {
+			for _, queued := range m.progress.promptQueue {
+				if queued.resp == nil {
+					continue
+				}
+				select {
+				case queued.resp <- choice:
+				default:
+				}
+			}
+			m.progress.promptQueue = nil
+		}
+		m.progress.promptActive = false
+		m.progress.promptPath = ""
+		m.progress.promptResp = nil
+		m.progress.promptIndex = 0
+		// Process next queued prompt if any
+		if len(m.progress.promptQueue) > 0 {
+			next := m.progress.promptQueue[0]
+			m.progress.promptQueue = m.progress.promptQueue[1:]
+			m.progress.promptActive = true
+			m.progress.promptPath = next.path
+			m.progress.promptResp = next.resp
+			m.progress.promptIndex = 0
+		}
+	}
+	return m, nil
+}
+
 func (m *seamlessModel) View() string {
 	if m.quitting {
 		return ""
@@ -388,6 +525,11 @@ func (m *seamlessModel) View() string {
 }
 
 func (m *seamlessModel) viewProgress() string {
+	// If prompt is active, render only the centered modal
+	if m.progress.promptActive {
+		return m.renderPrompt()
+	}
+
 	var b strings.Builder
 
 	// Log message
@@ -467,6 +609,100 @@ func (m *seamlessModel) viewProgress() string {
 	return b.String()
 }
 
+func (m *seamlessModel) renderPrompt() string {
+	// Build the modal content
+	var content strings.Builder
+
+	// Title
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FF006E")).
+		Render("File Already Exists")
+	content.WriteString(title)
+	content.WriteString("\n\n")
+
+	// File path (truncated if needed)
+	maxPathWidth := 40
+	path := m.progress.promptPath
+	if len(path) > maxPathWidth {
+		path = "..." + path[len(path)-maxPathWidth+3:]
+	}
+	content.WriteString(lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#7FDBFF")).
+		Render(path))
+	content.WriteString("\n\n")
+
+	options := []string{
+		"[o] Overwrite",
+		"[O] Overwrite all",
+		"[s] Skip",
+		"[S] Skip all",
+		"[r] Rename",
+		"[R] Rename all",
+		"[q] Quit",
+	}
+
+	for i, opt := range options {
+		if i == m.progress.promptIndex {
+			content.WriteString(selectorSelectedStyle.Render(opt))
+		} else {
+			content.WriteString(lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#A6ADC8")).
+				Render(opt))
+		}
+		content.WriteString("\n")
+	}
+
+	content.WriteString("\n")
+	content.WriteString(lipgloss.NewStyle().
+		Faint(true).
+		Render("↑/↓ select · Enter confirm"))
+
+	// Create modal box style
+	modalWidth := 46
+	modalStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#FF006E")).
+		Padding(1, 2).
+		Width(modalWidth)
+
+	modal := modalStyle.Render(content.String())
+
+	// Center the modal horizontally and vertically
+	modalHeight := lipgloss.Height(modal)
+	modalRenderedWidth := lipgloss.Width(modal)
+
+	// Calculate centering
+	horizontalPadding := 0
+	if m.progress.width > modalRenderedWidth {
+		horizontalPadding = (m.progress.width - modalRenderedWidth) / 2
+	}
+	verticalPadding := 0
+	if m.progress.height > modalHeight {
+		verticalPadding = (m.progress.height - modalHeight) / 2
+	}
+
+	// Build centered output
+	var out strings.Builder
+
+	// Add vertical padding (blank lines)
+	for i := 0; i < verticalPadding; i++ {
+		out.WriteString(strings.Repeat(" ", m.progress.width))
+		out.WriteString("\n")
+	}
+
+	// Add horizontal padding to each line of the modal
+	lines := strings.Split(modal, "\n")
+	padding := strings.Repeat(" ", horizontalPadding)
+	for _, line := range lines {
+		out.WriteString(padding)
+		out.WriteString(line)
+		out.WriteString("\n")
+	}
+
+	return out.String()
+}
+
 func seamlessBarWidth(total int) int {
 	return barWidth(total)
 }
@@ -476,4 +712,94 @@ func seamlessFormatRate(current int64, elapsed time.Duration) string {
 
 func seamlessEstimateETA(current, total int64, elapsed time.Duration) time.Duration {
 	return estimateETA(current, total, elapsed)
+}
+
+// seamlessProgressRenderer implements the same interface as progressRenderer
+// but routes updates to SeamlessTUI instead of ProgressManager
+type seamlessProgressRenderer struct {
+	tui *SeamlessTUI
+}
+
+func (spr *seamlessProgressRenderer) Register(prefix string, size int64) string {
+	if spr == nil || spr.tui == nil {
+		return ""
+	}
+	return spr.tui.Register(prefix, size)
+}
+
+func (spr *seamlessProgressRenderer) Update(id string, current, total int64) {
+	if spr == nil || spr.tui == nil {
+		return
+	}
+	spr.tui.Update(id, current, total)
+}
+
+func (spr *seamlessProgressRenderer) Finish(id string) {
+	if spr == nil || spr.tui == nil {
+		return
+	}
+	spr.tui.Finish(id)
+}
+
+func (spr *seamlessProgressRenderer) Log(level LogLevel, msg string) {
+	if spr == nil || spr.tui == nil {
+		return
+	}
+	spr.tui.Log(level, msg)
+}
+
+// RunSeamlessFormatSelector displays formats in an interactive selector and returns
+// the selected itag along with the SeamlessTUI for continued progress display.
+// The caller should call tui.TransitionToProgress() after selection, then use
+// the returned printer for download progress, and finally call tui.Stop() when done.
+func RunSeamlessFormatSelector(ctx context.Context, video *youtube.Video, title string, playlistID, playlistTitle string, index, total int) (selectedItag int, tui *SeamlessTUI, err error) {
+	tui = NewSeamlessTUI(video, title)
+
+	// Update format selector with playlist context
+	tui.model.formatSelector.playlistID = playlistID
+	tui.model.formatSelector.playlistTitle = playlistTitle
+	tui.model.formatSelector.index = index
+	tui.model.formatSelector.total = total
+
+	tui.Start(ctx)
+	selectedItag = tui.WaitForSelection()
+
+	if selectedItag == 0 {
+		// User cancelled - stop TUI and return
+		tui.Stop()
+		return 0, nil, nil
+	}
+
+	return selectedItag, tui, nil
+}
+
+// NewSeamlessPrinter creates a Printer that routes progress to the SeamlessTUI
+func NewSeamlessPrinter(opts Options, tui *SeamlessTUI) *Printer {
+	columns := terminalColumns()
+	if columns <= 0 {
+		columns = 100
+	}
+
+	titleWidth := columns - 44
+	if titleWidth < 20 {
+		titleWidth = 20
+	}
+	if titleWidth > 60 {
+		titleWidth = 60
+	}
+
+	renderer := &seamlessProgressRenderer{tui: tui}
+
+	return &Printer{
+		quiet:           opts.Quiet,
+		color:           supportsColor(),
+		columns:         columns,
+		titleWidth:      titleWidth,
+		logLevel:        parseLogLevel(opts.LogLevel),
+		progressEnabled: !opts.Quiet,
+		interactive:     !opts.Quiet,
+		layout:          opts.ProgressLayout,
+		renderer:        renderer,
+		seamlessTUI:     tui,
+	}
 }

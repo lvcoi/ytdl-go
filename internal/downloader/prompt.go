@@ -83,8 +83,20 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 		return path, false, nil
 	}
 
-	if printer != nil && printer.progressEnabled && printer.manager != nil {
-		choice, err := printer.manager.PromptDuplicate(path)
+	// Use TUI-based prompt if available (either ProgressManager or SeamlessTUI)
+	if printer != nil && printer.progressEnabled {
+		var choice promptChoice
+		var err error
+
+		if printer.seamlessTUI != nil {
+			choice, err = printer.seamlessTUI.PromptDuplicate(path)
+		} else if printer.manager != nil {
+			choice, err = printer.manager.PromptDuplicate(path)
+		} else {
+			// Fall through to stdin prompt below
+			goto stdinPrompt
+		}
+
 		if err != nil {
 			return "", false, wrapCategory(CategoryFilesystem, err)
 		}
@@ -112,6 +124,8 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 			return "", false, errors.New("duplicate prompt failed")
 		}
 	}
+
+stdinPrompt:
 
 	reader := bufio.NewReader(os.Stdin)
 	beginPrompt()
