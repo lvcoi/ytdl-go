@@ -71,7 +71,7 @@ func (m *pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetYOffset(m.viewport.YOffset - 1)
 		case "down", "j":
 			m.viewport.SetYOffset(m.viewport.YOffset + 1)
-		case "pgup", "b":
+		case "pgup":
 			m.viewport.HalfViewUp()
 		case "pgdown", "f", " ":
 			m.viewport.HalfViewDown()

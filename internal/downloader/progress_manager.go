@@ -433,7 +433,7 @@ func (m *progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.vp.SetYOffset(m.vp.YOffset - 1)
 			case "down", "j":
 				m.vp.SetYOffset(m.vp.YOffset + 1)
-			case "pgup", "b":
+			case "pgup":
 				m.vp.HalfViewUp()
 			case "pgdown", "f", " ":
 				m.vp.HalfViewDown()
@@ -716,14 +716,4 @@ func estimateETA(current, total int64, elapsed time.Duration) time.Duration {
 		return 0
 	}
 	return time.Duration(float64(remaining)/rate) * time.Second
-}
-
-func formatDurationShort(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.0fs", d.Seconds())
-	} else if d < time.Hour {
-		return fmt.Sprintf("%.0fm%.0fs", d.Minutes(), math.Mod(d.Seconds(), 60))
-	} else {
-		return fmt.Sprintf("%.0fh%.0fm", d.Hours(), math.Mod(d.Minutes(), 60))
-	}
 }
