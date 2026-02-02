@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,6 +22,8 @@ import (
 
 	"github.com/kkdai/youtube/v2"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
+
+	"github.com/lvcoi/ytdl-go/internal/errors"
 )
 
 // duplicateAction represents the user's choice for handling existing files
@@ -158,7 +160,7 @@ func markReported(err error) error {
 // IsReported returns true if the error has already been printed to stderr.
 func IsReported(err error) bool {
 	var re reportedError
-	return errors.As(err, &re)
+	return stderrors.As(err, &re)
 }
 
 func emitJSONResult(res jsonResult) {
@@ -170,49 +172,49 @@ func emitJSONResult(res jsonResult) {
 func validateInputURL(raw string) (string, error) {
 	parsed, err := url.Parse(raw)
 	if err != nil {
-		return "", wrapCategory(CategoryInvalidURL, fmt.Errorf("invalid URL: %w", err))
+		return "", errors.WrapCategory(errors.CategoryInvalidURL, fmt.Errorf("invalid URL: %w", err))
 	}
 	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", wrapCategory(CategoryInvalidURL, fmt.Errorf("invalid URL: missing scheme or host"))
+		return "", errors.WrapCategory(errors.CategoryInvalidURL, fmt.Errorf("invalid URL: missing scheme or host"))
 	}
 	switch strings.ToLower(parsed.Scheme) {
 	case "http", "https":
 	default:
-		return "", wrapCategory(CategoryInvalidURL, fmt.Errorf("unsupported URL scheme: %s", parsed.Scheme))
+		return "", errors.WrapCategory(errors.CategoryInvalidURL, fmt.Errorf("unsupported URL scheme: %s", parsed.Scheme))
 	}
 	return parsed.String(), nil
 }
 
-func categoryForYouTubeError(err error) ErrorCategory {
+func categoryForYouTubeError(err error) errors.ErrorCategory {
 	switch {
-	case errors.Is(err, youtube.ErrLoginRequired),
-		errors.Is(err, youtube.ErrVideoPrivate),
-		errors.Is(err, youtube.ErrNotPlayableInEmbed):
-		return CategoryRestricted
-	case errors.Is(err, youtube.ErrInvalidPlaylist),
-		errors.Is(err, youtube.ErrInvalidCharactersInVideoID),
-		errors.Is(err, youtube.ErrVideoIDMinLength):
-		return CategoryInvalidURL
+	case stderrors.Is(err, youtube.ErrLoginRequired),
+		stderrors.Is(err, youtube.ErrVideoPrivate),
+		stderrors.Is(err, youtube.ErrNotPlayableInEmbed):
+		return errors.CategoryRestricted
+	case stderrors.Is(err, youtube.ErrInvalidPlaylist),
+		stderrors.Is(err, youtube.ErrInvalidCharactersInVideoID),
+		stderrors.Is(err, youtube.ErrVideoIDMinLength):
+		return errors.CategoryInvalidURL
 	}
 
 	var statusErr *youtube.ErrPlayabiltyStatus
-	if errors.As(err, &statusErr) {
-		return CategoryRestricted
+	if stderrors.As(err, &statusErr) {
+		return errors.CategoryRestricted
 	}
 
-	return CategoryNetwork
+	return errors.CategoryNetwork
 }
 
 func wrapFetchError(err error, context string) error {
 	category := categoryForYouTubeError(err)
 	wrapped := fmt.Errorf("%s: %w", context, err)
 	switch category {
-	case CategoryRestricted:
+	case errors.CategoryRestricted:
 		wrapped = fmt.Errorf("restricted content (login/paywall/age/private): %w", wrapped)
-	case CategoryInvalidURL:
+	case errors.CategoryInvalidURL:
 		wrapped = fmt.Errorf("invalid URL or playlist ID: %w", wrapped)
 	}
-	return wrapCategory(category, wrapped)
+	return errors.WrapCategory(category, wrapped)
 }
 
 // Process fetches metadata, selects the best matching format, and downloads it.
@@ -444,10 +446,15 @@ const defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 // to avoid resource exhaustion from creating new connections for each request.
 // This transport is immutable after initialization and safe for concurrent use.
 var sharedTransport = &http.Transport{
-	MaxIdleConns:        100,              // Maximum idle connections across all hosts
-	MaxIdleConnsPerHost: 10,               // Maximum idle connections per host
-	MaxConnsPerHost:     0,                // Unlimited concurrent connections per host
-	IdleConnTimeout:     90 * time.Second, // How long idle connections are kept alive
+	MaxIdleConns:          100,              // Maximum idle connections across all hosts
+	MaxIdleConnsPerHost:   10,               // Maximum idle connections per host
+	MaxConnsPerHost:       10,               // Limit concurrent connections per host to prevent exhaustion
+	IdleConnTimeout:       90 * time.Second, // How long idle connections are kept alive
+	TLSHandshakeTimeout:   10 * time.Second, // Timeout for TLS handshake
+	ResponseHeaderTimeout: 30 * time.Second, // Timeout waiting for response headers
+	ExpectContinueTimeout: 1 * time.Second,  // Timeout for 100-continue response
+	DisableKeepAlives:     false,            // Keep connections alive for reuse
+	ForceAttemptHTTP2:     true,             // Prefer HTTP/2 for better multiplexing
 }
 
 type consistentTransport struct {
@@ -549,7 +556,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 		}
 	}
 	if progressiveFormat == nil {
-		return result, wrapCategory(CategoryUnsupported, errors.New("no progressive format available for ffmpeg fallback"))
+		return result, errors.WrapCategory(errors.CategoryUnsupported, stderrors.New("no progressive format available for ffmpeg fallback"))
 	}
 
 	// Create temp file for video download
@@ -566,7 +573,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 	adjustChunkSize(client, progressiveFormat.ContentLength)
 	stream, size, err := client.GetStreamContext(ctx, video, progressiveFormat)
 	if err != nil {
-		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
+		return result, errors.WrapCategory(errors.CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
 	}
 	if size <= 0 && progressiveFormat.ContentLength > 0 {
 		size = progressiveFormat.ContentLength
@@ -575,7 +582,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 
 	tempFile, err := os.Create(tempVideoPath)
 	if err != nil {
-		return result, wrapCategory(CategoryFilesystem, err)
+		return result, errors.WrapCategory(errors.CategoryFilesystem, err)
 	}
 
 	var writer io.Writer = tempFile
@@ -591,7 +598,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 	_, err = copyWithContext(ctx, writer, stream)
 	tempFile.Close()
 	if err != nil {
-		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
+		return result, errors.WrapCategory(errors.CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
 	}
 	if progress != nil {
 		progress.Finish()
@@ -601,7 +608,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 	printer.Log(LogInfo, "step 2/3: extracting audio track")
 	printer.Log(LogInfo, "step 3/3: encoding to Opus @ 160kbps")
 	if err := extractAudio(tempVideoPath, audioOutputPath); err != nil {
-		return result, wrapCategory(CategoryFilesystem, fmt.Errorf("ffmpeg extraction failed: %w", err))
+		return result, errors.WrapCategory(errors.CategoryFilesystem, fmt.Errorf("ffmpeg extraction failed: %w", err))
 	}
 
 	// Get file size
@@ -714,7 +721,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 
 	// Only check for empty videos when actually downloading
 	if len(playlist.Videos) == 0 {
-		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
+		return errors.WrapCategory(errors.CategoryUnsupported, stderrors.New("playlist has no videos"))
 	}
 
 	albumMeta := map[string]musicEntryMeta{}
@@ -722,7 +729,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		var err error
 		albumMeta, err = fetchMusicPlaylistEntries(ctx, playlist.ID, opts)
 		if err != nil {
-			return wrapCategory(CategoryNetwork, fmt.Errorf("fetching album metadata: %w", err))
+			return errors.WrapCategory(errors.CategoryNetwork, fmt.Errorf("fetching album metadata: %w", err))
 		}
 	}
 
@@ -927,7 +934,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 
 	printer.Summary(len(playlist.Videos), successes, failures, skipped, totalBytes)
 	if successes == 0 {
-		return markReported(wrapCategory(CategoryUnsupported, errors.New("no playlist entries downloaded successfully")))
+		return markReported(errors.WrapCategory(errors.CategoryUnsupported, stderrors.New("no playlist entries downloaded successfully")))
 	}
 	return nil
 }
@@ -956,7 +963,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 	result = downloadResult{}
 	format, err = selectFormat(video, opts)
 	if err != nil {
-		if errorCategory(err) == CategoryUnsupported {
+		if errors.Category(err) == errors.CategoryUnsupported {
 			if video.HLSManifestURL != "" || video.DASHManifestURL != "" {
 				return downloadAdaptive(ctx, client, video, opts, ctxInfo, printer, prefix, err)
 			}
@@ -966,7 +973,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 
 	outputPath, err = resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo)
 	if err != nil {
-		return result, wrapCategory(CategoryFilesystem, err)
+		return result, errors.WrapCategory(errors.CategoryFilesystem, err)
 	}
 	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
 	if err != nil {
@@ -980,19 +987,19 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 	result.outputPath = outputPath
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return result, wrapCategory(CategoryFilesystem, fmt.Errorf("creating output directory: %w", err))
+		return result, errors.WrapCategory(errors.CategoryFilesystem, fmt.Errorf("creating output directory: %w", err))
 	}
 
 	file, err := os.Create(outputPath)
 	if err != nil {
-		return result, wrapCategory(CategoryFilesystem, fmt.Errorf("opening output file: %w", err))
+		return result, errors.WrapCategory(errors.CategoryFilesystem, fmt.Errorf("opening output file: %w", err))
 	}
 	defer file.Close()
 
 	adjustChunkSize(client, format.ContentLength)
 	stream, size, err := client.GetStreamContext(ctx, video, format)
 	if err != nil {
-		return result, wrapCategory(CategoryNetwork, fmt.Errorf("starting stream: %w", err))
+		return result, errors.WrapCategory(errors.CategoryNetwork, fmt.Errorf("starting stream: %w", err))
 	}
 	if size <= 0 && format.ContentLength > 0 {
 		size = format.ContentLength
@@ -1029,7 +1036,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 			stream = nil
 			stream, size, err = client.GetStreamContext(ctx, video, &formatSingle)
 			if err != nil {
-				return result, wrapCategory(CategoryNetwork, fmt.Errorf("retry failed: %w", err))
+				return result, errors.WrapCategory(errors.CategoryNetwork, fmt.Errorf("retry failed: %w", err))
 			}
 			if size <= 0 && format.ContentLength > 0 {
 				size = format.ContentLength
@@ -1063,7 +1070,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 				os.Remove(outputPath)
 				return downloadWithFFmpegFallback(ctx, client, video, opts, printer, prefix, outputPath, progress)
 			}
-			return result, wrapCategory(CategoryNetwork, fmt.Errorf("download failed: %w", err))
+			return result, errors.WrapCategory(errors.CategoryNetwork, fmt.Errorf("download failed: %w", err))
 		}
 	}
 
@@ -1073,6 +1080,28 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 
 	if err := validateOutputFile(outputPath, format); err != nil {
 		return result, err
+	}
+
+	// For audio-only mode with progressive format, extract audio using ffmpeg
+	if opts.AudioOnly {
+		if !ffmpegAvailable() {
+			return result, errors.WrapCategory(errors.CategoryUnsupported, stderrors.New("ffmpeg is required for audio extraction (install ffmpeg and try again)"))
+		}
+		audioExt := "opus" // Default to opus for best quality/size ratio
+		audioPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + "." + audioExt
+		videoPath := outputPath // Save for removal
+		printer.Log(LogInfo, "extracting audio from progressive format")
+		if err := extractAudio(videoPath, audioPath); err != nil {
+			return result, errors.WrapCategory(errors.CategoryFilesystem, fmt.Errorf("audio extraction failed: %w", err))
+		}
+		// Remove the video file, keep only audio
+		os.Remove(videoPath)
+		outputPath = audioPath // Update for deferred embedAudioTags
+		result.outputPath = audioPath
+		if fi, err := os.Stat(audioPath); err == nil {
+			result.bytes = fi.Size()
+		}
+		return result, nil
 	}
 
 	result.bytes = written
@@ -1089,24 +1118,30 @@ func selectFormat(video *youtube.Video, opts Options) (*youtube.Format, error) {
 				return format, nil
 			}
 		}
-		return nil, wrapCategory(CategoryUnsupported, fmt.Errorf("itag %d not found (use --list-formats to see available itags)", opts.Itag))
+		return nil, errors.WrapCategory(errors.CategoryUnsupported, fmt.Errorf("itag %d not found (use --list-formats to see available itags)", opts.Itag))
+	}
+
+	// For audio-only mode, prefer progressive mp4 formats (itag 22/18) to avoid
+	// YouTube API chunked download restrictions. Audio will be extracted via ffmpeg.
+	if opts.AudioOnly {
+		preferredItags := []int{22, 18} // 720p (192kbps AAC), 360p (96kbps AAC)
+		for _, targetItag := range preferredItags {
+			for i := range video.Formats {
+				f := &video.Formats[i]
+				if f.ItagNo == targetItag && f.AudioChannels > 0 {
+					return f, nil
+				}
+			}
+		}
+		return nil, errors.WrapCategory(errors.CategoryUnsupported, stderrors.New("no progressive mp4 format available for audio extraction (try --list-formats)"))
 	}
 
 	candidates := make([]*youtube.Format, 0, len(video.Formats))
 	for i := range video.Formats {
 		format := &video.Formats[i]
 
-		if opts.AudioOnly {
-			if format.AudioChannels == 0 {
-				continue
-			}
-			if format.Width != 0 || format.Height != 0 {
-				continue
-			}
-		} else {
-			if format.AudioChannels == 0 || format.Width == 0 || format.Height == 0 {
-				continue
-			}
+		if format.AudioChannels == 0 || format.Width == 0 || format.Height == 0 {
+			continue
 		}
 
 		if opts.Format != "" && !formatMatches(format, opts.Format) {
@@ -1129,27 +1164,21 @@ func selectFormat(video *youtube.Video, opts Options) (*youtube.Format, error) {
 		}
 
 		reason := "no progressive (audio+video) formats available"
-		if opts.AudioOnly {
-			reason = "no audio-only formats available (try without --audio or use --list-formats)"
-		}
 		if opts.Format != "" {
 			reason = fmt.Sprintf("no formats available for requested format %s (use --list-formats)", opts.Format)
-		} else if !opts.AudioOnly {
+		} else {
 			reason = "no progressive (audio+video) formats available (try --audio or use --list-formats)"
 		}
-		return nil, wrapCategory(CategoryUnsupported, errors.New(reason))
+		return nil, errors.WrapCategory(errors.CategoryUnsupported, stderrors.New(reason))
 	}
 
-	if opts.AudioOnly {
-		return pickAudioFormat(candidates, opts)
-	}
 	return pickVideoFormat(candidates, opts)
 }
 
 func pickVideoFormat(candidates []*youtube.Format, opts Options) (*youtube.Format, error) {
 	targetHeight, preferLowest, err := parseVideoQuality(opts.Quality)
 	if err != nil {
-		return nil, wrapCategory(CategoryUnsupported, err)
+		return nil, errors.WrapCategory(errors.CategoryUnsupported, err)
 	}
 
 	// Prefer highest available when no explicit target.
@@ -1193,66 +1222,9 @@ func pickVideoFormat(candidates []*youtube.Format, opts Options) (*youtube.Forma
 	}
 
 	if best == nil {
-		return nil, wrapCategory(CategoryUnsupported, errors.New("no matching video formats available (use --list-formats)"))
+		return nil, errors.WrapCategory(errors.CategoryUnsupported, stderrors.New("no matching video formats available (use --list-formats)"))
 	}
 
-	return best, nil
-}
-
-func pickAudioFormat(candidates []*youtube.Format, opts Options) (*youtube.Format, error) {
-	targetBitrate, preferLowest, err := parseAudioQuality(opts.Quality)
-	if err != nil {
-		return nil, wrapCategory(CategoryUnsupported, err)
-	}
-
-	var best *youtube.Format
-	if targetBitrate > 0 {
-		for _, f := range candidates {
-			br := bitrateForFormat(f)
-			if br == 0 || br > targetBitrate {
-				continue
-			}
-			if best == nil || br > bitrateForFormat(best) {
-				best = f
-			}
-		}
-		// Nothing under target? fall back to the lowest above target.
-		if best == nil {
-			for _, f := range candidates {
-				br := bitrateForFormat(f)
-				if br == 0 {
-					continue
-				}
-				if best == nil || br < bitrateForFormat(best) {
-					best = f
-				}
-			}
-		}
-	}
-
-	if best == nil && preferLowest {
-		for _, f := range candidates {
-			br := bitrateForFormat(f)
-			if br == 0 {
-				continue
-			}
-			if best == nil || br < bitrateForFormat(best) {
-				best = f
-			}
-		}
-	}
-
-	if best == nil {
-		for _, f := range candidates {
-			if best == nil || bitrateForFormat(f) > bitrateForFormat(best) {
-				best = f
-			}
-		}
-	}
-
-	if best == nil {
-		return nil, wrapCategory(CategoryUnsupported, errors.New("no matching audio formats available (use --list-formats)"))
-	}
 	return best, nil
 }
 
@@ -1301,7 +1273,7 @@ func formatMatches(format *youtube.Format, desired string) bool {
 
 func isUnexpectedStatus(err error, code int) bool {
 	var statusErr youtube.ErrUnexpectedStatusCode
-	if errors.As(err, &statusErr) {
+	if stderrors.As(err, &statusErr) {
 		return int(statusErr) == code
 	}
 	return false
@@ -1340,10 +1312,10 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 		if os.IsNotExist(err) {
 			return path, false, nil
 		}
-		return "", false, wrapCategory(CategoryFilesystem, err)
+		return "", false, errors.WrapCategory(errors.CategoryFilesystem, err)
 	}
 	if info.IsDir() {
-		return "", false, wrapCategory(CategoryFilesystem, fmt.Errorf("output path is a directory: %s", path))
+		return "", false, errors.WrapCategory(errors.CategoryFilesystem, fmt.Errorf("output path is a directory: %s", path))
 	}
 
 	// Check if we have a global "apply to all" action
@@ -1367,7 +1339,7 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 	if printer != nil && printer.progressEnabled && printer.manager != nil {
 		choice, err := printer.manager.PromptDuplicate(path)
 		if err != nil {
-			return "", false, wrapCategory(CategoryFilesystem, err)
+			return "", false, errors.WrapCategory(errors.CategoryFilesystem, err)
 		}
 		switch choice {
 		case promptOverwrite:
@@ -1388,9 +1360,9 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 			newPath, err := nextAvailablePath(path)
 			return newPath, false, err
 		case promptQuit:
-			return "", false, errors.New("aborted by user")
+			return "", false, stderrors.New("aborted by user")
 		default:
-			return "", false, errors.New("duplicate prompt failed")
+			return "", false, stderrors.New("duplicate prompt failed")
 		}
 	}
 
@@ -1424,7 +1396,7 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 			newPath, err := nextAvailablePath(path)
 			return newPath, false, err
 		case "q", "quit":
-			return "", false, errors.New("aborted by user")
+			return "", false, stderrors.New("aborted by user")
 		default:
 			fmt.Fprintln(os.Stderr, "please enter o, s, r, q (or uppercase for 'all')")
 		}
@@ -1443,10 +1415,10 @@ func nextAvailablePath(path string) (string, error) {
 			if os.IsNotExist(err) {
 				return candidate, nil
 			}
-			return "", wrapCategory(CategoryFilesystem, err)
+			return "", errors.WrapCategory(errors.CategoryFilesystem, err)
 		}
 	}
-	return "", wrapCategory(CategoryFilesystem, fmt.Errorf("unable to find available filename for %s", path))
+	return "", errors.WrapCategory(errors.CategoryFilesystem, fmt.Errorf("unable to find available filename for %s", path))
 }
 
 func isTerminal(file *os.File) bool {
@@ -1790,7 +1762,7 @@ func fetchMusicPlaylistEntries(ctx context.Context, playlistID string, opts Opti
 	}
 
 	if len(result) == 0 {
-		return nil, errors.New("no playlist entries found in YouTube Music response")
+		return nil, stderrors.New("no playlist entries found in YouTube Music response")
 	}
 	return result, nil
 }
@@ -1821,7 +1793,7 @@ func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Durat
 	re := regexp.MustCompile(`(?s)ytcfg\.set\((\{.*?\})\);`)
 	match := re.FindSubmatch(body)
 	if match == nil {
-		return musicConfig{}, errors.New("ytcfg.set data not found in YouTube Music page")
+		return musicConfig{}, stderrors.New("ytcfg.set data not found in YouTube Music page")
 	}
 
 	var cfg struct {
@@ -1832,7 +1804,7 @@ func fetchMusicConfig(ctx context.Context, playlistID string, timeout time.Durat
 		return musicConfig{}, err
 	}
 	if cfg.APIKey == "" || len(cfg.Context) == 0 {
-		return musicConfig{}, errors.New("missing innertube config in YouTube Music page")
+		return musicConfig{}, stderrors.New("missing innertube config in YouTube Music page")
 	}
 
 	return musicConfig{
@@ -1886,7 +1858,7 @@ func fetchMusicPlaylistTitle(ctx context.Context, playlistID string, timeout tim
 		}
 	}
 
-	return "", errors.New("playlist title not found in YouTube Music page")
+	return "", stderrors.New("playlist title not found in YouTube Music page")
 }
 
 func fetchMusicBrowse(ctx context.Context, apiKey string, payload map[string]any, timeout time.Duration) (map[string]any, error) {
@@ -1931,7 +1903,7 @@ func extractMusicPlaylistItems(payload map[string]any) ([]any, string, error) {
 	if shelf := findMusicPlaylistShelf(payload); shelf != nil {
 		items := asSlice(shelf["contents"])
 		if len(items) == 0 {
-			return nil, "", errors.New("no playlist entries in YouTube Music shelf")
+			return nil, "", stderrors.New("no playlist entries in YouTube Music shelf")
 		}
 		return items, findContinuationToken(items), nil
 	}
@@ -1956,7 +1928,7 @@ func extractMusicPlaylistItems(payload map[string]any) ([]any, string, error) {
 		return items, findContinuationToken(items), nil
 	}
 
-	return nil, "", errors.New("no playlist items found in YouTube Music response")
+	return nil, "", stderrors.New("no playlist items found in YouTube Music response")
 }
 
 func findMusicPlaylistShelf(payload map[string]any) map[string]any {
