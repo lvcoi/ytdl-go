@@ -135,6 +135,8 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
