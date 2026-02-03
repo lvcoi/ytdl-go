@@ -98,7 +98,14 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 		opts.Quiet = true
 
-		results, exitCode := app.Run(ctx, req.URLs, opts, req.Options.Jobs)
+		jobs := req.Options.Jobs
+		if jobs <= 0 {
+			jobs = 1
+		} else if jobs > 100 {
+			jobs = 100
+		}
+
+		results, exitCode := app.Run(ctx, req.URLs, opts, jobs)
 		payload := DownloadResponse{
 			Type:     "download",
 			Status:   "ok",
