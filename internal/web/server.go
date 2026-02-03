@@ -96,7 +96,6 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		if opts.Timeout == 0 {
 			opts.Timeout = 3 * time.Minute
 		}
-		opts.Quiet = true
 
 		// Create a separate context for the download operation that isn't tied to
 		// the server lifecycle or HTTP request. This allows long-running downloads
@@ -135,6 +134,8 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
