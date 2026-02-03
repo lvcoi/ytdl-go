@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -165,7 +164,7 @@ func guessKindFromContentType(contentType string) string {
 }
 
 func titleFromURL(parsed *url.URL) (string, string) {
-	base := path.Base(parsed.Path)
+	base := filepath.Base(parsed.Path)
 	base = strings.TrimSpace(base)
 	if base == "" || base == "/" || base == "." {
 		base = parsed.Host

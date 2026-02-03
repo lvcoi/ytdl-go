@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/kkdai/youtube/v2"
@@ -299,7 +299,7 @@ func dashFormatFromRepresentation(rep dashRepresentation, quality string) *youtu
 	if mime == "" {
 		mime = rep.Adaptation.MimeType
 	}
-	ext := strings.TrimPrefix(path.Ext(rep.Segments[0]), ".")
+	ext := strings.TrimPrefix(filepath.Ext(rep.Segments[0]), ".")
 	if ext != "" {
 		mime = "video/" + ext
 	}
