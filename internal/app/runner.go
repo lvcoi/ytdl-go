@@ -70,7 +70,7 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 	close(tasks)
 
 done:
-	output := make([]Result, 0, len(urls))
+	output := make([]Result, 0, submitted)
 	exitCode := 0
 	for i := 0; i < submitted; i++ {
 		select {
