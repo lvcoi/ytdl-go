@@ -97,14 +97,13 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			opts.Timeout = 3 * time.Minute
 		}
 
-		jobs := req.Options.Jobs
-		if jobs <= 0 {
-			jobs = 1
-		} else if jobs > 100 {
-			jobs = 100
-		}
+		// Create a separate context for the download operation that isn't tied to
+		// the server lifecycle or HTTP request. This allows long-running downloads
+		// to complete independently while still having a reasonable timeout.
+		downloadCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
 
-		results, exitCode := app.Run(ctx, req.URLs, opts, jobs)
+		results, exitCode := app.Run(downloadCtx, req.URLs, opts, req.Options.Jobs)
 		payload := DownloadResponse{
 			Type:     "download",
 			Status:   "ok",
