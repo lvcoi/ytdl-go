@@ -43,8 +43,8 @@ func main() {
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
 	flag.StringVar(&opts.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
-	flag.BoolVar(&web, "web", false, "launch the web UI server")
-	flag.StringVar(&webAddr, "web-addr", "127.0.0.1:8080", "web server address")
+	flag.BoolVar(&web, "web", false, "launch the web UI server (experimental, limited compared to CLI)")
+	flag.StringVar(&webAddr, "web-addr", "127.0.0.1:8080", "web server bind address (default 127.0.0.1:8080; use 0.0.0.0:PORT to allow remote access on trusted networks only)")
 	flag.Parse()
 
 	opts.MetaOverrides = meta.Values()
