@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -183,7 +183,7 @@ func parseResolutionHeight(res string) int {
 func hlsFormatFromSegments(segments []HLSSegment, quality string, variant HLSVariant) *youtube.Format {
 	ext := "ts"
 	if len(segments) > 0 {
-		ext = strings.TrimPrefix(path.Ext(segments[0].URI), ".")
+		ext = strings.TrimPrefix(filepath.Ext(segments[0].URI), ".")
 		if ext == "" {
 			ext = "ts"
 		}

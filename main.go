@@ -16,6 +16,9 @@ import (
 )
 
 func main() {
+	// Ensure HTTP connections are properly closed at exit
+	defer downloader.CloseIdleConnections()
+
 	var opts downloader.Options
 	var meta metaFlags
 	var jobs int

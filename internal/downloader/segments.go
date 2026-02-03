@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-var (
-	ErrEncryptedHLS  = errors.New("encrypted HLS manifest")
-	ErrEncryptedDASH = errors.New("encrypted DASH manifest")
-)
-
 type HLSManifest struct {
 	Variants  []HLSVariant
 	Segments  []HLSSegment

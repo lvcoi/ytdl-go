@@ -18,7 +18,7 @@ ytdl-go.exe
 
 # Go workspace file
 go.work
-
+*.code-workspace
 # IDE specific files
 .vscode/
 .idea/
@@ -29,6 +29,7 @@ go.work
 
 # Build artifacts
 build/
+media
 dist/
 bin/
 

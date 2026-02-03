@@ -53,8 +53,9 @@ type Printer struct {
 	progressEnabled bool
 	interactive     bool
 	layout          string
-	renderer        *progressRenderer
+	renderer        ProgressRenderer
 	manager         *ProgressManager
+	seamlessTUI     *SeamlessTUI
 	mu              sync.RWMutex
 }
 
