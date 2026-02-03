@@ -53,8 +53,8 @@
   - `{id}` - Video ID
   - `{ext}` - File extension
   - `{quality}` - Quality label or bitrate
-  - `{playlist_title}` - Playlist title (for playlists)
-  - `{playlist_id}` - Playlist ID (for playlists)
+  - `{playlist_title}` or `{playlist-title}` - Playlist title (for playlists)
+  - `{playlist_id}` or `{playlist-id}` - Playlist ID (for playlists)
   - `{index}` - Current index in playlist
   - `{count}` - Total number of videos in playlist
 - **Progress tracking** - Real-time progress bar with speed indicators, or `--quiet` to suppress
@@ -288,8 +288,8 @@ ytdl-go --jobs 4 URL1 URL2 URL3 URL4
 | `{id}` | YouTube video ID | `dQw4w9WgXcQ` |
 | `{ext}` | File extension from format | `mp4`, `webm`, `m4a` |
 | `{quality}` | Quality label or bitrate | `1080p`, `128k` |
-| `{playlist_title}` | Playlist name | `My Awesome Playlist` |
-| `{playlist_id}` | Playlist ID | `PL59FEE129ADFF2B12` |
+| `{playlist_title}` or `{playlist-title}` | Playlist name | `My Awesome Playlist` |
+| `{playlist_id}` or `{playlist-id}` | Playlist ID | `PL59FEE129ADFF2B12` |
 | `{index}` | Current video index in playlist | `1`, `2`, `3` |
 | `{count}` | Total videos in playlist | `25` |
 
