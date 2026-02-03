@@ -96,7 +96,6 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		if opts.Timeout == 0 {
 			opts.Timeout = 3 * time.Minute
 		}
-		opts.Quiet = true
 
 		jobs := req.Options.Jobs
 		if jobs <= 0 {
