@@ -8,8 +8,9 @@ const parseMeta = () => {
   if (!raw) return {};
   return raw.split("\n").reduce((acc, line) => {
     const [key, ...rest] = line.split("=");
-    if (!key || rest.length === 0) return acc;
-    acc[key.trim().toLowerCase()] = rest.join("=").trim();
+    const trimmedKey = key.trim();
+    if (!trimmedKey || rest.length === 0) return acc;
+    acc[trimmedKey.toLowerCase()] = rest.join("=").trim();
     return acc;
   }, {});
 };
