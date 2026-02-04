@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -119,32 +120,12 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
-		// Validate and sanitize string parameters (Quality and Format)
-		validateOptionString := func(value, field string) (string, bool) {
-			trimmed := strings.TrimSpace(value)
-			if trimmed == "" {
-				// Empty is allowed and signals "use default" behavior downstream.
-				return "", true
-			}
-			if len(trimmed) > 256 {
-				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s too long", field))
-				return "", false
-			}
-			for _, r := range trimmed {
-				// Reject control characters (non-printable ASCII)
-				if r < 0x20 || r == 0x7f {
-					writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", field))
-					return "", false
-				}
-			}
-			return trimmed, true
-		}
-
-		quality, ok := validateOptionString(req.Options.Quality, "quality")
+		// Validate string parameters (Quality and Format)
+		quality, ok := validateStringParam(w, req.Options.Quality, "quality")
 		if !ok {
 			return
 		}
-		format, ok := validateOptionString(req.Options.Format, "format")
+		format, ok := validateStringParam(w, req.Options.Format, "format")
 		if !ok {
 			return
 		}
@@ -195,12 +176,16 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		// In web server mode, this output goes to the server's stderr (typically logs),
 		// not to web clients. The Quiet option may help reduce this output if desired.
 		downloadTimeout := 30 * time.Minute
-		if req.Options.TimeoutSeconds > 0 {
+		if opts.Timeout > 0 && opts.Timeout < downloadTimeout {
 			downloadTimeout = opts.Timeout
 		}
-		downloadCtx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
+		downloadCtx, cancel := context.WithTimeout(r.Context(), downloadTimeout)
 		defer cancel()
 
+		// Note: This endpoint blocks until all downloads complete before sending
+		// a response. For large files or multiple URLs, this can take significant
+		// time. The WriteTimeout is set to 30 minutes to accommodate long-running
+		// downloads. Consider this a synchronous, long-running operation.
 		results, exitCode := app.Run(downloadCtx, req.URLs, opts, req.Options.Jobs)
 		payload := DownloadResponse{
 			Type:     "download",
@@ -286,6 +271,26 @@ func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName 
 		return false
 	}
 	return true
+}
+
+func validateStringParam(w http.ResponseWriter, value string, paramName string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		// Empty is allowed and signals "use default" behavior downstream
+		return "", true
+	}
+	if len(trimmed) > 256 {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s exceeds maximum length of 256 characters", paramName))
+		return "", false
+	}
+	// Reject control characters (non-printable ASCII)
+	for _, r := range trimmed {
+		if r < 0x20 || r == 0x7f {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", paramName))
+			return "", false
+		}
+	}
+	return trimmed, true
 }
 
 func serveIndex(w http.ResponseWriter, assets fs.FS) {

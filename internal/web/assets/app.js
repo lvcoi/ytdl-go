@@ -8,7 +8,7 @@ const parseMeta = () => {
   if (!raw) return {};
   return raw.split("\n").reduce((acc, line) => {
     const [key, ...rest] = line.split("=");
-    const trimmedKey = key.trim();
+    const trimmedKey = key ? key.trim() : "";
     if (!trimmedKey || rest.length === 0) return acc;
     acc[trimmedKey.toLowerCase()] = rest.join("=").trim();
     return acc;
@@ -72,7 +72,7 @@ form.addEventListener("submit", async (event) => {
       let errorDetail;
       try {
         const errData = await res.json();
-        errorDetail = errData && (errData.error || errData.message) ? (errData.error || errData.message) : JSON.stringify(errData);
+        errorDetail = errData?.error || errData?.message || JSON.stringify(errData);
       } catch (_) {
         errorDetail = await res.text();
       }

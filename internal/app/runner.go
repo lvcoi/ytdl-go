@@ -26,6 +26,10 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 
 	var sharedManager *downloader.ProgressManager
 	if jobs > 1 {
+		// Note: ProgressManager uses Bubble Tea TUI which renders to os.Stderr.
+		// In a web server context, this output goes to the server's stderr logs
+		// rather than being visible to web clients. The Quiet option in opts
+		// should be set to true by web clients to minimize this output.
 		sharedManager = downloader.NewProgressManager(opts)
 		if sharedManager != nil {
 			sharedManager.Start(ctx)
