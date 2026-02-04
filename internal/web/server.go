@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -66,9 +67,12 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		if ct := r.Header.Get("Content-Type"); ct != "" && !strings.Contains(ct, "application/json") {
-			writeJSONError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
-			return
+		if ct := r.Header.Get("Content-Type"); ct != "" {
+			mediaType, _, err := mime.ParseMediaType(ct)
+			if err != nil || mediaType != "application/json" {
+				writeJSONError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+				return
+			}
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 		var req DownloadRequest
@@ -150,7 +154,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
+		WriteTimeout:      10 * time.Minute,
 		IdleTimeout:       60 * time.Second,
 	}
 
