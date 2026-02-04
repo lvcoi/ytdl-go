@@ -155,6 +155,18 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving base directory: %w", err))
 	}
+	// Ensure the base directory exists and is a directory before using it for temp files.
+	if info, err := os.Stat(absBase); err != nil {
+		if os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(absBase, 0o755); mkErr != nil {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating base directory for temp segments: %w", mkErr))
+			}
+		} else {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat base directory for temp segments: %w", err))
+		}
+	} else if !info.IsDir() {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("base path for temp segments is not a directory: %q", absBase))
+	}
 	if tempDir == "" {
 		created, err := os.MkdirTemp(absBase, "segments-")
 		if err != nil {
