@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -70,6 +71,23 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 		if len(req.URLs) == 0 {
 			writeJSONError(w, http.StatusBadRequest, "no urls provided")
+			return
+		}
+
+		// Validate integer parameters to prevent negative or extremely large values
+		if !validateIntRange(w, req.Options.SegmentConcurrency, 0, 100, "segment-concurrency") {
+			return
+		}
+		if !validateIntRange(w, req.Options.PlaylistConcurrency, 0, 100, "playlist-concurrency") {
+			return
+		}
+		if !validateIntRange(w, req.Options.Itag, 0, 1000000, "itag") {
+			return
+		}
+		if !validateIntRange(w, req.Options.TimeoutSeconds, 0, 86400, "timeout-seconds") {
+			return
+		}
+		if !validateIntRange(w, req.Options.Jobs, 0, 100, "jobs") {
 			return
 		}
 
@@ -172,6 +190,14 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 		Error:  message,
 	}
 	writeJSON(w, status, payload)
+}
+
+func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName string) bool {
+	if value < min || value > max {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s must be between %d and %d", paramName, min, max))
+		return false
+	}
+	return true
 }
 
 func serveIndex(w http.ResponseWriter, assets fs.FS) {
