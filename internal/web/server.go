@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -74,24 +75,20 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Validate integer parameters to prevent negative or extremely large values
-		if req.Options.SegmentConcurrency < 0 || req.Options.SegmentConcurrency > 100 {
-			writeJSONError(w, http.StatusBadRequest, "segment-concurrency must be between 0 and 100")
+		if !validateIntRange(w, req.Options.SegmentConcurrency, 0, 100, "segment-concurrency") {
 			return
 		}
-		if req.Options.PlaylistConcurrency < 0 || req.Options.PlaylistConcurrency > 100 {
-			writeJSONError(w, http.StatusBadRequest, "playlist-concurrency must be between 0 and 100")
+		if !validateIntRange(w, req.Options.PlaylistConcurrency, 0, 100, "playlist-concurrency") {
 			return
 		}
 		if req.Options.Itag < 0 {
 			writeJSONError(w, http.StatusBadRequest, "itag must be non-negative")
 			return
 		}
-		if req.Options.TimeoutSeconds < 0 || req.Options.TimeoutSeconds > 86400 {
-			writeJSONError(w, http.StatusBadRequest, "timeout must be between 0 and 86400 seconds (24 hours)")
+		if !validateIntRange(w, req.Options.TimeoutSeconds, 0, 86400, "timeout-seconds") {
 			return
 		}
-		if req.Options.Jobs < 0 || req.Options.Jobs > 100 {
-			writeJSONError(w, http.StatusBadRequest, "jobs must be between 0 and 100")
+		if !validateIntRange(w, req.Options.Jobs, 0, 100, "jobs") {
 			return
 		}
 
@@ -194,6 +191,14 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 		Error:  message,
 	}
 	writeJSON(w, status, payload)
+}
+
+func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName string) bool {
+	if value < min || value > max {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s must be between %d and %d", paramName, min, max))
+		return false
+	}
+	return true
 }
 
 func serveIndex(w http.ResponseWriter, assets fs.FS) {
