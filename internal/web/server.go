@@ -17,6 +17,8 @@ import (
 //go:embed assets/*
 var embeddedAssets embed.FS
 
+const maxRequestBodyBytes = 1 << 20 // 1 MiB
+
 type DownloadRequest struct {
 	URLs    []string  `json:"urls"`
 	Options WebOption `json:"options"`
@@ -63,8 +65,19 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
+		if ct := r.Header.Get("Content-Type"); ct != "" && !strings.Contains(ct, "application/json") {
+			writeJSONError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 		var req DownloadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
+			if errors.Is(err, http.ErrBodyReadAfterClose) || strings.Contains(err.Error(), "http: request body too large") {
+				writeJSONError(w, http.StatusRequestEntityTooLarge, "request body too large")
+				return
+			}
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
 			return
 		}
@@ -129,6 +142,9 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
