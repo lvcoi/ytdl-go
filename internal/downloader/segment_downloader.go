@@ -51,11 +51,6 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 		return downloadSegmentsSequential(ctx, client, plan, writer, printer)
 	}
 
-	tempDir, err := validateSegmentTempDir(plan.TempDir, plan.BaseDir)
-	if err != nil {
-		return 0, err
-	}
-	plan.TempDir = tempDir
 	if err := os.MkdirAll(plan.TempDir, 0o755); err != nil {
 		return 0, wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp dir: %w", err))
 	}
