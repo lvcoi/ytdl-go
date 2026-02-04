@@ -95,13 +95,43 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Validate and sanitize string parameters (Quality and Format)
+		validateOptionString := func(value, field string) (string, bool) {
+			trimmed := strings.TrimSpace(value)
+			if trimmed == "" {
+				// Empty is allowed and signals "use default" behavior downstream.
+				return "", true
+			}
+			if len(trimmed) > 256 {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s too long", field))
+				return "", false
+			}
+			for _, r := range trimmed {
+				// Reject control characters (non-printable ASCII)
+				if r < 0x20 || r == 0x7f {
+					writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", field))
+					return "", false
+				}
+			}
+			return trimmed, true
+		}
+
+		quality, ok := validateOptionString(req.Options.Quality, "quality")
+		if !ok {
+			return
+		}
+		format, ok := validateOptionString(req.Options.Format, "format")
+		if !ok {
+			return
+		}
+
 		opts := downloader.Options{
 			OutputTemplate:      req.Options.Output,
 			AudioOnly:           req.Options.Audio,
 			InfoOnly:            req.Options.Info,
 			ListFormats:         req.Options.ListFormats,
-			Quality:             req.Options.Quality,
-			Format:              req.Options.Format,
+			Quality:             quality,
+			Format:              format,
 			Itag:                req.Options.Itag,
 			MetaOverrides:       req.Options.Meta,
 			ProgressLayout:      req.Options.ProgressLayout,
