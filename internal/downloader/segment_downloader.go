@@ -155,6 +155,10 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving base directory: %w", err))
 	}
+	// Disallow using filesystem root directly as the base for temp segments.
+	if absBase == string(filepath.Separator) {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("refusing to use filesystem root as base directory for temp segments"))
+	}
 	// Ensure the base directory exists and is a directory before using it for temp files.
 	if info, err := os.Stat(absBase); err != nil {
 		if os.IsNotExist(err) {
