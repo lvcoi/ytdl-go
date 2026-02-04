@@ -177,14 +177,41 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving temp directory: %w", err))
 	}
-	// Evaluate symlinks to prevent symlink-based directory traversal attacks
+	// Evaluate symlinks to prevent symlink-based directory traversal attacks.
+	// This ensures that symlinks cannot be used to escape the base directory.
 	evalBase, err := filepath.EvalSymlinks(absBase)
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating base directory symlinks: %w", err))
 	}
-	evalTemp, err := filepath.EvalSymlinks(absTemp)
-	if err != nil {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating temp directory symlinks: %w", err))
+	// For the temp directory, we need to handle the case where it doesn't exist yet.
+	// EvalSymlinks requires the path to exist, so we evaluate the existing parent path.
+	evalTemp := absTemp
+	if _, err := os.Lstat(absTemp); err == nil {
+		// Path exists, evaluate it directly
+		evalTemp, err = filepath.EvalSymlinks(absTemp)
+		if err != nil {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating temp directory symlinks: %w", err))
+		}
+	} else if os.IsNotExist(err) {
+		// Path doesn't exist, evaluate the closest existing parent
+		parent := filepath.Dir(absTemp)
+		for parent != absTemp {
+			if _, err := os.Lstat(parent); err == nil {
+				evalParent, err := filepath.EvalSymlinks(parent)
+				if err != nil {
+					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", err))
+				}
+				// Reconstruct the full path using the evaluated parent
+				evalTemp = filepath.Join(evalParent, absTemp[len(parent):])
+				break
+			} else if !os.IsNotExist(err) {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", err))
+			}
+			absTemp = parent
+			parent = filepath.Dir(parent)
+		}
+	} else {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory: %w", err))
 	}
 	rel, err := filepath.Rel(evalBase, evalTemp)
 	if err != nil {
