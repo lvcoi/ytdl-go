@@ -91,7 +91,28 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 	}
 	baseClean := filepath.Clean(baseDir)
 	combined := filepath.Join(baseClean, cleaned)
-	rel, err := filepath.Rel(baseClean, combined)
+	
+	// Resolve symlinks to prevent symlink-based directory traversal attacks
+	baseReal, err := filepath.EvalSymlinks(baseClean)
+	if err != nil {
+		// If baseDir doesn't exist or can't be resolved, use the cleaned path
+		baseReal = baseClean
+	}
+	combinedReal, err := filepath.EvalSymlinks(combined)
+	if err != nil {
+		// If combined path doesn't exist yet (which is normal for new files),
+		// resolve the directory part and append the filename
+		dir := filepath.Dir(combined)
+		dirReal, dirErr := filepath.EvalSymlinks(dir)
+		if dirErr != nil {
+			// Directory doesn't exist yet, use the original combined path
+			combinedReal = combined
+		} else {
+			combinedReal = filepath.Join(dirReal, filepath.Base(combined))
+		}
+	}
+	
+	rel, err := filepath.Rel(baseReal, combinedReal)
 	if err != nil {
 		return "", fmt.Errorf("resolve output path relative to %q: %w", baseClean, err)
 	}
@@ -100,6 +121,10 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+	}
+	return combined, nil
+}
+
 func safeOutputDirCandidate(path string, baseDir string) string {
 	safe, err := safeOutputPath(path, baseDir)
 	if err != nil {
@@ -108,10 +133,6 @@ func safeOutputDirCandidate(path string, baseDir string) string {
 		return ""
 	}
 	return safe
-}
-
-	}
-	return combined, nil
 }
 
 func outputDirCandidate(path string, baseDir string) string {
