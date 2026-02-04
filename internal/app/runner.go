@@ -89,8 +89,11 @@ done:
 
 	output := make([]Result, 0, submitted)
 	exitCode := 0
+	contextCancelled := false
 	
-	// Collect results from submitted tasks only
+	// Collect results from submitted tasks only.
+	// The range loop will exit when the results channel is closed
+	// (which happens after all workers finish via the WaitGroup).
 	for res := range results {
 		output = append(output, res)
 		if res.Err != nil {
@@ -98,14 +101,17 @@ done:
 				exitCode = code
 			}
 		}
-		// Check if context was cancelled
+		// Track if context was cancelled during collection
 		select {
 		case <-ctx.Done():
-			if exitCode == 0 {
-				exitCode = 130
-			}
+			contextCancelled = true
 		default:
 		}
+	}
+	
+	// If context was cancelled at any point, use exit code 130 (interrupted)
+	if contextCancelled && exitCode == 0 {
+		exitCode = 130
 	}
 
 	return output, exitCode

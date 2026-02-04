@@ -85,18 +85,18 @@ func ListenAndServe(ctx context.Context, addr string) error {
 
 		// Validate URLs: check length and basic format
 		for i, url := range req.URLs {
-			url = strings.TrimSpace(url)
-			req.URLs[i] = url
-			if len(url) > 4096 {
+			trimmedURL := strings.TrimSpace(url)
+			req.URLs[i] = trimmedURL
+			if len(trimmedURL) > 4096 {
 				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d exceeds maximum length of 4096 characters", i))
 				return
 			}
-			if url == "" {
+			if trimmedURL == "" {
 				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d is empty", i))
 				return
 			}
 			// Basic URL scheme validation
-			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+			if !strings.HasPrefix(trimmedURL, "http://") && !strings.HasPrefix(trimmedURL, "https://") {
 				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d must start with http:// or https://", i))
 				return
 			}
