@@ -26,6 +26,8 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		if b := bitrateForFormat(format); b > 0 {
 			quality = fmt.Sprintf("%dk", b/1000)
 		}
+	} else {
+		quality = sanitize(quality)
 	}
 	playlistTitle := ""
 	playlistID := ""
