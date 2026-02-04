@@ -78,6 +78,25 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Validate URLs: check length and basic format
+		for i, url := range req.URLs {
+			url = strings.TrimSpace(url)
+			req.URLs[i] = url
+			if len(url) > 4096 {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d exceeds maximum length of 4096 characters", i))
+				return
+			}
+			if url == "" {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d is empty", i))
+				return
+			}
+			// Basic URL scheme validation
+			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d must start with http:// or https://", i))
+				return
+			}
+		}
+
 		// Validate integer parameters to prevent negative or extremely large values
 		if !validateIntRange(w, req.Options.SegmentConcurrency, 0, 100, "segment-concurrency") {
 			return
@@ -125,6 +144,16 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Validate log-level parameter
+		logLevel := strings.ToLower(strings.TrimSpace(req.Options.LogLevel))
+		if logLevel != "" {
+			validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+			if !validLogLevels[logLevel] {
+				writeJSONError(w, http.StatusBadRequest, "log-level must be one of: debug, info, warn, error")
+				return
+			}
+		}
+
 		opts := downloader.Options{
 			OutputTemplate:      req.Options.Output,
 			AudioOnly:           req.Options.Audio,
@@ -140,7 +169,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			JSON:                req.Options.JSON,
 			Timeout:             time.Duration(req.Options.TimeoutSeconds) * time.Second,
 			Quiet:               req.Options.Quiet,
-			LogLevel:            req.Options.LogLevel,
+			LogLevel:            logLevel,
 		}
 		if opts.OutputTemplate == "" {
 			opts.OutputTemplate = "{title}.{ext}"
@@ -224,6 +253,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
