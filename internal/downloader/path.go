@@ -76,6 +76,22 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	return path, nil
 }
 
+func artifactPath(outputPath, suffix string) (string, error) {
+	if outputPath == "" {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
+	}
+	if strings.Contains(suffix, "/") || strings.Contains(suffix, "\\") {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid artifact suffix"))
+	}
+	dir := filepath.Dir(outputPath)
+	base := filepath.Base(outputPath)
+	artifact := filepath.Join(dir, base+suffix)
+	if filepath.Clean(filepath.Dir(artifact)) != filepath.Clean(dir) {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("artifact path escapes output directory"))
+	}
+	return artifact, nil
+}
+
 func sanitize(name string) string {
 	invalid := regexp.MustCompile(`[<>:"/\\|?*\x00-\x1F]`)
 	clean := invalid.ReplaceAllString(name, "-")
