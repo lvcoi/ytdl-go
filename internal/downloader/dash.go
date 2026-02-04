@@ -338,6 +338,11 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 
 	useParallel := opts.SegmentConcurrency != 1 && state.NextIndex == 0 && state.BytesWritten == 0 && !state.InitDone
 	if useParallel {
+		baseDir := filepath.Dir(outputPath)
+		tempDir, err := validateSegmentTempDir(segmentDir, baseDir)
+		if err != nil {
+			return downloadResult{}, err
+		}
 		file, err := os.OpenFile(partPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 		if err != nil {
 			return downloadResult{}, wrapCategory(CategoryFilesystem, fmt.Errorf("opening temp file: %w", err))
@@ -351,9 +356,10 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 		}
 		plan := segmentDownloadPlan{
 			URLs:        rep.Segments,
-			TempDir:     segmentDir,
+			TempDir:     tempDir,
 			Prefix:      prefix,
 			Concurrency: opts.SegmentConcurrency,
+			BaseDir:     baseDir,
 		}
 		total, err := downloadSegmentsParallel(ctx, client, plan, file, printer)
 		if err != nil {

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -18,6 +19,7 @@ type segmentDownloadPlan struct {
 	TempDir     string
 	Prefix      string
 	Concurrency int
+	BaseDir     string
 }
 
 const (
@@ -138,6 +140,69 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 	}
 
 	return atomic.LoadInt64(&totalBytes), nil
+}
+
+func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
+	// Always root segment temp directories under a safe, application-controlled
+	// base directory inside the system temp directory, regardless of user-
+	// controlled output paths. This prevents arbitrary filesystem writes.
+	safeBase := filepath.Join(os.TempDir(), "ytdl-go-segments")
+	absBase, err := filepath.Abs(safeBase)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving base directory for temp segments: %w", err))
+	}
+	// Disallow using filesystem root directly as the base for temp segments.
+	if absBase == string(filepath.Separator) {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("refusing to use filesystem root as base directory for temp segments"))
+	}
+	// Ensure the base directory exists and is a directory before using it for temp files.
+	if info, err := os.Stat(absBase); err != nil {
+		if os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(absBase, 0o755); mkErr != nil {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating base directory for temp segments: %w", mkErr))
+			}
+		} else {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat base directory for temp segments: %w", err))
+		}
+	} else if !info.IsDir() {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("base path for temp segments is not a directory: %q", absBase))
+
+	// If no specific tempDir is requested, create a new directory under the safe base.
+	}
+	if tempDir == "" {
+		created, err := os.MkdirTemp(absBase, "segments-")
+		if err != nil {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp segments dir: %w", err))
+		}
+		return created, nil
+	}
+
+	// If a tempDir is provided, treat it as a subpath of the safe base and ensure
+	// it cannot escape that base.
+	candidate := filepath.Join(absBase, tempDir)
+	absTemp, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving temp directory: %w", err))
+	}
+	rel, err := filepath.Rel(absBase, absTemp)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("relating temp directory: %w", err))
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", absTemp, absBase))
+	if info, err := os.Stat(absTemp); err != nil {
+		if os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(absTemp, 0o755); mkErr != nil {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp segments dir: %w", mkErr))
+			}
+		} else {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory for segments: %w", err))
+		}
+	} else if !info.IsDir() {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp path for segments is not a directory: %q", absTemp))
+	}
+	}
+	return absTemp, nil
 }
 
 func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
