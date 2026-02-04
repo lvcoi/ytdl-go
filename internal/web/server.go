@@ -149,9 +149,9 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		// Create a separate context for the download operation. Use the client's
 		// request context as the parent so downloads are cancelled if the client
 		// disconnects, but set a timeout based on the user's specified timeout
-		// (or a reasonable maximum of 30 minutes for long-running downloads).
+		// (capped at 30 minutes for long-running downloads).
 		downloadTimeout := 30 * time.Minute
-		if opts.Timeout > 0 {
+		if opts.Timeout > 0 && opts.Timeout < downloadTimeout {
 			downloadTimeout = opts.Timeout
 		}
 		downloadCtx, cancel := context.WithTimeout(r.Context(), downloadTimeout)
