@@ -114,13 +114,13 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 	
 	rel, err := filepath.Rel(baseReal, combinedReal)
 	if err != nil {
-		return "", fmt.Errorf("resolve output path relative to %q: %w", baseClean, err)
+		return "", fmt.Errorf("resolve output path relative to %q: %w", baseReal, err)
 	}
 	if filepath.IsAbs(rel) {
-		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+		return "", fmt.Errorf("output path escapes base directory %q", baseReal)
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+		return "", fmt.Errorf("output path escapes base directory %q", baseReal)
 	}
 	return combined, nil
 }
