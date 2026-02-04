@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -161,6 +162,17 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- server.ListenAndServe()
+	}()
+
+	// Log server startup (give it a moment to start listening)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		select {
+		case <-errCh:
+			// Server failed to start, error will be handled below
+		default:
+			fmt.Fprintf(os.Stderr, "Web server listening on http://%s\n", addr)
+		}
 	}()
 
 	select {
