@@ -75,7 +75,8 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&req); err != nil {
-			if errors.Is(err, http.ErrBodyReadAfterClose) || strings.Contains(err.Error(), "body too large") {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
 				writeJSONError(w, http.StatusRequestEntityTooLarge, "request body too large")
 				return
 			}
