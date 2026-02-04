@@ -81,8 +81,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		if !validateIntRange(w, req.Options.PlaylistConcurrency, 0, 100, "playlist-concurrency") {
 			return
 		}
-		if req.Options.Itag < 0 {
-			writeJSONError(w, http.StatusBadRequest, "itag must be non-negative")
+		if !validateIntRange(w, req.Options.Itag, 0, 1000000, "itag") {
 			return
 		}
 		if !validateIntRange(w, req.Options.TimeoutSeconds, 0, 86400, "timeout-seconds") {
