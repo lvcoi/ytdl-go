@@ -67,7 +67,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	// Treat existing directory or explicit trailing slash as "put file inside".
 	if strings.HasSuffix(template, "/") {
 		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
-	} else if info, err := os.Stat(path); err == nil && info.IsDir() {
+	} else if info, err := os.Stat(outputDirCandidate(path, baseDir)); err == nil && info.IsDir() {
 		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
 	}
 
@@ -95,6 +95,13 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
 	}
 	return combined, nil
+}
+
+func outputDirCandidate(path string, baseDir string) string {
+	if baseDir == "" || filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(baseDir, path)
 }
 
 func sanitize(name string) string {
