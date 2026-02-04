@@ -86,9 +86,6 @@ func artifactPath(outputPath, suffix string) (string, error) {
 	dir := filepath.Dir(outputPath)
 	base := filepath.Base(outputPath)
 	artifact := filepath.Join(dir, base+suffix)
-	if filepath.Clean(filepath.Dir(artifact)) != filepath.Clean(dir) {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("artifact path escapes output directory"))
-	}
 	return artifact, nil
 }
 
