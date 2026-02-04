@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -158,9 +160,16 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		WriteTimeout:      15 * time.Second,
 	}
 
+	// Create a listener to ensure we can log after successfully binding
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "Web server listening on http://%s\n", addr)
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.ListenAndServe()
+		errCh <- server.Serve(ln)
 	}()
 
 	select {
