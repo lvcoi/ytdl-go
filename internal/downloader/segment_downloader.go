@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -18,6 +19,7 @@ type segmentDownloadPlan struct {
 	TempDir     string
 	Prefix      string
 	Concurrency int
+	BaseDir     string
 }
 
 const (
@@ -49,6 +51,11 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 		return downloadSegmentsSequential(ctx, client, plan, writer, printer)
 	}
 
+	tempDir, err := validateSegmentTempDir(plan.TempDir, plan.BaseDir)
+	if err != nil {
+		return 0, err
+	}
+	plan.TempDir = tempDir
 	if err := os.MkdirAll(plan.TempDir, 0o755); err != nil {
 		return 0, wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp dir: %w", err))
 	}
@@ -138,6 +145,35 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 	}
 
 	return atomic.LoadInt64(&totalBytes), nil
+}
+
+func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
+	if baseDir == "" {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("missing base directory for temp segments"))
+	}
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving base directory: %w", err))
+	}
+	if tempDir == "" {
+		created, err := os.MkdirTemp(absBase, "segments-")
+		if err != nil {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp segments dir: %w", err))
+		}
+		return created, nil
+	}
+	absTemp, err := filepath.Abs(tempDir)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving temp directory: %w", err))
+	}
+	rel, err := filepath.Rel(absBase, absTemp)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("relating temp directory: %w", err))
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", absTemp, absBase))
+	}
+	return absTemp, nil
 }
 
 func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
