@@ -196,8 +196,8 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		// Path doesn't exist, evaluate the closest existing parent
 		originalAbsTemp := absTemp
 		parent := filepath.Dir(absTemp)
-		prevParent := ""
-		for parent != prevParent { // Stop when we can't go up anymore
+		// Walk up the directory tree until we find an existing parent
+		for {
 			if _, err := os.Lstat(parent); err == nil {
 				evalParent, err := filepath.EvalSymlinks(parent)
 				if err != nil {
@@ -214,8 +214,14 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 			} else if !os.IsNotExist(err) {
 				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", err))
 			}
-			prevParent = parent
-			parent = filepath.Dir(parent)
+			// Move up one level; stop if we've reached the root
+			nextParent := filepath.Dir(parent)
+			if nextParent == parent {
+				// We've reached the filesystem root without finding an existing directory
+				// This shouldn't happen in normal use, but use absTemp as-is
+				break
+			}
+			parent = nextParent
 		}
 	} else {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory: %w", err))
