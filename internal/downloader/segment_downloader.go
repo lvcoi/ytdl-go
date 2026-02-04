@@ -177,7 +177,16 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving temp directory: %w", err))
 	}
-	rel, err := filepath.Rel(absBase, absTemp)
+	// Evaluate symlinks to prevent symlink-based directory traversal attacks
+	evalBase, err := filepath.EvalSymlinks(absBase)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating base directory symlinks: %w", err))
+	}
+	evalTemp, err := filepath.EvalSymlinks(absTemp)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating temp directory symlinks: %w", err))
+	}
+	rel, err := filepath.Rel(evalBase, evalTemp)
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("relating temp directory: %w", err))
 	}
