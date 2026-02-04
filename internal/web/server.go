@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -74,10 +75,15 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&req); err != nil {
-			if errors.Is(err, http.ErrBodyReadAfterClose) || strings.Contains(err.Error(), "http: request body too large") {
+			if errors.Is(err, http.ErrBodyReadAfterClose) || strings.Contains(err.Error(), "body too large") {
 				writeJSONError(w, http.StatusRequestEntityTooLarge, "request body too large")
 				return
 			}
+			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
+			return
+		}
+		// Ensure no trailing data beyond the first JSON object
+		if err := dec.Decode(new(struct{})); err != io.EOF {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
 			return
 		}
