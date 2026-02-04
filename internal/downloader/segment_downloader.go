@@ -194,20 +194,20 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		}
 	} else if os.IsNotExist(err) {
 		// Path doesn't exist, evaluate the closest existing parent
+		originalAbsTemp := absTemp
 		parent := filepath.Dir(absTemp)
-		for parent != absTemp {
+		for parent != filepath.Dir(parent) { // Stop at filesystem root
 			if _, err := os.Lstat(parent); err == nil {
 				evalParent, err := filepath.EvalSymlinks(parent)
 				if err != nil {
 					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", err))
 				}
 				// Reconstruct the full path using the evaluated parent
-				evalTemp = filepath.Join(evalParent, absTemp[len(parent):])
+				evalTemp = filepath.Join(evalParent, originalAbsTemp[len(parent):])
 				break
 			} else if !os.IsNotExist(err) {
 				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", err))
 			}
-			absTemp = parent
 			parent = filepath.Dir(parent)
 		}
 	} else {
