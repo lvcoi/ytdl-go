@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ytdl-go Web</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' https:"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__header">
+        <h1>ytdl-go Web</h1>
+        <p>Launch downloads using the embedded CLI options.</p>
+      </header>
+
+      <form id="download-form" class="card">
+        <label class="field">
+          <span>URLs (one per line)</span>
+          <textarea id="urls" rows="4" placeholder="https://www.youtube.com/watch?v=BaW_jenozKc"></textarea>
+        </label>
+
+        <div class="grid">
+          <label class="field">
+            <span>Output template</span>
+            <input id="output" type="text" value="{title}.{ext}" />
+          </label>
+          <label class="field">
+            <span>Quality</span>
+            <input id="quality" type="text" placeholder="1080p, best" />
+          </label>
+          <label class="field">
+            <span>Format</span>
+            <input id="format" type="text" placeholder="mp4, webm, m4a" />
+          </label>
+          <label class="field">
+            <span>Itag</span>
+            <input id="itag" type="number" min="0" step="1" />
+          </label>
+          <label class="field">
+            <span>Timeout (seconds)</span>
+            <input id="timeout" type="number" min="0" step="1" value="180" />
+          </label>
+          <label class="field">
+            <span>Jobs</span>
+            <input id="jobs" type="number" min="0" step="1" value="1" />
+          </label>
+          <label class="field">
+            <span>Segment concurrency</span>
+            <input id="segment-concurrency" type="number" min="0" step="1" />
+          </label>
+          <label class="field">
+            <span>Playlist concurrency</span>
+            <input id="playlist-concurrency" type="number" min="0" step="1" />
+          </label>
+          <label class="field">
+            <span>Progress layout</span>
+            <input id="progress-layout" type="text" placeholder="{label} {percent}" />
+          </label>
+          <label class="field">
+            <span>Log level</span>
+            <select id="log-level">
+              <option value="info" selected>info</option>
+              <option value="debug">debug</option>
+              <option value="warn">warn</option>
+              <option value="error">error</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Meta overrides (key=value per line)</span>
+          <textarea id="meta" rows="2" placeholder="artist=Some Artist"></textarea>
+        </label>
+
+        <div class="toggle-grid">
+          <label class="toggle"><input id="audio" type="checkbox" /> Audio only</label>
+          <label class="toggle"><input id="info" type="checkbox" /> Info only</label>
+          <label class="toggle"><input id="list-formats" type="checkbox" /> List formats</label>
+          <label class="toggle"><input id="json" type="checkbox" /> JSON output</label>
+          <label class="toggle"><input id="quiet" type="checkbox" checked /> Quiet</label>
+        </div>
+
+        <button class="primary" type="submit">Start download</button>
+      </form>
+
+      <section class="card">
+        <h2>Response</h2>
+        <pre id="response">Waiting for request...</pre>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

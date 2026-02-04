@@ -12,7 +12,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lvcoi/ytdl-go/internal/app"
 	"github.com/lvcoi/ytdl-go/internal/downloader"
+	webserver "github.com/lvcoi/ytdl-go/internal/web"
 )
 
 func main() {
@@ -22,6 +24,8 @@ func main() {
 	var opts downloader.Options
 	var meta metaFlags
 	var jobs int
+	var web bool
+	var webAddr string
 
 	flag.StringVar(&opts.OutputTemplate, "o", "{title}.{ext}", "output path or template (supports {title}, {artist}, {album}, {id}, {ext}, {quality}, {playlist_title}, {playlist_id}, {index}, {count})")
 	flag.BoolVar(&opts.AudioOnly, "audio", false, "download best available audio only")
@@ -39,9 +43,22 @@ func main() {
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
 	flag.StringVar(&opts.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
+	flag.BoolVar(&web, "web", false, "launch the web UI server (experimental, limited compared to CLI)")
+	flag.StringVar(&webAddr, "web-addr", "127.0.0.1:8080", "web server bind address (default 127.0.0.1:8080; use 0.0.0.0:PORT to allow remote access on trusted networks only)")
 	flag.Parse()
 
 	opts.MetaOverrides = meta.Values()
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if web {
+		if err := webserver.ListenAndServe(ctx, webAddr); err != nil && !errors.Is(err, context.Canceled) {
+			fmt.Fprintf(os.Stderr, "web server error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	urls := flag.Args()
 	if len(urls) == 0 {
@@ -62,89 +79,16 @@ func main() {
 		opts.Quiet = true
 	}
 
-	type task struct {
-		index int
-		url   string
-	}
-	type result struct {
-		url string
-		err error
-	}
-	tasks := make(chan task)
-	results := make(chan result, len(urls))
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	// Create shared progress manager for concurrent jobs
-	var sharedManager *downloader.ProgressManager
-	if jobs > 1 {
-		sharedManager = downloader.NewProgressManager(opts)
-		if sharedManager != nil {
-			sharedManager.Start(ctx)
-			defer sharedManager.Stop()
-		}
-	}
-
-	for i := 0; i < jobs; i++ {
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case t, ok := <-tasks:
-					if !ok {
-						return
-					}
-					var err error
-					if jobs > 1 && sharedManager != nil {
-						// Use shared progress manager for parallel downloads
-						err = downloader.ProcessWithManager(ctx, t.url, opts, sharedManager)
-					} else {
-						// Single job uses its own progress manager
-						err = downloader.Process(ctx, t.url, opts)
-					}
-					select {
-					case results <- result{url: t.url, err: err}:
-					case <-ctx.Done():
-						return
-					}
+	resultsList, exitCode := app.Run(ctx, urls, opts, jobs)
+	for _, res := range resultsList {
+		if res.Err != nil {
+			if opts.JSON {
+				if downloader.IsReported(res.Err) {
+					continue
 				}
-			}
-		}()
-	}
-
-	for i, url := range urls {
-		select {
-		case <-ctx.Done():
-			close(tasks)
-			goto done
-		case tasks <- task{index: i, url: url}:
-		}
-	}
-	close(tasks)
-
-done:
-	exitCode := 0
-	for i := 0; i < len(urls); i++ {
-		select {
-		case <-ctx.Done():
-			if sharedManager != nil {
-				sharedManager.Stop()
-			}
-			os.Exit(130)
-		case res := <-results:
-			if res.err != nil {
-				if code := downloader.ExitCode(res.err); code > exitCode {
-					exitCode = code
-				}
-				if opts.JSON {
-					if downloader.IsReported(res.err) {
-						continue
-					}
-					writeJSONError(res.url, res.err)
-				} else if !downloader.IsReported(res.err) {
-					fmt.Fprintf(os.Stderr, "error: %v\n", res.err)
-				}
+				writeJSONError(res.URL, res.Err)
+			} else if !downloader.IsReported(res.Err) {
+				fmt.Fprintf(os.Stderr, "error: %v\n", res.Err)
 			}
 		}
 	}
