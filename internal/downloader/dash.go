@@ -91,7 +91,7 @@ func downloadDASH(ctx context.Context, client *youtube.Client, video *youtube.Vi
 	}
 
 	format := dashFormatFromRepresentation(selected, opts.Quality)
-	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo)
+	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}

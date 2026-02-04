@@ -186,7 +186,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 		Title:  info.Title,
 		Author: info.Author,
 	}
-	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides})
+	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}

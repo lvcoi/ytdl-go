@@ -11,12 +11,13 @@ import (
 	"github.com/kkdai/youtube/v2"
 )
 
-func resolveOutputPath(template string, video *youtube.Video, format *youtube.Format, ctxInfo outputContext) (string, error) {
+func resolveOutputPath(template string, video *youtube.Video, format *youtube.Format, ctxInfo outputContext, baseDir string) (string, error) {
 	if template == "" {
 		template = "{title}.{ext}"
 	}
 
 	title := sanitize(video.Title)
+	videoID := sanitize(video.ID)
 	ext := mimeToExt(format.MimeType)
 	artist := video.Author
 	album := ctxInfo.EntryAlbum
@@ -32,7 +33,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	total := ""
 	if ctxInfo.Playlist != nil {
 		playlistTitle = sanitize(ctxInfo.Playlist.Title)
-		playlistID = ctxInfo.Playlist.ID
+		playlistID = sanitize(ctxInfo.Playlist.ID)
 		if ctxInfo.Index > 0 {
 			index = strconv.Itoa(ctxInfo.Index)
 		}
@@ -53,7 +54,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{title}", title,
 		"{artist}", artist,
 		"{album}", album,
-		"{id}", video.ID,
+		"{id}", videoID,
 		"{ext}", ext,
 		"{quality}", quality,
 		"{playlist_title}", playlistTitle,
@@ -73,7 +74,27 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	if filepath.Ext(path) == "" {
 		path = path + "." + ext
 	}
-	return path, nil
+	return safeOutputPath(path, baseDir)
+}
+
+func safeOutputPath(resolved string, baseDir string) (string, error) {
+	cleaned := filepath.Clean(resolved)
+	if baseDir == "" {
+		return cleaned, nil
+	}
+	if filepath.IsAbs(cleaned) {
+		return "", fmt.Errorf("absolute output paths are not allowed with output directory %q", baseDir)
+	}
+	baseClean := filepath.Clean(baseDir)
+	combined := filepath.Join(baseClean, cleaned)
+	rel, err := filepath.Rel(baseClean, combined)
+	if err != nil {
+		return "", fmt.Errorf("resolve output path relative to %q: %w", baseClean, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+	}
+	return combined, nil
 }
 
 func sanitize(name string) string {

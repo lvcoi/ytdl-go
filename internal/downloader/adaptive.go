@@ -87,7 +87,7 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 	}
 
 	format := hlsFormatFromSegments(manifest.Segments, opts.Quality, selectedVariant)
-	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo)
+	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
