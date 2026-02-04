@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -78,6 +79,23 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Validate URLs for format and length
+		for _, urlStr := range req.URLs {
+			if len(urlStr) > 2048 {
+				writeJSONError(w, http.StatusBadRequest, "url exceeds maximum length of 2048 characters")
+				return
+			}
+			parsedURL, err := url.Parse(urlStr)
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+				writeJSONError(w, http.StatusBadRequest, "invalid url scheme: must be http:// or https://")
+				return
+			}
+			if parsedURL.Host == "" {
+				writeJSONError(w, http.StatusBadRequest, "invalid url: missing host")
+				return
+			}
+		}
+
 		// Validate integer parameters to prevent negative or extremely large values
 		if !validateIntRange(w, req.Options.SegmentConcurrency, 0, 100, "segment-concurrency") {
 			return
@@ -95,33 +113,20 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
-		// Validate and sanitize string parameters (Quality and Format)
-		validateOptionString := func(value, field string) (string, bool) {
-			trimmed := strings.TrimSpace(value)
-			if trimmed == "" {
-				// Empty is allowed and signals "use default" behavior downstream.
-				return "", true
-			}
-			if len(trimmed) > 256 {
-				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s too long", field))
-				return "", false
-			}
-			for _, r := range trimmed {
-				// Reject control characters (non-printable ASCII)
-				if r < 0x20 || r == 0x7f {
-					writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", field))
-					return "", false
-				}
-			}
-			return trimmed, true
-		}
-
-		quality, ok := validateOptionString(req.Options.Quality, "quality")
+		// Validate string parameters (Quality and Format)
+		quality, ok := validateStringParam(w, req.Options.Quality, "quality")
 		if !ok {
 			return
 		}
-		format, ok := validateOptionString(req.Options.Format, "format")
+		format, ok := validateStringParam(w, req.Options.Format, "format")
 		if !ok {
+			return
+		}
+
+		// Validate log-level parameter
+		validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+		if req.Options.LogLevel != "" && !validLogLevels[req.Options.LogLevel] {
+			writeJSONError(w, http.StatusBadRequest, "invalid log-level: must be debug, info, warn, or error")
 			return
 		}
 
@@ -149,18 +154,21 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			opts.Timeout = 3 * time.Minute
 		}
 
-		// Create a separate context for the download operation that isn't tied to
-		// the server lifecycle or HTTP request. When the user specifies a timeout,
-		// use that value; otherwise, fall back to a 30-minute cap for long-running
-		// downloads so they can still complete independently while having a
-		// reasonable upper bound.
+		// Create a separate context for the download operation. Use the client's
+		// request context as the parent so downloads are cancelled if the client
+		// disconnects, but set a timeout based on the user's specified timeout
+		// (capped at 30 minutes for long-running downloads).
 		downloadTimeout := 30 * time.Minute
-		if req.Options.TimeoutSeconds > 0 {
+		if opts.Timeout > 0 && opts.Timeout < downloadTimeout {
 			downloadTimeout = opts.Timeout
 		}
-		downloadCtx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
+		downloadCtx, cancel := context.WithTimeout(r.Context(), downloadTimeout)
 		defer cancel()
 
+		// Note: This endpoint blocks until all downloads complete before sending
+		// a response. For large files or multiple URLs, this can take significant
+		// time. The WriteTimeout is set to 30 minutes to accommodate long-running
+		// downloads. Consider this a synchronous, long-running operation.
 		results, exitCode := app.Run(downloadCtx, req.URLs, opts, req.Options.Jobs)
 		payload := DownloadResponse{
 			Type:     "download",
@@ -224,6 +232,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
@@ -245,6 +254,26 @@ func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName 
 		return false
 	}
 	return true
+}
+
+func validateStringParam(w http.ResponseWriter, value string, paramName string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		// Empty is allowed and signals "use default" behavior downstream
+		return "", true
+	}
+	if len(trimmed) > 256 {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s exceeds maximum length of 256 characters", paramName))
+		return "", false
+	}
+	// Reject control characters (non-printable ASCII)
+	for _, r := range trimmed {
+		if r < 0x20 || r == 0x7f {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", paramName))
+			return "", false
+		}
+	}
+	return trimmed, true
 }
 
 func serveIndex(w http.ResponseWriter, assets fs.FS) {
