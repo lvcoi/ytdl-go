@@ -21,11 +21,13 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	ext := mimeToExt(format.MimeType)
 	artist := video.Author
 	album := ctxInfo.EntryAlbum
-	quality := sanitize(format.QualityLabel)
-	if quality == "" || quality == "video" {
+	quality := format.QualityLabel
+	if quality == "" {
 		if b := bitrateForFormat(format); b > 0 {
 			quality = fmt.Sprintf("%dk", b/1000)
 		}
+	} else {
+		quality = sanitize(quality)
 	}
 	playlistTitle := ""
 	playlistID := ""
