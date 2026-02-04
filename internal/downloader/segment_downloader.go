@@ -186,45 +186,53 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	// For the temp directory, we need to handle the case where it doesn't exist yet.
 	// EvalSymlinks requires the path to exist, so we evaluate the existing parent path.
 	evalTemp := absTemp
-	if _, err := os.Lstat(absTemp); err == nil {
+	statErr := error(nil)
+	if _, statErr = os.Lstat(absTemp); statErr == nil {
 		// Path exists, evaluate it directly
-		evalTemp, err = filepath.EvalSymlinks(absTemp)
-		if err != nil {
-			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating temp directory symlinks: %w", err))
+		var evalErr error
+		evalTemp, evalErr = filepath.EvalSymlinks(absTemp)
+		if evalErr != nil {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating temp directory symlinks: %w", evalErr))
 		}
-	} else if os.IsNotExist(err) {
+	} else if os.IsNotExist(statErr) {
 		// Path doesn't exist, evaluate the closest existing parent
 		originalAbsTemp := absTemp
 		parent := filepath.Dir(absTemp)
+		found := false
 		// Walk up the directory tree until we find an existing parent
 		for {
-			if _, err := os.Lstat(parent); err == nil {
-				evalParent, err := filepath.EvalSymlinks(parent)
-				if err != nil {
-					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", err))
+			if _, statErr := os.Lstat(parent); statErr == nil {
+				evalParent, evalErr := filepath.EvalSymlinks(parent)
+				if evalErr != nil {
+					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", evalErr))
 				}
 				// Compute the relative path from parent to the original temp path
-				relPath, err := filepath.Rel(parent, originalAbsTemp)
-				if err != nil {
-					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("computing relative path: %w", err))
+				relPath, relErr := filepath.Rel(parent, originalAbsTemp)
+				if relErr != nil {
+					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("computing relative path: %w", relErr))
 				}
 				// Reconstruct the full path using the evaluated parent
 				evalTemp = filepath.Join(evalParent, relPath)
+				found = true
 				break
-			} else if !os.IsNotExist(err) {
-				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", err))
+			} else if !os.IsNotExist(statErr) {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", statErr))
 			}
 			// Move up one level; stop if we've reached the root
 			nextParent := filepath.Dir(parent)
 			if nextParent == parent {
 				// We've reached the filesystem root without finding an existing directory
-				// This shouldn't happen in normal use, but use absTemp as-is
 				break
 			}
 			parent = nextParent
 		}
+		if !found {
+			// This shouldn't happen in normal operation since at least "/" or "C:\" should exist.
+			// Return an error rather than proceeding with an unevaluated path.
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("could not find existing parent directory for temp path validation"))
+		}
 	} else {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory: %w", err))
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory: %w", statErr))
 	}
 	rel, err := filepath.Rel(evalBase, evalTemp)
 	if err != nil {
