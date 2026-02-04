@@ -57,22 +57,20 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 		}()
 	}
 
-	submitted := 0
 	for _, url := range urls {
 		select {
 		case <-ctx.Done():
 			close(tasks)
 			goto done
 		case tasks <- task{url: url}:
-			submitted++
 		}
 	}
 	close(tasks)
 
 done:
-	output := make([]Result, 0, submitted)
+	output := make([]Result, 0, len(urls))
 	exitCode := 0
-	for i := 0; i < submitted; i++ {
+	for i := 0; i < len(urls); i++ {
 		select {
 		case <-ctx.Done():
 			if sharedManager != nil {
