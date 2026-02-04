@@ -90,7 +90,7 @@ done:
 	output := make([]Result, 0, submitted)
 	exitCode := 0
 	contextCancelled := false
-	
+
 	// Collect results from submitted tasks only.
 	// The range loop will exit when the results channel is closed
 	// (which happens after all workers finish via the WaitGroup).
@@ -108,7 +108,7 @@ done:
 		default:
 		}
 	}
-	
+
 	// If context was cancelled at any point, use exit code 130 (interrupted)
 	if contextCancelled && exitCode == 0 {
 		exitCode = 130
