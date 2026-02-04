@@ -7,8 +7,9 @@ import (
 )
 
 type Result struct {
-	URL string
-	Err error
+	URL   string `json:"url"`
+	Error string `json:"error,omitempty"`
+	Err   error  `json:"-"`
 }
 
 func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]Result, int) {
@@ -24,6 +25,10 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 
 	var sharedManager *downloader.ProgressManager
 	if jobs > 1 {
+		// Note: ProgressManager uses Bubble Tea TUI which renders to os.Stderr.
+		// In a web server context, this output goes to the server's stderr logs
+		// rather than being visible to web clients. The Quiet option in opts
+		// should be set to true by web clients to minimize this output.
 		sharedManager = downloader.NewProgressManager(opts)
 		if sharedManager != nil {
 			sharedManager.Start(ctx)
@@ -47,8 +52,12 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 					} else {
 						err = downloader.Process(ctx, t.url, opts)
 					}
+					result := Result{URL: t.url, Err: err}
+					if err != nil {
+						result.Error = err.Error()
+					}
 					select {
-					case results <- Result{URL: t.url, Err: err}:
+					case results <- result:
 					case <-ctx.Done():
 						return
 					}

@@ -78,6 +78,18 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Validate URLs for format and length
+		for _, url := range req.URLs {
+			if len(url) > 2048 {
+				writeJSONError(w, http.StatusBadRequest, "url exceeds maximum length of 2048 characters")
+				return
+			}
+			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+				writeJSONError(w, http.StatusBadRequest, "invalid url scheme: must be http:// or https://")
+				return
+			}
+		}
+
 		// Validate integer parameters to prevent negative or extremely large values
 		if !validateIntRange(w, req.Options.SegmentConcurrency, 0, 100, "segment-concurrency") {
 			return
@@ -92,6 +104,21 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 		if !validateIntRange(w, req.Options.Jobs, 0, 100, "jobs") {
+			return
+		}
+
+		// Validate string parameters (Quality and Format)
+		if !validateStringParam(w, req.Options.Quality, "quality") {
+			return
+		}
+		if !validateStringParam(w, req.Options.Format, "format") {
+			return
+		}
+
+		// Validate log-level parameter
+		validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true, "": true}
+		if req.Options.LogLevel != "" && !validLogLevels[req.Options.LogLevel] {
+			writeJSONError(w, http.StatusBadRequest, "invalid log-level: must be debug, info, warn, or error")
 			return
 		}
 
@@ -119,12 +146,21 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			opts.Timeout = 3 * time.Minute
 		}
 
-		// Create a separate context for the download operation that isn't tied to
-		// the server lifecycle or HTTP request. This allows long-running downloads
-		// to complete independently while still having a reasonable timeout.
-		downloadCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		// Create a separate context for the download operation. Use the client's
+		// request context as the parent so downloads are cancelled if the client
+		// disconnects, but set a timeout based on the user's specified timeout
+		// (or a reasonable maximum of 30 minutes for long-running downloads).
+		downloadTimeout := 30 * time.Minute
+		if req.Options.TimeoutSeconds > 0 {
+			downloadTimeout = opts.Timeout
+		}
+		downloadCtx, cancel := context.WithTimeout(r.Context(), downloadTimeout)
 		defer cancel()
 
+		// Note: This endpoint blocks until all downloads complete before sending
+		// a response. For large files or multiple URLs, this can take significant
+		// time. The WriteTimeout is set to 30 minutes to accommodate long-running
+		// downloads. Consider this a synchronous, long-running operation.
 		results, exitCode := app.Run(downloadCtx, req.URLs, opts, req.Options.Jobs)
 		payload := DownloadResponse{
 			Type:     "download",
@@ -188,6 +224,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
@@ -207,6 +244,26 @@ func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName 
 	if value < min || value > max {
 		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s must be between %d and %d", paramName, min, max))
 		return false
+	}
+	return true
+}
+
+func validateStringParam(w http.ResponseWriter, value string, paramName string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		// Empty is allowed and signals "use default" behavior downstream
+		return true
+	}
+	if len(trimmed) > 256 {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s exceeds maximum length of 256 characters", paramName))
+		return false
+	}
+	// Reject control characters (non-printable ASCII)
+	for _, r := range trimmed {
+		if r < 0x20 || r == 0x7f {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", paramName))
+			return false
+		}
 	}
 	return true
 }

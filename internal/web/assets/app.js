@@ -8,8 +8,9 @@ const parseMeta = () => {
   if (!raw) return {};
   return raw.split("\n").reduce((acc, line) => {
     const [key, ...rest] = line.split("=");
-    if (!key || rest.length === 0) return acc;
-    acc[key.trim().toLowerCase()] = rest.join("=").trim();
+    const trimmedKey = key ? key.trim() : "";
+    if (!trimmedKey || rest.length === 0) return acc;
+    acc[trimmedKey.toLowerCase()] = rest.join("=").trim();
     return acc;
   }, {});
 };
@@ -17,7 +18,9 @@ const parseMeta = () => {
 const parseNumber = (id) => {
   const value = field(id).value.trim();
   if (!value) return 0;
-  return Number(value);
+  const num = Number(value);
+  if (Number.isNaN(num)) return 0;
+  return num;
 };
 
 const payload = () => ({
@@ -65,6 +68,19 @@ form.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      let errorDetail;
+      try {
+        const errData = await res.json();
+        errorDetail = errData && (errData.error || errData.message) ? (errData.error || errData.message) : JSON.stringify(errData);
+      } catch (_) {
+        errorDetail = await res.text();
+      }
+      setResponse({
+        error: `Request failed with status ${res.status}${errorDetail ? `: ${errorDetail}` : ""}`,
+      });
+      return;
+    }
     const data = await res.json();
     setResponse(data);
   } catch (error) {
