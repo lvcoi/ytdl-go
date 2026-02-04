@@ -186,7 +186,7 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	// For the temp directory, we need to handle the case where it doesn't exist yet.
 	// EvalSymlinks requires the path to exist, so we evaluate the existing parent path.
 	evalTemp := absTemp
-	statErr := error(nil)
+	var statErr error
 	if _, statErr = os.Lstat(absTemp); statErr == nil {
 		// Path exists, evaluate it directly
 		var evalErr error
@@ -201,7 +201,7 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		found := false
 		// Walk up the directory tree until we find an existing parent
 		for {
-			if _, statErr := os.Lstat(parent); statErr == nil {
+			if _, parentStatErr := os.Lstat(parent); parentStatErr == nil {
 				evalParent, evalErr := filepath.EvalSymlinks(parent)
 				if evalErr != nil {
 					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", evalErr))
@@ -215,8 +215,8 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 				evalTemp = filepath.Join(evalParent, relPath)
 				found = true
 				break
-			} else if !os.IsNotExist(statErr) {
-				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", statErr))
+			} else if !os.IsNotExist(parentStatErr) {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", parentStatErr))
 			}
 			// Move up one level; stop if we've reached the root
 			nextParent := filepath.Dir(parent)
