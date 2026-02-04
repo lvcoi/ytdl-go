@@ -18,7 +18,9 @@ const parseMeta = () => {
 const parseNumber = (id) => {
   const value = field(id).value.trim();
   if (!value) return 0;
-  return Number(value);
+  const num = Number(value);
+  if (Number.isNaN(num)) return 0;
+  return num;
 };
 
 const payload = () => ({
