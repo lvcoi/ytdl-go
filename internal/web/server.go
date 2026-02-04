@@ -73,6 +73,28 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Validate integer parameters to prevent negative or extremely large values
+		if req.Options.SegmentConcurrency < 0 || req.Options.SegmentConcurrency > 100 {
+			writeJSONError(w, http.StatusBadRequest, "segment-concurrency must be between 0 and 100")
+			return
+		}
+		if req.Options.PlaylistConcurrency < 0 || req.Options.PlaylistConcurrency > 100 {
+			writeJSONError(w, http.StatusBadRequest, "playlist-concurrency must be between 0 and 100")
+			return
+		}
+		if req.Options.Itag < 0 {
+			writeJSONError(w, http.StatusBadRequest, "itag must be non-negative")
+			return
+		}
+		if req.Options.TimeoutSeconds < 0 || req.Options.TimeoutSeconds > 86400 {
+			writeJSONError(w, http.StatusBadRequest, "timeout must be between 0 and 86400 seconds (24 hours)")
+			return
+		}
+		if req.Options.Jobs < 0 || req.Options.Jobs > 100 {
+			writeJSONError(w, http.StatusBadRequest, "jobs must be between 0 and 100")
+			return
+		}
+
 		opts := downloader.Options{
 			OutputTemplate:      req.Options.Output,
 			AudioOnly:           req.Options.Audio,
