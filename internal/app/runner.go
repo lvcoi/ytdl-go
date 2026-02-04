@@ -110,7 +110,7 @@ done:
 	}
 
 	// If context was cancelled at any point, use exit code 130 (interrupted)
-	if contextCancelled && exitCode == 0 {
+	if exitCode == 0 && (contextCancelled || ctx.Err() != nil) {
 		exitCode = 130
 	}
 
