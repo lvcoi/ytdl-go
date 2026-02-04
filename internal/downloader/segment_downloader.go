@@ -239,7 +239,7 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("relating temp directory: %w", err))
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", absTemp, absBase))
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", evalTemp, evalBase))
 	}
 	return evalTemp, nil
 }
