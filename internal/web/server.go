@@ -157,7 +157,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
+		WriteTimeout:      30 * time.Minute,
 	}
 
 	// Create a listener to ensure we can log after successfully binding
