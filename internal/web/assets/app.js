@@ -68,6 +68,19 @@ form.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      let errorDetail;
+      try {
+        const errData = await res.json();
+        errorDetail = errData && (errData.error || errData.message) ? (errData.error || errData.message) : JSON.stringify(errData);
+      } catch (_) {
+        errorDetail = await res.text();
+      }
+      setResponse({
+        error: `Request failed with status ${res.status}${errorDetail ? `: ${errorDetail}` : ""}`,
+      });
+      return;
+    }
     const data = await res.json();
     setResponse(data);
   } catch (error) {
