@@ -63,11 +63,15 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{count}", total,
 	)
 	path := replacer.Replace(template)
+	path = filepath.Clean(path)
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("absolute output paths are not allowed in template %q", template)
+	}
 
 	// Treat existing directory or explicit trailing slash as "put file inside".
 	if strings.HasSuffix(template, "/") {
 		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
-	} else if info, err := os.Stat(outputDirCandidate(path, baseDir)); err == nil && info.IsDir() {
+	} else if info, err := os.Stat(safeOutputDirCandidate(path, baseDir)); err == nil && info.IsDir() {
 		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
 	}
 
@@ -93,6 +97,16 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+func safeOutputDirCandidate(path string, baseDir string) string {
+	safe, err := safeOutputPath(path, baseDir)
+	if err != nil {
+		// If the path is unsafe relative to baseDir, return a value that will cause os.Stat to fail.
+		// This avoids probing arbitrary filesystem locations.
+		return ""
+	}
+	return safe
+}
+
 	}
 	return combined, nil
 }
