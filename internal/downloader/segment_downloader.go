@@ -183,6 +183,10 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating base directory symlinks: %w", err))
 	}
+	// Disallow using filesystem root directly as the base after resolving symlinks.
+	if evalBase == string(filepath.Separator) {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("refusing to use filesystem root as base directory for temp segments after symlink evaluation"))
+	}
 	// For the temp directory, we need to handle the case where it doesn't exist yet.
 	// EvalSymlinks requires the path to exist, so we evaluate the existing parent path.
 	evalTemp := absTemp
