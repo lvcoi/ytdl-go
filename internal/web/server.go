@@ -120,9 +120,15 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Create a separate context for the download operation that isn't tied to
-		// the server lifecycle or HTTP request. This allows long-running downloads
-		// to complete independently while still having a reasonable timeout.
-		downloadCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		// the server lifecycle or HTTP request. When the user specifies a timeout,
+		// use that value; otherwise, fall back to a 30-minute cap for long-running
+		// downloads so they can still complete independently while having a
+		// reasonable upper bound.
+		downloadTimeout := 30 * time.Minute
+		if req.Options.TimeoutSeconds > 0 {
+			downloadTimeout = opts.Timeout
+		}
+		downloadCtx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 		defer cancel()
 
 		results, exitCode := app.Run(downloadCtx, req.URLs, opts, req.Options.Jobs)
