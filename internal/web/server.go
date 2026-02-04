@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -79,13 +80,18 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Validate URLs for format and length
-		for _, url := range req.URLs {
-			if len(url) > 2048 {
+		for _, urlStr := range req.URLs {
+			if len(urlStr) > 2048 {
 				writeJSONError(w, http.StatusBadRequest, "url exceeds maximum length of 2048 characters")
 				return
 			}
-			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+			parsedURL, err := url.Parse(urlStr)
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				writeJSONError(w, http.StatusBadRequest, "invalid url scheme: must be http:// or https://")
+				return
+			}
+			if parsedURL.Host == "" {
+				writeJSONError(w, http.StatusBadRequest, "invalid url: missing host")
 				return
 			}
 		}
@@ -108,10 +114,12 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Validate string parameters (Quality and Format)
-		if !validateStringParam(w, req.Options.Quality, "quality") {
+		quality, ok := validateStringParam(w, req.Options.Quality, "quality")
+		if !ok {
 			return
 		}
-		if !validateStringParam(w, req.Options.Format, "format") {
+		format, ok := validateStringParam(w, req.Options.Format, "format")
+		if !ok {
 			return
 		}
 
@@ -248,24 +256,24 @@ func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName 
 	return true
 }
 
-func validateStringParam(w http.ResponseWriter, value string, paramName string) bool {
+func validateStringParam(w http.ResponseWriter, value string, paramName string) (string, bool) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		// Empty is allowed and signals "use default" behavior downstream
-		return true
+		return "", true
 	}
 	if len(trimmed) > 256 {
 		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s exceeds maximum length of 256 characters", paramName))
-		return false
+		return "", false
 	}
 	// Reject control characters (non-printable ASCII)
 	for _, r := range trimmed {
 		if r < 0x20 || r == 0x7f {
 			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", paramName))
-			return false
+			return "", false
 		}
 	}
-	return true
+	return trimmed, true
 }
 
 func serveIndex(w http.ResponseWriter, assets fs.FS) {
