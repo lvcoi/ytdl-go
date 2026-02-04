@@ -116,7 +116,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Validate log-level parameter
-		validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true, "": true}
+		validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 		if req.Options.LogLevel != "" && !validLogLevels[req.Options.LogLevel] {
 			writeJSONError(w, http.StatusBadRequest, "invalid log-level: must be debug, info, warn, or error")
 			return
@@ -151,7 +151,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		// disconnects, but set a timeout based on the user's specified timeout
 		// (or a reasonable maximum of 30 minutes for long-running downloads).
 		downloadTimeout := 30 * time.Minute
-		if req.Options.TimeoutSeconds > 0 {
+		if opts.Timeout > 0 {
 			downloadTimeout = opts.Timeout
 		}
 		downloadCtx, cancel := context.WithTimeout(r.Context(), downloadTimeout)
