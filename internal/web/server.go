@@ -61,6 +61,11 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	fileServer := http.FileServer(http.FS(assets))
 
 	mux := http.NewServeMux()
+	// /api/download is a synchronous endpoint that blocks until all downloads complete.
+	// This is intentional: clients receive complete results for all URLs in a single response.
+	// The WriteTimeout is set to 30 minutes to accommodate long-running downloads.
+	// For very large batches or extremely long downloads, clients should be prepared
+	// for extended response times.
 	mux.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -179,10 +184,16 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Create a separate context for the download operation that isn't tied to
-		// the server lifecycle or HTTP request. When the user specifies a timeout,
-		// use that value; otherwise, fall back to a 30-minute cap for long-running
-		// downloads so they can still complete independently while having a
-		// reasonable upper bound.
+		// the server lifecycle or HTTP request. This implements fire-and-forget
+		// semantics: downloads continue even if the client disconnects, ensuring
+		// downloads complete successfully without being interrupted by network issues.
+		// When the user specifies a timeout, use that value; otherwise, fall back to
+		// a 30-minute cap for long-running downloads so they can still complete
+		// independently while having a reasonable upper bound.
+		//
+		// Note: The ProgressManager uses Bubble Tea TUI which renders to os.Stderr.
+		// In web server mode, this output goes to the server's stderr (typically logs),
+		// not to web clients. The Quiet option may help reduce this output if desired.
 		downloadTimeout := 30 * time.Minute
 		if req.Options.TimeoutSeconds > 0 {
 			downloadTimeout = opts.Timeout
