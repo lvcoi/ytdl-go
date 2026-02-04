@@ -64,6 +64,8 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
+		// Limit request body size to 1MB to prevent resource exhaustion
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB
 		var req DownloadRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
