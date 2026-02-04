@@ -2,14 +2,15 @@ package app
 
 import (
 	"context"
+	"sync"
 
 	"github.com/lvcoi/ytdl-go/internal/downloader"
 )
 
 type Result struct {
 	URL   string `json:"url"`
-	Error string `json:"error,omitempty"`
 	Err   error  `json:"-"`
+	Error string `json:"error,omitempty"`
 }
 
 func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]Result, int) {
@@ -36,8 +37,12 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 		}
 	}
 
+	// Use WaitGroup to track worker goroutines
+	var wg sync.WaitGroup
 	for i := 0; i < jobs; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for {
 				select {
 				case <-ctx.Done():
@@ -66,34 +71,51 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 		}()
 	}
 
+	// Track number of tasks actually submitted
+	submitted := 0
 	for _, url := range urls {
 		select {
 		case <-ctx.Done():
 			close(tasks)
 			goto done
 		case tasks <- task{url: url}:
+			submitted++
 		}
 	}
 	close(tasks)
 
 done:
-	output := make([]Result, 0, len(urls))
+	// Close results channel after all workers finish
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	output := make([]Result, 0, submitted)
 	exitCode := 0
-	for i := 0; i < len(urls); i++ {
-		select {
-		case <-ctx.Done():
-			if sharedManager != nil {
-				sharedManager.Stop()
-			}
-			return output, 130
-		case res := <-results:
-			output = append(output, res)
-			if res.Err != nil {
-				if code := downloader.ExitCode(res.Err); code > exitCode {
-					exitCode = code
-				}
+	contextCancelled := false
+
+	// Collect results from submitted tasks only.
+	// The range loop will exit when the results channel is closed
+	// (which happens after all workers finish via the WaitGroup).
+	for res := range results {
+		output = append(output, res)
+		if res.Err != nil {
+			if code := downloader.ExitCode(res.Err); code > exitCode {
+				exitCode = code
 			}
 		}
+		// Track if context was cancelled during collection
+		select {
+		case <-ctx.Done():
+			contextCancelled = true
+		default:
+		}
+	}
+
+	// If context was cancelled at any point, use exit code 130 (interrupted)
+	if exitCode == 0 && (contextCancelled || ctx.Err() != nil) {
+		exitCode = 130
 	}
 
 	return output, exitCode

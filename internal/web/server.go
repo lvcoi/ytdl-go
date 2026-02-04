@@ -62,6 +62,11 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	fileServer := http.FileServer(http.FS(assets))
 
 	mux := http.NewServeMux()
+	// /api/download is a synchronous endpoint that blocks until all downloads complete.
+	// This is intentional: clients receive complete results for all URLs in a single response.
+	// The WriteTimeout is set to 30 minutes to accommodate long-running downloads.
+	// For very large batches or extremely long downloads, clients should be prepared
+	// for extended response times.
 	mux.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -79,19 +84,21 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
-		// Validate URLs for format and length
-		for _, urlStr := range req.URLs {
-			if len(urlStr) > 2048 {
-				writeJSONError(w, http.StatusBadRequest, "url exceeds maximum length of 2048 characters")
+		// Validate URLs: check length and basic format
+		for i, url := range req.URLs {
+			trimmedURL := strings.TrimSpace(url)
+			req.URLs[i] = trimmedURL
+			if len(trimmedURL) > 4096 {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d exceeds maximum length of 4096 characters", i))
 				return
 			}
-			parsedURL, err := url.Parse(urlStr)
-			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-				writeJSONError(w, http.StatusBadRequest, "invalid url scheme: must be http:// or https://")
+			if trimmedURL == "" {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d is empty", i))
 				return
 			}
-			if parsedURL.Host == "" {
-				writeJSONError(w, http.StatusBadRequest, "invalid url: missing host")
+			// Basic URL scheme validation
+			if !strings.HasPrefix(trimmedURL, "http://") && !strings.HasPrefix(trimmedURL, "https://") {
+				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d must start with http:// or https://", i))
 				return
 			}
 		}
@@ -124,10 +131,13 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 
 		// Validate log-level parameter
-		validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
-		if req.Options.LogLevel != "" && !validLogLevels[req.Options.LogLevel] {
-			writeJSONError(w, http.StatusBadRequest, "invalid log-level: must be debug, info, warn, or error")
-			return
+		logLevel := strings.ToLower(strings.TrimSpace(req.Options.LogLevel))
+		if logLevel != "" {
+			validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+			if !validLogLevels[logLevel] {
+				writeJSONError(w, http.StatusBadRequest, "log-level must be one of: debug, info, warn, error")
+				return
+			}
 		}
 
 		opts := downloader.Options{
@@ -145,7 +155,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			JSON:                req.Options.JSON,
 			Timeout:             time.Duration(req.Options.TimeoutSeconds) * time.Second,
 			Quiet:               req.Options.Quiet,
-			LogLevel:            req.Options.LogLevel,
+			LogLevel:            logLevel,
 		}
 		if opts.OutputTemplate == "" {
 			opts.OutputTemplate = "{title}.{ext}"
@@ -154,10 +164,17 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			opts.Timeout = 3 * time.Minute
 		}
 
-		// Create a separate context for the download operation. Use the client's
-		// request context as the parent so downloads are cancelled if the client
-		// disconnects, but set a timeout based on the user's specified timeout
-		// (capped at 30 minutes for long-running downloads).
+		// Create a separate context for the download operation that isn't tied to
+		// the server lifecycle or HTTP request. This implements fire-and-forget
+		// semantics: downloads continue even if the client disconnects, ensuring
+		// downloads complete successfully without being interrupted by network issues.
+		// When the user specifies a timeout, use that value; otherwise, fall back to
+		// a 30-minute cap for long-running downloads so they can still complete
+		// independently while having a reasonable upper bound.
+		//
+		// Note: The ProgressManager uses Bubble Tea TUI which renders to os.Stderr.
+		// In web server mode, this output goes to the server's stderr (typically logs),
+		// not to web clients. The Quiet option may help reduce this output if desired.
 		downloadTimeout := 30 * time.Minute
 		if opts.Timeout > 0 && opts.Timeout < downloadTimeout {
 			downloadTimeout = opts.Timeout
