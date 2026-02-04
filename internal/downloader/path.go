@@ -120,7 +120,7 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 		return "", fmt.Errorf("output path escapes base directory %q", baseReal)
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("output path escapes base directory %q", baseReal)
+		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
 	}
 	return combined, nil
 }
