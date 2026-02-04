@@ -95,6 +95,9 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve output path relative to %q: %w", baseClean, err)
 	}
+	if filepath.IsAbs(rel) {
+		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
 func safeOutputDirCandidate(path string, baseDir string) string {
