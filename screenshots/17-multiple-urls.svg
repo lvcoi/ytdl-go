@@ -1,42 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="320" viewBox="0 0 900 320">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="340" viewBox="0 0 900 340">
   <defs>
     <style>
-      .terminal-bg { fill: #1e1e1e; }
-      .terminal-text { fill: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-prompt { fill: #4ec9b0; font-weight: bold; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-success { fill: #6a9955; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-info { fill: #569cd6; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-error { fill: #f48771; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-warning { fill: #ce9178; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-header { fill: #808080; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .terminal-bg { fill: #0d1117; }
+      .terminal-text { fill: #e6edf3; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-prompt { fill: #7ee787; font-weight: bold; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-success { fill: #3fb950; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-info { fill: #58a6ff; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-error { fill: #f85149; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-warning { fill: #d29922; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-header { fill: #8b949e; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .terminal-dim { fill: #6e7681; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .progress-bg { fill: #21262d; }
+      .progress-fill { fill: #238636; }
     </style>
   </defs>
   
   <!-- Background -->
-  <rect class="terminal-bg" width="900" height="320" rx="5"/>
+  <rect class="terminal-bg" width="900" height="340" rx="8"/>
   
   <!-- Window controls (macOS style) -->
-  <circle cx="20" cy="20" r="6" fill="#ff5f56"/>
-  <circle cx="40" cy="20" r="6" fill="#ffbd2e"/>
-  <circle cx="60" cy="20" r="6" fill="#27c93f"/>
+  <circle cx="20" cy="20" r="6" fill="#ff5f57" opacity="0.9"/>
+  <circle cx="40" cy="20" r="6" fill="#febc2e" opacity="0.9"/>
+  <circle cx="60" cy="20" r="6" fill="#28c840" opacity="0.9"/>
   
   <!-- Title -->
-  <text class="terminal-header" x="450" y="25" text-anchor="middle">Multiple URLs Download</text>
+  <text class="terminal-header" x="450" y="25" text-anchor="middle">Multiple Downloads</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go https://www.youtube.com/watch?v=video1 \</text>
-  <text class="terminal-text" x="20" y="68">          https://www.youtube.com/watch?v=video2 \</text>
-  <text class="terminal-text" x="20" y="86">          https://www.youtube.com/watch?v=video3</text>
-  <text class="terminal-text" x="20" y="104"></text>
-  <text class="terminal-text" x="20" y="122">[1/3] Downloading: First Video Title</text>
-  <text class="terminal-success" x="20" y="140">✓ First Video Title.mp4</text>
-  <text class="terminal-text" x="20" y="158"></text>
-  <text class="terminal-text" x="20" y="176">[2/3] Downloading: Second Video Title</text>
-  <text class="terminal-success" x="20" y="194">✓ Second Video Title.mp4</text>
-  <text class="terminal-text" x="20" y="212"></text>
-  <text class="terminal-text" x="20" y="230">[3/3] Downloading: Third Video Title</text>
-  <text class="terminal-success" x="20" y="248">✓ Third Video Title.mp4</text>
-  <text class="terminal-text" x="20" y="266"></text>
-  <text class="terminal-error" x="20" y="284">Summary: 3 downloaded, 0 failed, 0 skipped (45.2 MB total)</text>
+  <text class="terminal-prompt" x="20" y="55">$ ytdl-go -jobs 4 URL1 URL2 URL3 URL4</text>
+  <text class="terminal-text" x="20" y="78"></text>
+  <text class="terminal-text" x="20" y="96">📺 Processing 4 URLs...</text>
+  <text class="terminal-text" x="20" y="114"></text>
+  <text class="terminal-text" x="20" y="132">[1/4] Big Buck Bunny</text>
+  <text class="terminal-info" x="20" y="150">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% │ 15.8 MB │ 8.2 MB/s</text>
+  <text class="terminal-text" x="20" y="168"></text>
+  <text class="terminal-text" x="20" y="186">[2/4] Sintel</text>
+  <text class="terminal-info" x="20" y="204">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% │ 12.3 MB │ 7.8 MB/s</text>
+  <text class="terminal-text" x="20" y="222"></text>
+  <text class="terminal-text" x="20" y="240">[3/4] Elephants Dream</text>
+  <text class="terminal-info" x="20" y="258">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% │ 9.1 MB │ 6.5 MB/s</text>
+  <text class="terminal-text" x="20" y="276"></text>
+  <text class="terminal-text" x="20" y="294">[4/4] Tears of Steel</text>
+  <text class="terminal-info" x="20" y="312">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% │ 11.2 MB │ 7.1 MB/s</text>
+  <text class="terminal-text" x="20" y="330"></text>
+  <text class="terminal-success" x="20" y="348">✓ All downloads complete: 4/4 videos (48.4 MB total)</text>
 </svg>
