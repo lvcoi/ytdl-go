@@ -347,7 +347,7 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 
 	useParallel := opts.SegmentConcurrency != 1 && state.NextIndex == 0 && state.BytesWritten == 0 && !state.InitDone
 	if useParallel {
-		tempDir, err := validateSegmentTempDir(segmentDir, baseDir)
+		tempDir, err := validateSegmentTempDir(segmentDir)
 		if err != nil {
 			return downloadResult{}, err
 		}
