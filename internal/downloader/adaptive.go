@@ -260,7 +260,7 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 
 	useParallel := opts.SegmentConcurrency != 1 && state.NextIndex == 0 && state.BytesWritten == 0
 	if useParallel {
-		tempDir, err := validateSegmentTempDir(segmentDir, baseDir)
+		tempDir, err := validateSegmentTempDir(segmentDir)
 		if err != nil {
 			return downloadResult{}, err
 		}

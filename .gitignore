@@ -19,6 +19,12 @@ ytdl-go.exe
 # Go workspace file
 go.work
 *.code-workspace
+
+# codeQL custom queries
+*codeql-custom-queries-go
+*codeql-custom-queries-go/
+*codeql-custom-queries-go.lock.yml
+
 # IDE specific files
 .vscode/
 .idea/
