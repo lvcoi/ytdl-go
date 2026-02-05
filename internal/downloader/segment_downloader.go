@@ -142,7 +142,7 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 	return atomic.LoadInt64(&totalBytes), nil
 }
 
-func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
+func validateSegmentTempDir(tempDir string) (string, error) {
 	// Always root segment temp directories under a safe, application-controlled
 	// base directory inside the system temp directory, regardless of user-
 	// controlled output paths. This prevents arbitrary filesystem writes.

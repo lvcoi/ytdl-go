@@ -163,26 +163,6 @@ func safeOutputDirCandidate(path string, baseDir string) string {
 	return safe
 }
 
-func outputDirCandidate(path string, baseDir string) string {
-	if baseDir == "" || filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(baseDir, path)
-}
-
-func artifactPath(outputPath, suffix string) (string, error) {
-	if outputPath == "" {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
-	}
-	if strings.Contains(suffix, "/") || strings.Contains(suffix, "\\") {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid artifact suffix"))
-	}
-	dir := filepath.Dir(outputPath)
-	base := filepath.Base(outputPath)
-	artifact := filepath.Join(dir, base+suffix)
-	return artifact, nil
-}
-
 func artifactPath(outputPath, suffix string) (string, error) {
 	if outputPath == "" {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))

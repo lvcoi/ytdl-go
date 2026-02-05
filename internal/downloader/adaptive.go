@@ -254,7 +254,7 @@ type hlsResumeState struct {
 	BytesWritten int64  `json:"bytes_written"`
 }
 
-func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
 	partPath, err := artifactPath(outputPath, partSuffix)
 	if err != nil {
 		return downloadResult{}, err
@@ -280,7 +280,7 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 
 	useParallel := opts.SegmentConcurrency != 1 && state.NextIndex == 0 && state.BytesWritten == 0
 	if useParallel {
-		tempDir, err := validateSegmentTempDir(segmentDir, baseDir)
+		tempDir, err := validateSegmentTempDir(segmentDir)
 		if err != nil {
 			return downloadResult{}, err
 		}
