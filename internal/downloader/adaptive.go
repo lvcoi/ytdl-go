@@ -106,8 +106,8 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	// Normalize and derive a safe base directory for subsequent temp files.
-	outputPath, baseDir, err := sanitizeOutputPath(outputPath)
+	// Normalize output path.
+	outputPath, _, err = sanitizeOutputPath(outputPath)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
@@ -119,7 +119,7 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 		return downloadResult{skipped: true, outputPath: outputPath}, nil
 	}
 
-	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, baseDir, opts, printer, prefix)
+	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, opts, printer, prefix)
 	if err == nil {
 		result.outputPath = outputPath
 	}
@@ -254,7 +254,7 @@ type hlsResumeState struct {
 	BytesWritten int64  `json:"bytes_written"`
 }
 
-func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
 	partPath, err := artifactPath(outputPath, partSuffix)
 	if err != nil {
 		return downloadResult{}, err
@@ -299,7 +299,6 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 			TempDir:     tempDir,
 			Prefix:      prefix,
 			Concurrency: opts.SegmentConcurrency,
-			BaseDir:     baseDir,
 		}
 		total, err := downloadSegmentsParallel(ctx, client, plan, file, printer)
 		if err != nil {
