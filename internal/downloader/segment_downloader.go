@@ -19,7 +19,6 @@ type segmentDownloadPlan struct {
 	TempDir     string
 	Prefix      string
 	Concurrency int
-	BaseDir     string
 }
 
 const (
@@ -142,7 +141,7 @@ func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan 
 	return atomic.LoadInt64(&totalBytes), nil
 }
 
-func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
+func validateSegmentTempDir(tempDir string) (string, error) {
 	// Always root segment temp directories under a safe, application-controlled
 	// base directory inside the system temp directory, regardless of user-
 	// controlled output paths. This prevents arbitrary filesystem writes.
@@ -166,9 +165,9 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		}
 	} else if !info.IsDir() {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("base path for temp segments is not a directory: %q", absBase))
+	}
 
 	// If no specific tempDir is requested, create a new directory under the safe base.
-	}
 	if tempDir == "" {
 		created, err := os.MkdirTemp(absBase, "segments-")
 		if err != nil {
@@ -177,32 +176,115 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		return created, nil
 	}
 
-	// If a tempDir is provided, treat it as a subpath of the safe base and ensure
-	// it cannot escape that base.
-	candidate := filepath.Join(absBase, tempDir)
+	// If a tempDir is provided, treat it strictly as a single directory name under
+	// the safe base, not as an arbitrary path, and ensure it cannot escape that base.
+	if strings.Contains(tempDir, "/") || strings.Contains(tempDir, "\\") || strings.Contains(tempDir, "..") {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid temp directory name"))
+	}
+	cleanName := filepath.Clean(tempDir)
+	if cleanName == "." || cleanName == "" {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid temp directory name"))
+	}
+	candidate := filepath.Join(absBase, cleanName)
 	absTemp, err := filepath.Abs(candidate)
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving temp directory: %w", err))
 	}
-	rel, err := filepath.Rel(absBase, absTemp)
+	// Evaluate symlinks to prevent symlink-based directory traversal attacks.
+	// This ensures that symlinks cannot be used to escape the base directory.
+	evalBase, err := filepath.EvalSymlinks(absBase)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating base directory symlinks: %w", err))
+	}
+	// Disallow using filesystem root directly as the base after resolving symlinks.
+	if filepath.Dir(evalBase) == evalBase {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("refusing to use filesystem root as base directory for temp segments after symlink evaluation"))
+	}
+	// For the temp directory, we need to handle the case where it doesn't exist yet.
+	// EvalSymlinks requires the path to exist, so we evaluate the existing parent path.
+	evalTemp := absTemp
+	var statErr error
+	if _, statErr = os.Lstat(absTemp); statErr == nil {
+		// Path exists, evaluate it directly
+		var evalErr error
+		evalTemp, evalErr = filepath.EvalSymlinks(absTemp)
+		if evalErr != nil {
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating temp directory symlinks: %w", evalErr))
+		}
+	} else if os.IsNotExist(statErr) {
+		// Path doesn't exist, evaluate the closest existing parent
+		originalAbsTemp := absTemp
+		parent := filepath.Dir(absTemp)
+		found := false
+		// Walk up the directory tree until we find an existing parent
+		for {
+			if _, parentStatErr := os.Lstat(parent); parentStatErr == nil {
+				evalParent, evalErr := filepath.EvalSymlinks(parent)
+				if evalErr != nil {
+					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", evalErr))
+				}
+				// Compute the relative path from parent to the original temp path.
+				relPath, relErr := filepath.Rel(parent, originalAbsTemp)
+				if relErr != nil {
+					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("computing relative path: %w", relErr))
+				}
+				// NOTE SECURITY / RACE CONDITION:
+				// At this point we have:
+				//   - Resolved symlinks only for the *existing* parent directory (evalParent).
+				//   - A relative suffix (relPath) that may refer to path components which do not yet exist.
+				//
+				// When we reconstruct evalTemp below, any symlinks that might later appear in the
+				// non-existent portion of relPath will not have been validated here. This means the
+				// security guarantee provided by this check only applies to path components that
+				// exist at validation time.
+				//
+				// Callers that rely on strict confinement (e.g. ensuring the final path remains
+				// under a specific base directory) SHOULD perform a second validation after
+				// creating the intermediate directories, to ensure no symlinks were introduced
+				// between validation time and creation time.
+				// Reconstruct the full path using the evaluated parent and the (currently) unchecked suffix.
+				evalTemp = filepath.Join(evalParent, relPath)
+				found = true
+				break
+			} else if !os.IsNotExist(parentStatErr) {
+				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat parent directory: %w", parentStatErr))
+			}
+			// Move up one level; stop if we've reached the root
+			nextParent := filepath.Dir(parent)
+			if nextParent == parent {
+				// We've reached the filesystem root without finding an existing directory
+				break
+			}
+			parent = nextParent
+		}
+		if !found {
+			// This shouldn't happen in normal operation since at least "/" or "C:\" should exist.
+			// Return an error rather than proceeding with an unevaluated path.
+			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("could not find existing parent directory for temp path validation"))
+		}
+	} else {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory: %w", statErr))
+	}
+	rel, err := filepath.Rel(evalBase, evalTemp)
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("relating temp directory: %w", err))
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", absTemp, absBase))
-	if info, err := os.Stat(absTemp); err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", evalTemp, evalBase))
+	}
+	// Ensure the validated temp directory exists and is a directory
+	if info, err := os.Stat(evalTemp); err != nil {
 		if os.IsNotExist(err) {
-			if mkErr := os.MkdirAll(absTemp, 0o755); mkErr != nil {
+			if mkErr := os.MkdirAll(evalTemp, 0o755); mkErr != nil {
 				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp segments dir: %w", mkErr))
 			}
 		} else {
 			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory for segments: %w", err))
 		}
 	} else if !info.IsDir() {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp path for segments is not a directory: %q", absTemp))
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp path for segments is not a directory: %q", evalTemp))
 	}
-	}
-	return absTemp, nil
+	return evalTemp, nil
 }
 
 func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {

@@ -91,11 +91,11 @@ func downloadDASH(ctx context.Context, client *youtube.Client, video *youtube.Vi
 	}
 
 	format := dashFormatFromRepresentation(selected, opts.Quality)
-	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo)
+	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
+	outputPath, skip, err := handleExistingPath(outputPath, opts.OutputDir, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}
@@ -103,7 +103,7 @@ func downloadDASH(ctx context.Context, client *youtube.Client, video *youtube.Vi
 		return downloadResult{skipped: true, outputPath: outputPath}, nil
 	}
 
-	result, err := downloadDASHSegments(ctx, client, selected, outputPath, opts, printer, prefix)
+	result, err := downloadDASHSegments(ctx, client, selected, outputPath, opts.OutputDir, opts, printer, prefix)
 	if err == nil {
 		result.outputPath = outputPath
 	}
@@ -320,10 +320,19 @@ type dashResumeState struct {
 	InitDone     bool   `json:"init_done"`
 }
 
-func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashRepresentation, outputPath string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
-	partPath := outputPath + partSuffix
-	resumePath := outputPath + resumeSuffix
-	segmentDir := outputPath + ".segments"
+func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashRepresentation, outputPath, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+	partPath, err := artifactPath(outputPath, partSuffix, baseDir)
+	if err != nil {
+		return downloadResult{}, err
+	}
+	resumePath, err := artifactPath(outputPath, resumeSuffix, baseDir)
+	if err != nil {
+		return downloadResult{}, err
+	}
+	segmentDir, err := artifactPath(outputPath, ".segments", baseDir)
+	if err != nil {
+		return downloadResult{}, err
+	}
 
 	state := dashResumeState{
 		ManifestURL:  rep.BaseURL,
@@ -338,8 +347,7 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 
 	useParallel := opts.SegmentConcurrency != 1 && state.NextIndex == 0 && state.BytesWritten == 0 && !state.InitDone
 	if useParallel {
-		baseDir := filepath.Dir(outputPath)
-		tempDir, err := validateSegmentTempDir(segmentDir, baseDir)
+		tempDir, err := validateSegmentTempDir(segmentDir)
 		if err != nil {
 			return downloadResult{}, err
 		}
@@ -359,7 +367,6 @@ func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashR
 			TempDir:     tempDir,
 			Prefix:      prefix,
 			Concurrency: opts.SegmentConcurrency,
-			BaseDir:     baseDir,
 		}
 		total, err := downloadSegmentsParallel(ctx, client, plan, file, printer)
 		if err != nil {

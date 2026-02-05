@@ -186,11 +186,11 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 		Title:  info.Title,
 		Author: info.Author,
 	}
-	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides})
+	outputPath, err := resolveOutputPath(opts.OutputTemplate, video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
+	outputPath, skip, err := handleExistingPath(outputPath, opts.OutputDir, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}
@@ -200,8 +200,14 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, fmt.Errorf("creating output directory: %w", err))
 	}
-	partPath := outputPath + partSuffix
-	resumePath := outputPath + resumeSuffix
+	partPath, err := artifactPath(outputPath, partSuffix, opts.OutputDir)
+	if err != nil {
+		return downloadResult{}, err
+	}
+	resumePath, err := artifactPath(outputPath, resumeSuffix, opts.OutputDir)
+	if err != nil {
+		return downloadResult{}, err
+	}
 
 	state := fileResumeState{URL: info.URL, BytesWritten: 0}
 	if loaded, err := loadFileResume(resumePath); err == nil && loaded.URL == info.URL {
@@ -263,7 +269,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	}
 	_ = os.Remove(resumePath)
 	metadata := buildItemMetadata(video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}, outputPath, "ok", nil)
-	if err := writeSidecar(outputPath, metadata); err != nil {
+	if err := writeSidecar(outputPath, opts.OutputDir, metadata); err != nil {
 		return downloadResult{}, err
 	}
 	return downloadResult{bytes: state.BytesWritten, outputPath: outputPath}, nil

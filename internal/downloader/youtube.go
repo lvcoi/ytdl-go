@@ -43,7 +43,7 @@ func ffmpegAvailable() bool {
 }
 
 // downloadWithFFmpegFallback downloads a progressive format and extracts audio using ffmpeg
-func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath string, progress *progressWriter) (downloadResult, error) {
+func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath, baseDir string, progress *progressWriter) (downloadResult, error) {
 	result := downloadResult{}
 
 	// Find the best progressive format with high-quality audio
@@ -66,7 +66,10 @@ func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, vid
 	}
 
 	// Create temp file for video download
-	tempVideoPath := audioOutputPath + ".tmp.mp4"
+	tempVideoPath, err := artifactPath(audioOutputPath, ".tmp.mp4", baseDir)
+	if err != nil {
+		return result, wrapCategory(CategoryFilesystem, err)
+	}
 	defer os.Remove(tempVideoPath)
 
 	if progressiveFormat.ItagNo == 22 {
@@ -189,11 +192,11 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 		return result, err
 	}
 
-	outputPath, err = resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo)
+	outputPath, err = resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo, opts.OutputDir)
 	if err != nil {
 		return result, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
+	outputPath, skip, err := handleExistingPath(outputPath, opts.OutputDir, opts, printer)
 	if err != nil {
 		return result, err
 	}
@@ -286,7 +289,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 				printer.Log(LogInfo, "ffmpeg fallback: download video → extract audio → encode Opus @ 160kbps")
 				file.Close()
 				os.Remove(outputPath)
-				return downloadWithFFmpegFallback(ctx, client, video, opts, printer, prefix, outputPath, progress)
+				return downloadWithFFmpegFallback(ctx, client, video, opts, printer, prefix, outputPath, opts.OutputDir, progress)
 			}
 			return result, wrapCategory(CategoryNetwork, fmt.Errorf("download failed: %w", err))
 		}

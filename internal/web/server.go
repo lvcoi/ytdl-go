@@ -5,7 +5,10 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +19,8 @@ import (
 
 //go:embed assets/*
 var embeddedAssets embed.FS
+
+const maxRequestBodyBytes = 1 << 20 // 1 MiB
 
 type DownloadRequest struct {
 	URLs    []string  `json:"urls"`
@@ -50,6 +55,42 @@ type DownloadResponse struct {
 	Options  downloader.Options `json:"options,omitempty"`
 }
 
+// validateWebOutputTemplate ensures that the output template provided via the web API
+// cannot be used to write files outside the intended output area. It is intentionally
+// conservative and rejects absolute paths, parent directory references, and directory
+// components in the literal prefix before the first placeholder.
+func validateWebOutputTemplate(tmpl string) error {
+	// Empty template is allowed; it will be defaulted later.
+	if strings.TrimSpace(tmpl) == "" {
+		return nil
+	}
+
+	// Reject simple parent-directory traversal patterns.
+	if strings.Contains(tmpl, "..") {
+		return fmt.Errorf("invalid output template: parent directory references are not allowed")
+	}
+
+	// Basic absolute path checks for Unix-like and Windows-style paths.
+	if strings.HasPrefix(tmpl, "/") || strings.HasPrefix(tmpl, `\\`) {
+		return fmt.Errorf("invalid output template: absolute paths are not allowed")
+	}
+	if len(tmpl) >= 2 && ((tmpl[0] >= 'A' && tmpl[0] <= 'Z') || (tmpl[0] >= 'a' && tmpl[0] <= 'z')) && tmpl[1] == ':' {
+		return fmt.Errorf("invalid output template: absolute paths are not allowed")
+	}
+
+	// Disallow explicit directory components in the literal prefix before the first placeholder.
+	prefixEnd := strings.Index(tmpl, "{")
+	if prefixEnd == -1 {
+		prefixEnd = len(tmpl)
+	}
+	literalPrefix := tmpl[:prefixEnd]
+	if strings.Contains(literalPrefix, "/") || strings.Contains(literalPrefix, `\`) {
+		return fmt.Errorf("invalid output template: directory components are not allowed in the literal prefix")
+	}
+
+	return nil
+}
+
 func ListenAndServe(ctx context.Context, addr string) error {
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
@@ -63,8 +104,27 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
+		ct := r.Header.Get("Content-Type")
+		mediaType, _, err := mime.ParseMediaType(ct)
+		if err != nil || mediaType != "application/json" {
+			writeJSONError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 		var req DownloadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				writeJSONError(w, http.StatusRequestEntityTooLarge, "request body too large")
+				return
+			}
+			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
+			return
+		}
+		// Ensure no trailing data beyond the first JSON object
+		if err := dec.Decode(new(struct{})); err != io.EOF {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
 			return
 		}
@@ -89,6 +149,11 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			Timeout:             time.Duration(req.Options.TimeoutSeconds) * time.Second,
 			Quiet:               req.Options.Quiet,
 			LogLevel:            req.Options.LogLevel,
+		}
+		// Validate web-provided output template to avoid writing files to arbitrary locations.
+		if err := validateWebOutputTemplate(opts.OutputTemplate); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
 		}
 		if opts.OutputTemplate == "" {
 			opts.OutputTemplate = "{title}.{ext}"
@@ -129,6 +194,9 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      10 * time.Minute,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
