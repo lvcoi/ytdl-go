@@ -74,9 +74,31 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 
 	// Treat existing directory or explicit trailing slash as "put file inside".
 	if strings.HasSuffix(template, "/") {
-		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
-	} else if info, err := os.Stat(safeOutputDirCandidate(path, baseDir)); err == nil && info.IsDir() {
-		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
+		// Interpret the template (after replacement) as a directory, and construct
+		// the final output path inside that directory in a traversal-safe way.
+		dir := path
+		filename := fmt.Sprintf("%s.%s", title, ext)
+		// safeOutputPath will ensure dir is resolved relative to baseDir and that
+		// the resulting path does not escape baseDir.
+		fullPath, err := safeOutputPath(filepath.Join(dir, filename), baseDir)
+		if err != nil {
+			return "", err
+		}
+		path = fullPath
+	} else {
+		// Check if the template refers to an existing directory under baseDir.
+		dirCandidate := safeOutputDirCandidate(path, baseDir)
+		if dirCandidate != "" {
+			if info, err := os.Stat(dirCandidate); err == nil && info.IsDir() {
+				filename := fmt.Sprintf("%s.%s", title, ext)
+				// Build a path inside the verified safe directory.
+				fullPath, err := safeOutputPath(filepath.Join(path, filename), baseDir)
+				if err != nil {
+					return "", err
+				}
+				path = fullPath
+			}
+		}
 	}
 
 	if filepath.Ext(path) == "" {
