@@ -11,12 +11,13 @@ import (
 	"github.com/kkdai/youtube/v2"
 )
 
-func resolveOutputPath(template string, video *youtube.Video, format *youtube.Format, ctxInfo outputContext) (string, error) {
+func resolveOutputPath(template string, video *youtube.Video, format *youtube.Format, ctxInfo outputContext, baseDir string) (string, error) {
 	if template == "" {
 		template = "{title}.{ext}"
 	}
 
 	title := sanitize(video.Title)
+	videoID := sanitize(video.ID)
 	ext := mimeToExt(format.MimeType)
 	artist := video.Author
 	album := ctxInfo.EntryAlbum
@@ -25,6 +26,8 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		if b := bitrateForFormat(format); b > 0 {
 			quality = fmt.Sprintf("%dk", b/1000)
 		}
+	} else {
+		quality = sanitize(quality)
 	}
 	playlistTitle := ""
 	playlistID := ""
@@ -32,7 +35,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	total := ""
 	if ctxInfo.Playlist != nil {
 		playlistTitle = sanitize(ctxInfo.Playlist.Title)
-		playlistID = ctxInfo.Playlist.ID
+		playlistID = sanitize(ctxInfo.Playlist.ID)
 		if ctxInfo.Index > 0 {
 			index = strconv.Itoa(ctxInfo.Index)
 		}
@@ -53,7 +56,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{title}", title,
 		"{artist}", artist,
 		"{album}", album,
-		"{id}", video.ID,
+		"{id}", videoID,
 		"{ext}", ext,
 		"{quality}", quality,
 		"{playlist_title}", playlistTitle,
@@ -64,18 +67,98 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{count}", total,
 	)
 	path := replacer.Replace(template)
+	path = filepath.Clean(path)
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("absolute output paths are not allowed in template %q", template)
+	}
 
 	// Treat existing directory or explicit trailing slash as "put file inside".
 	if strings.HasSuffix(template, "/") {
 		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
-	} else if info, err := os.Stat(path); err == nil && info.IsDir() {
+	} else if info, err := os.Stat(safeOutputDirCandidate(path, baseDir)); err == nil && info.IsDir() {
 		path = filepath.Join(path, fmt.Sprintf("%s.%s", title, ext))
 	}
 
 	if filepath.Ext(path) == "" {
 		path = path + "." + ext
 	}
-	return path, nil
+	return safeOutputPath(path, baseDir)
+}
+
+func safeOutputPath(resolved string, baseDir string) (string, error) {
+	cleaned := filepath.Clean(resolved)
+	// Always resolve output paths relative to a base directory.
+	// If no baseDir is provided, use the current working directory (".") as the base.
+	if baseDir == "" {
+		baseDir = "."
+	}
+	if filepath.IsAbs(cleaned) {
+		return "", fmt.Errorf("absolute output paths are not allowed with output directory %q", baseDir)
+	}
+	baseClean := filepath.Clean(baseDir)
+	combined := filepath.Join(baseClean, cleaned)
+
+	// Resolve symlinks to prevent symlink-based directory traversal attacks
+	baseReal, err := filepath.EvalSymlinks(baseClean)
+	if err != nil {
+		// If baseDir doesn't exist or can't be resolved, use the cleaned path
+		baseReal = baseClean
+	}
+	combinedReal, err := filepath.EvalSymlinks(combined)
+	if err != nil {
+		// If combined path doesn't exist yet (which is normal for new files),
+		// resolve the directory part and append the filename
+		dir := filepath.Dir(combined)
+		dirReal, dirErr := filepath.EvalSymlinks(dir)
+		if dirErr != nil {
+			// Directory doesn't exist yet, use the original combined path
+			combinedReal = combined
+		} else {
+			combinedReal = filepath.Join(dirReal, filepath.Base(combined))
+		}
+	}
+
+	rel, err := filepath.Rel(baseReal, combinedReal)
+	if err != nil {
+		return "", fmt.Errorf("resolve output path relative to %q: %w", baseReal, err)
+	}
+	if filepath.IsAbs(rel) {
+		return "", fmt.Errorf("output path escapes base directory %q", baseReal)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("output path escapes base directory %q", baseClean)
+	}
+	return combined, nil
+}
+
+func safeOutputDirCandidate(path string, baseDir string) string {
+	safe, err := safeOutputPath(path, baseDir)
+	if err != nil {
+		// If the path is unsafe relative to baseDir, return a value that will cause os.Stat to fail.
+		// This avoids probing arbitrary filesystem locations.
+		return ""
+	}
+	return safe
+}
+
+func outputDirCandidate(path string, baseDir string) string {
+	if baseDir == "" || filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(baseDir, path)
+}
+
+func artifactPath(outputPath, suffix string) (string, error) {
+	if outputPath == "" {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
+	}
+	if strings.Contains(suffix, "/") || strings.Contains(suffix, "\\") {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid artifact suffix"))
+	}
+	dir := filepath.Dir(outputPath)
+	base := filepath.Base(outputPath)
+	artifact := filepath.Join(dir, base+suffix)
+	return artifact, nil
 }
 
 func artifactPath(outputPath, suffix string) (string, error) {

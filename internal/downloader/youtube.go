@@ -189,7 +189,7 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 		return result, err
 	}
 
-	outputPath, err = resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo)
+	outputPath, err = resolveOutputPath(opts.OutputTemplate, video, format, ctxInfo, opts.OutputDir)
 	if err != nil {
 		return result, wrapCategory(CategoryFilesystem, err)
 	}
