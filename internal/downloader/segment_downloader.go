@@ -166,9 +166,9 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		}
 	} else if !info.IsDir() {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("base path for temp segments is not a directory: %q", absBase))
+	}
 
 	// If no specific tempDir is requested, create a new directory under the safe base.
-	}
 	if tempDir == "" {
 		created, err := os.MkdirTemp(absBase, "segments-")
 		if err != nil {
@@ -177,9 +177,16 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		return created, nil
 	}
 
-	// If a tempDir is provided, treat it as a subpath of the safe base and ensure
-	// it cannot escape that base.
-	candidate := filepath.Join(absBase, tempDir)
+	// If a tempDir is provided, treat it strictly as a single directory name under
+	// the safe base, not as an arbitrary path, and ensure it cannot escape that base.
+	if strings.Contains(tempDir, "/") || strings.Contains(tempDir, "\\") || strings.Contains(tempDir, "..") {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid temp directory name"))
+	}
+	cleanName := filepath.Clean(tempDir)
+	if cleanName == "." || cleanName == "" {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid temp directory name"))
+	}
+	candidate := filepath.Join(absBase, cleanName)
 	absTemp, err := filepath.Abs(candidate)
 	if err != nil {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolving temp directory: %w", err))
