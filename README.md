@@ -31,6 +31,7 @@
 - [📝 Notes / Limitations](#-notes--limitations)
 - [🔧 Troubleshooting](#-troubleshooting)
 - [⚡ Performance](#-performance)
+- [📚 Documentation](#-documentation)
 - [🙏 Acknowledgments](#-acknowledgments)
 - [📜 License](#-license)
 
@@ -529,6 +530,21 @@ The downloader is optimized for:
 - Minimal memory usage with streaming downloads
 - Fast resumption on network errors
 - Efficient progress tracking without impacting download speed
+
+## 📚 Documentation
+
+### For Users
+
+- **[Command-Line Flags Reference](docs/FLAGS.md)** - Complete reference for all CLI flags and options
+
+### For Developers
+
+- **[Contributing Guide](CONTRIBUTING.md)** - How to set up your development environment and contribute
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - Deep dive into the codebase architecture, data flow, and design patterns
+
+### For Maintainers
+
+- **[Maintainer's Guide](docs/MAINTAINERS.md)** - Release process, dependency management, and troubleshooting guide
 
 ## 🙏 Acknowledgments
 
