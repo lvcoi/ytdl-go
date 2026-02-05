@@ -85,7 +85,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		if dirCandidate != "" {
 			if info, err := os.Stat(dirCandidate); err == nil && info.IsDir() {
 				filename := fmt.Sprintf("%s.%s", title, ext)
-				path = filepath.Join(path, filename)
+				path = filepath.Join(dirCandidate, filename)
 			}
 		}
 	}
