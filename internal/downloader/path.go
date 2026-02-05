@@ -141,13 +141,6 @@ func safeOutputDirCandidate(path string, baseDir string) string {
 	return safe
 }
 
-func outputDirCandidate(path string, baseDir string) string {
-	if baseDir == "" || filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(baseDir, path)
-}
-
 func artifactPath(outputPath, suffix string) (string, error) {
 	if outputPath == "" {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
