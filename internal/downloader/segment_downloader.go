@@ -19,7 +19,6 @@ type segmentDownloadPlan struct {
 	TempDir     string
 	Prefix      string
 	Concurrency int
-	BaseDir     string
 }
 
 const (
