@@ -5,12 +5,8 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
-	"net"
 	"net/http"
-	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -62,18 +58,11 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	fileServer := http.FileServer(http.FS(assets))
 
 	mux := http.NewServeMux()
-	// /api/download is a synchronous endpoint that blocks until all downloads complete.
-	// This is intentional: clients receive complete results for all URLs in a single response.
-	// The WriteTimeout is set to 30 minutes to accommodate long-running downloads.
-	// For very large batches or extremely long downloads, clients should be prepared
-	// for extended response times.
 	mux.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		// Limit request body size to 1MB to prevent resource exhaustion
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB
 		var req DownloadRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON payload")
@@ -84,69 +73,13 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
-		// Validate URLs: check length and basic format
-		for i, url := range req.URLs {
-			trimmedURL := strings.TrimSpace(url)
-			req.URLs[i] = trimmedURL
-			if len(trimmedURL) > 4096 {
-				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d exceeds maximum length of 4096 characters", i))
-				return
-			}
-			if trimmedURL == "" {
-				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d is empty", i))
-				return
-			}
-			// Basic URL scheme validation
-			if !strings.HasPrefix(trimmedURL, "http://") && !strings.HasPrefix(trimmedURL, "https://") {
-				writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("url at index %d must start with http:// or https://", i))
-				return
-			}
-		}
-
-		// Validate integer parameters to prevent negative or extremely large values
-		if !validateIntRange(w, req.Options.SegmentConcurrency, 0, 100, "segment-concurrency") {
-			return
-		}
-		if !validateIntRange(w, req.Options.PlaylistConcurrency, 0, 100, "playlist-concurrency") {
-			return
-		}
-		if !validateIntRange(w, req.Options.Itag, 0, 1000000, "itag") {
-			return
-		}
-		if !validateIntRange(w, req.Options.TimeoutSeconds, 0, 86400, "timeout-seconds") {
-			return
-		}
-		if !validateIntRange(w, req.Options.Jobs, 0, 100, "jobs") {
-			return
-		}
-
-		// Validate string parameters (Quality and Format)
-		quality, ok := validateStringParam(w, req.Options.Quality, "quality")
-		if !ok {
-			return
-		}
-		format, ok := validateStringParam(w, req.Options.Format, "format")
-		if !ok {
-			return
-		}
-
-		// Validate log-level parameter
-		logLevel := strings.ToLower(strings.TrimSpace(req.Options.LogLevel))
-		if logLevel != "" {
-			validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
-			if !validLogLevels[logLevel] {
-				writeJSONError(w, http.StatusBadRequest, "log-level must be one of: debug, info, warn, error")
-				return
-			}
-		}
-
 		opts := downloader.Options{
 			OutputTemplate:      req.Options.Output,
 			AudioOnly:           req.Options.Audio,
 			InfoOnly:            req.Options.Info,
 			ListFormats:         req.Options.ListFormats,
-			Quality:             quality,
-			Format:              format,
+			Quality:             req.Options.Quality,
+			Format:              req.Options.Format,
 			Itag:                req.Options.Itag,
 			MetaOverrides:       req.Options.Meta,
 			ProgressLayout:      req.Options.ProgressLayout,
@@ -155,7 +88,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			JSON:                req.Options.JSON,
 			Timeout:             time.Duration(req.Options.TimeoutSeconds) * time.Second,
 			Quiet:               req.Options.Quiet,
-			LogLevel:            logLevel,
+			LogLevel:            req.Options.LogLevel,
 		}
 		if opts.OutputTemplate == "" {
 			opts.OutputTemplate = "{title}.{ext}"
@@ -163,30 +96,9 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		if opts.Timeout == 0 {
 			opts.Timeout = 3 * time.Minute
 		}
+		opts.Quiet = true
 
-		// Create a separate context for the download operation that isn't tied to
-		// the server lifecycle or HTTP request. This implements fire-and-forget
-		// semantics: downloads continue even if the client disconnects, ensuring
-		// downloads complete successfully without being interrupted by network issues.
-		// When the user specifies a timeout, use that value; otherwise, fall back to
-		// a 30-minute cap for long-running downloads so they can still complete
-		// independently while having a reasonable upper bound.
-		//
-		// Note: The ProgressManager uses Bubble Tea TUI which renders to os.Stderr.
-		// In web server mode, this output goes to the server's stderr (typically logs),
-		// not to web clients. The Quiet option may help reduce this output if desired.
-		downloadTimeout := 30 * time.Minute
-		if opts.Timeout > 0 && opts.Timeout < downloadTimeout {
-			downloadTimeout = opts.Timeout
-		}
-		downloadCtx, cancel := context.WithTimeout(r.Context(), downloadTimeout)
-		defer cancel()
-
-		// Note: This endpoint blocks until all downloads complete before sending
-		// a response. For large files or multiple URLs, this can take significant
-		// time. The WriteTimeout is set to 30 minutes to accommodate long-running
-		// downloads. Consider this a synchronous, long-running operation.
-		results, exitCode := app.Run(downloadCtx, req.URLs, opts, req.Options.Jobs)
+		results, exitCode := app.Run(ctx, req.URLs, opts, req.Options.Jobs)
 		payload := DownloadResponse{
 			Type:     "download",
 			Status:   "ok",
@@ -217,20 +129,11 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Minute,
 	}
-
-	// Create a listener to ensure we can log after successfully binding
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stderr, "Web server listening on http://%s\n", addr)
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.Serve(ln)
+		errCh <- server.ListenAndServe()
 	}()
 
 	select {
@@ -249,7 +152,6 @@ func ListenAndServe(ctx context.Context, addr string) error {
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
@@ -263,34 +165,6 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 		Error:  message,
 	}
 	writeJSON(w, status, payload)
-}
-
-func validateIntRange(w http.ResponseWriter, value int, min, max int, paramName string) bool {
-	if value < min || value > max {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s must be between %d and %d", paramName, min, max))
-		return false
-	}
-	return true
-}
-
-func validateStringParam(w http.ResponseWriter, value string, paramName string) (string, bool) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		// Empty is allowed and signals "use default" behavior downstream
-		return "", true
-	}
-	if len(trimmed) > 256 {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%s exceeds maximum length of 256 characters", paramName))
-		return "", false
-	}
-	// Reject control characters (non-printable ASCII)
-	for _, r := range trimmed {
-		if r < 0x20 || r == 0x7f {
-			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid characters in %s", paramName))
-			return "", false
-		}
-	}
-	return trimmed, true
 }
 
 func serveIndex(w http.ResponseWriter, assets fs.FS) {

@@ -2,15 +2,13 @@ package app
 
 import (
 	"context"
-	"sync"
 
 	"github.com/lvcoi/ytdl-go/internal/downloader"
 )
 
 type Result struct {
-	URL   string `json:"url"`
-	Err   error  `json:"-"`
-	Error string `json:"error,omitempty"`
+	URL string
+	Err error
 }
 
 func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]Result, int) {
@@ -26,10 +24,6 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 
 	var sharedManager *downloader.ProgressManager
 	if jobs > 1 {
-		// Note: ProgressManager uses Bubble Tea TUI which renders to os.Stderr.
-		// In a web server context, this output goes to the server's stderr logs
-		// rather than being visible to web clients. The Quiet option in opts
-		// should be set to true by web clients to minimize this output.
 		sharedManager = downloader.NewProgressManager(opts)
 		if sharedManager != nil {
 			sharedManager.Start(ctx)
@@ -37,12 +31,8 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 		}
 	}
 
-	// Use WaitGroup to track worker goroutines
-	var wg sync.WaitGroup
 	for i := 0; i < jobs; i++ {
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			for {
 				select {
 				case <-ctx.Done():
@@ -57,12 +47,8 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 					} else {
 						err = downloader.Process(ctx, t.url, opts)
 					}
-					result := Result{URL: t.url, Err: err}
-					if err != nil {
-						result.Error = err.Error()
-					}
 					select {
-					case results <- result:
+					case results <- Result{URL: t.url, Err: err}:
 					case <-ctx.Done():
 						return
 					}
@@ -71,51 +57,34 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 		}()
 	}
 
-	// Track number of tasks actually submitted
-	submitted := 0
 	for _, url := range urls {
 		select {
 		case <-ctx.Done():
 			close(tasks)
 			goto done
 		case tasks <- task{url: url}:
-			submitted++
 		}
 	}
 	close(tasks)
 
 done:
-	// Close results channel after all workers finish
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	output := make([]Result, 0, submitted)
+	output := make([]Result, 0, len(urls))
 	exitCode := 0
-	contextCancelled := false
-
-	// Collect results from submitted tasks only.
-	// The range loop will exit when the results channel is closed
-	// (which happens after all workers finish via the WaitGroup).
-	for res := range results {
-		output = append(output, res)
-		if res.Err != nil {
-			if code := downloader.ExitCode(res.Err); code > exitCode {
-				exitCode = code
-			}
-		}
-		// Track if context was cancelled during collection
+	for i := 0; i < len(urls); i++ {
 		select {
 		case <-ctx.Done():
-			contextCancelled = true
-		default:
+			if sharedManager != nil {
+				sharedManager.Stop()
+			}
+			return output, 130
+		case res := <-results:
+			output = append(output, res)
+			if res.Err != nil {
+				if code := downloader.ExitCode(res.Err); code > exitCode {
+					exitCode = code
+				}
+			}
 		}
-	}
-
-	// If context was cancelled at any point, use exit code 130 (interrupted)
-	if exitCode == 0 && (contextCancelled || ctx.Err() != nil) {
-		exitCode = 130
 	}
 
 	return output, exitCode
