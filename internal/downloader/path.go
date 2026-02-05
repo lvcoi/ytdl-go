@@ -103,6 +103,9 @@ func validatedOutputPath(resolved string, baseDir string) (string, error) {
 	if filepath.IsAbs(resolved) {
 		return "", fmt.Errorf("absolute output paths are not allowed")
 	}
+	// Check for path traversal on the uncleaned path first. This catches ".." segments
+	// before filepath.Clean() collapses them with preceding directory names.
+	// For example, "a/b/../c" would become "a/c" after Clean(), hiding the traversal attempt.
 	if hasPathTraversal(resolved) {
 		return "", fmt.Errorf("output paths cannot contain '..' segments")
 	}
@@ -187,6 +190,11 @@ func artifactPath(outputPath, suffix, baseDir string) (string, error) {
 	return validated, nil
 }
 
+// hasPathTraversal checks if a path contains ".." components.
+// This function is designed to work on uncleaned paths to detect path traversal
+// attempts before filepath.Clean() collapses them. For example, "a/../../../etc/passwd"
+// contains ".." segments that could escape the base directory, which this function
+// will detect even before the path is cleaned.
 func hasPathTraversal(path string) bool {
 	for _, part := range strings.FieldsFunc(path, func(r rune) bool {
 		return r == '/' || r == '\\'
