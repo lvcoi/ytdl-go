@@ -27,7 +27,8 @@ func main() {
 	var web bool
 	var webAddr string
 
-	flag.StringVar(&opts.OutputTemplate, "o", "{title}.{ext}", "output path or template (supports {title}, {artist}, {album}, {id}, {ext}, {quality}, {playlist_title}/{playlist-title}, {playlist_id}/{playlist-id}, {index}, {count})")
+	flag.StringVar(&opts.OutputTemplate, "o", "{title}.{ext}", "output path or template (supports {title}, {artist}, {album}, {id}, {ext}, {quality}, {playlist_title}, {playlist_id}, {index}, {count})")
+	flag.StringVar(&opts.OutputDir, "output-dir", "", "base output directory for security enforcement (prevents directory traversal)")
 	flag.BoolVar(&opts.AudioOnly, "audio", false, "download best available audio only")
 	flag.BoolVar(&opts.InfoOnly, "info", false, "print video metadata as JSON without downloading")
 	flag.BoolVar(&opts.ListFormats, "list-formats", false, "list available formats and exit")

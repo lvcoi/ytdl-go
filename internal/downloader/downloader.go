@@ -12,6 +12,7 @@ import (
 // Options describes CLI behavior for a download run.
 type Options struct {
 	OutputTemplate      string
+	OutputDir           string
 	AudioOnly           bool
 	InfoOnly            bool
 	ListFormats         bool
