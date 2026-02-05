@@ -85,15 +85,17 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 
 func safeOutputPath(resolved string, baseDir string) (string, error) {
 	cleaned := filepath.Clean(resolved)
+	// Always resolve output paths relative to a base directory.
+	// If no baseDir is provided, use the current working directory (".") as the base.
 	if baseDir == "" {
-		return cleaned, nil
+		baseDir = "."
 	}
 	if filepath.IsAbs(cleaned) {
 		return "", fmt.Errorf("absolute output paths are not allowed with output directory %q", baseDir)
 	}
 	baseClean := filepath.Clean(baseDir)
 	combined := filepath.Join(baseClean, cleaned)
-	
+
 	// Resolve symlinks to prevent symlink-based directory traversal attacks
 	baseReal, err := filepath.EvalSymlinks(baseClean)
 	if err != nil {
@@ -113,7 +115,7 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 			combinedReal = filepath.Join(dirReal, filepath.Base(combined))
 		}
 	}
-	
+
 	rel, err := filepath.Rel(baseReal, combinedReal)
 	if err != nil {
 		return "", fmt.Errorf("resolve output path relative to %q: %w", baseReal, err)
