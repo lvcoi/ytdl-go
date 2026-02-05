@@ -190,7 +190,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
+	outputPath, skip, err := handleExistingPath(outputPath, opts.OutputDir, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}
@@ -200,11 +200,11 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, fmt.Errorf("creating output directory: %w", err))
 	}
-	partPath, err := artifactPath(outputPath, partSuffix)
+	partPath, err := artifactPath(outputPath, partSuffix, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, err
 	}
-	resumePath, err := artifactPath(outputPath, resumeSuffix)
+	resumePath, err := artifactPath(outputPath, resumeSuffix, opts.OutputDir)
 	if err != nil {
 		return downloadResult{}, err
 	}
@@ -269,7 +269,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	}
 	_ = os.Remove(resumePath)
 	metadata := buildItemMetadata(video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}, outputPath, "ok", nil)
-	if err := writeSidecar(outputPath, metadata); err != nil {
+	if err := writeSidecar(outputPath, opts.OutputDir, metadata); err != nil {
 		return downloadResult{}, err
 	}
 	return downloadResult{bytes: state.BytesWritten, outputPath: outputPath}, nil

@@ -78,25 +78,14 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		// the final output path inside that directory in a traversal-safe way.
 		dir := path
 		filename := fmt.Sprintf("%s.%s", title, ext)
-		// safeOutputPath will ensure dir is resolved relative to baseDir and that
-		// the resulting path does not escape baseDir.
-		fullPath, err := safeOutputPath(filepath.Join(dir, filename), baseDir)
-		if err != nil {
-			return "", err
-		}
-		path = fullPath
+		path = filepath.Join(dir, filename)
 	} else {
 		// Check if the template refers to an existing directory under baseDir.
-		dirCandidate := safeOutputDirCandidate(path, baseDir)
+		dirCandidate := validatedOutputDirCandidate(path, baseDir)
 		if dirCandidate != "" {
 			if info, err := os.Stat(dirCandidate); err == nil && info.IsDir() {
 				filename := fmt.Sprintf("%s.%s", title, ext)
-				// Build a path inside the verified safe directory.
-				fullPath, err := safeOutputPath(filepath.Join(dirCandidate, filename), baseDir)
-				if err != nil {
-					return "", err
-				}
-				path = fullPath
+				path = filepath.Join(path, filename)
 			}
 		}
 	}
@@ -104,36 +93,46 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	if filepath.Ext(path) == "" {
 		path = path + "." + ext
 	}
-	return safeOutputPath(path, baseDir)
+	return validatedOutputPath(path, baseDir)
 }
 
-func safeOutputPath(resolved string, baseDir string) (string, error) {
+func validatedOutputPath(resolved string, baseDir string) (string, error) {
+	if resolved == "" {
+		return "", fmt.Errorf("output path is empty")
+	}
+	if filepath.IsAbs(resolved) {
+		return "", fmt.Errorf("absolute output paths are not allowed")
+	}
+	if hasPathTraversal(resolved) {
+		return "", fmt.Errorf("output paths cannot contain '..' segments")
+	}
 	cleaned := filepath.Clean(resolved)
 	// Always resolve output paths relative to a base directory.
 	// If no baseDir is provided, use the current working directory (".") as the base.
 	if baseDir == "" {
 		baseDir = "."
 	}
-	if filepath.IsAbs(cleaned) {
-		return "", fmt.Errorf("absolute output paths are not allowed with output directory %q", baseDir)
-	}
 	baseClean := filepath.Clean(baseDir)
-	combined := filepath.Join(baseClean, cleaned)
 
-	// Resolve symlinks to prevent symlink-based directory traversal attacks
+	combined := cleaned
+	if rel, err := filepath.Rel(baseClean, cleaned); err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		combined = filepath.Join(baseClean, cleaned)
+	}
+
+	// Resolve symlinks to prevent symlink-based directory traversal attacks.
 	baseReal, err := filepath.EvalSymlinks(baseClean)
 	if err != nil {
-		// If baseDir doesn't exist or can't be resolved, use the cleaned path
+		// If baseDir doesn't exist or can't be resolved, use the cleaned path.
 		baseReal = baseClean
 	}
 	combinedReal, err := filepath.EvalSymlinks(combined)
 	if err != nil {
 		// If combined path doesn't exist yet (which is normal for new files),
-		// resolve the directory part and append the filename
+		// resolve the directory part and append the filename.
 		dir := filepath.Dir(combined)
 		dirReal, dirErr := filepath.EvalSymlinks(dir)
 		if dirErr != nil {
-			// Directory doesn't exist yet, use the original combined path
+			// Directory doesn't exist yet, use the original combined path.
 			combinedReal = combined
 		} else {
 			combinedReal = filepath.Join(dirReal, filepath.Base(combined))
@@ -153,8 +152,8 @@ func safeOutputPath(resolved string, baseDir string) (string, error) {
 	return combined, nil
 }
 
-func safeOutputDirCandidate(path string, baseDir string) string {
-	safe, err := safeOutputPath(path, baseDir)
+func validatedOutputDirCandidate(path string, baseDir string) string {
+	safe, err := validatedOutputPath(path, baseDir)
 	if err != nil {
 		// If the path is unsafe relative to baseDir, return a value that will cause os.Stat to fail.
 		// This avoids probing arbitrary filesystem locations.
@@ -163,37 +162,40 @@ func safeOutputDirCandidate(path string, baseDir string) string {
 	return safe
 }
 
-func outputDirCandidate(path string, baseDir string) string {
-	if baseDir == "" || filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(baseDir, path)
-}
-
-func artifactPath(outputPath, suffix string) (string, error) {
+func artifactPath(outputPath, suffix, baseDir string) (string, error) {
 	if outputPath == "" {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
 	}
 	if strings.Contains(suffix, "/") || strings.Contains(suffix, "\\") {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid artifact suffix"))
 	}
-	dir := filepath.Dir(outputPath)
-	base := filepath.Base(outputPath)
-	artifact := filepath.Join(dir, base+suffix)
-	return artifact, nil
+	base := baseDir
+	if base == "" {
+		base = "."
+	}
+	relOutput, err := filepath.Rel(base, outputPath)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("resolve artifact path: %w", err))
+	}
+	dir := filepath.Dir(relOutput)
+	baseName := filepath.Base(relOutput)
+	artifact := filepath.Join(dir, baseName+suffix)
+	validated, err := validatedOutputPath(artifact, baseDir)
+	if err != nil {
+		return "", wrapCategory(CategoryFilesystem, err)
+	}
+	return validated, nil
 }
 
-func artifactPath(outputPath, suffix string) (string, error) {
-	if outputPath == "" {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
+func hasPathTraversal(path string) bool {
+	for _, part := range strings.FieldsFunc(path, func(r rune) bool {
+		return r == '/' || r == '\\'
+	}) {
+		if part == ".." {
+			return true
+		}
 	}
-	if strings.Contains(suffix, "/") || strings.Contains(suffix, "\\") {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid artifact suffix"))
-	}
-	dir := filepath.Dir(outputPath)
-	base := filepath.Base(outputPath)
-	artifact := filepath.Join(dir, base+suffix)
-	return artifact, nil
+	return false
 }
 
 func sanitize(name string) string {

@@ -118,11 +118,11 @@ func buildItemMetadata(video *youtube.Video, format *youtube.Format, ctxInfo out
 	return metadata
 }
 
-func writeSidecar(outputPath string, metadata ItemMetadata) error {
+func writeSidecar(outputPath, baseDir string, metadata ItemMetadata) error {
 	if outputPath == "" {
 		return nil
 	}
-	path, err := sidecarPath(outputPath)
+	path, err := sidecarPath(outputPath, baseDir)
 	if err != nil {
 		return err
 	}
@@ -145,8 +145,8 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 	return nil
 }
 
-func sidecarPath(outputPath string) (string, error) {
-	return artifactPath(outputPath, ".json")
+func sidecarPath(outputPath, baseDir string) (string, error) {
+	return artifactPath(outputPath, ".json", baseDir)
 }
 
 func bestThumbnailURL(thumbnails youtube.Thumbnails) string {
