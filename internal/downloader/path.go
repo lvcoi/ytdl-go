@@ -57,7 +57,9 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{ext}", ext,
 		"{quality}", quality,
 		"{playlist_title}", playlistTitle,
+		"{playlist-title}", playlistTitle,
 		"{playlist_id}", playlistID,
+		"{playlist-id}", playlistID,
 		"{index}", index,
 		"{count}", total,
 	)

@@ -22,6 +22,21 @@ const (
 	partSuffix        = ".part"
 )
 
+func sanitizeOutputPath(path string) (string, string, error) {
+	if path == "" {
+		return "", "", fmt.Errorf("empty output path")
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", "", fmt.Errorf("resolving output path: %w", err)
+	}
+	baseDir := filepath.Dir(absPath)
+	if baseDir == "" || baseDir == string(filepath.Separator) {
+		return "", "", fmt.Errorf("invalid base directory for output path: %q", baseDir)
+	}
+	return absPath, baseDir, nil
+}
+
 func downloadAdaptive(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, formatErr error) (downloadResult, error) {
 	if opts.AudioOnly {
 		return downloadResult{}, wrapCategory(CategoryUnsupported, fmt.Errorf("audio-only adaptive downloads are not supported yet (use --list-formats): %w", formatErr))
@@ -91,6 +106,11 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
+	// Normalize and derive a safe base directory for subsequent temp files.
+	outputPath, baseDir, err := sanitizeOutputPath(outputPath)
+	if err != nil {
+		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
+	}
 	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
@@ -99,7 +119,7 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 		return downloadResult{skipped: true, outputPath: outputPath}, nil
 	}
 
-	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, opts, printer, prefix)
+	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, baseDir, opts, printer, prefix)
 	if err == nil {
 		result.outputPath = outputPath
 	}
@@ -260,6 +280,10 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 
 	useParallel := opts.SegmentConcurrency != 1 && state.NextIndex == 0 && state.BytesWritten == 0
 	if useParallel {
+		tempDir, err := validateSegmentTempDir(segmentDir, baseDir)
+		if err != nil {
+			return downloadResult{}, err
+		}
 		file, err := os.OpenFile(partPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 		if err != nil {
 			return downloadResult{}, wrapCategory(CategoryFilesystem, fmt.Errorf("opening temp file: %w", err))
@@ -272,9 +296,10 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 		}
 		plan := segmentDownloadPlan{
 			URLs:        urls,
-			TempDir:     segmentDir,
+			TempDir:     tempDir,
 			Prefix:      prefix,
 			Concurrency: opts.SegmentConcurrency,
+			BaseDir:     baseDir,
 		}
 		total, err := downloadSegmentsParallel(ctx, client, plan, file, printer)
 		if err != nil {
