@@ -254,10 +254,19 @@ type hlsResumeState struct {
 	BytesWritten int64  `json:"bytes_written"`
 }
 
-func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
-	partPath := outputPath + partSuffix
-	resumePath := outputPath + resumeSuffix
-	segmentDir := outputPath + ".segments"
+func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+	partPath, err := artifactPath(outputPath, partSuffix)
+	if err != nil {
+		return downloadResult{}, err
+	}
+	resumePath, err := artifactPath(outputPath, resumeSuffix)
+	if err != nil {
+		return downloadResult{}, err
+	}
+	segmentDir, err := artifactPath(outputPath, ".segments")
+	if err != nil {
+		return downloadResult{}, err
+	}
 
 	state := hlsResumeState{
 		ManifestURL:  playlistURL,

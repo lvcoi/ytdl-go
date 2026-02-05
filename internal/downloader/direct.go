@@ -200,8 +200,14 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, fmt.Errorf("creating output directory: %w", err))
 	}
-	partPath := outputPath + partSuffix
-	resumePath := outputPath + resumeSuffix
+	partPath, err := artifactPath(outputPath, partSuffix)
+	if err != nil {
+		return downloadResult{}, err
+	}
+	resumePath, err := artifactPath(outputPath, resumeSuffix)
+	if err != nil {
+		return downloadResult{}, err
+	}
 
 	state := fileResumeState{URL: info.URL, BytesWritten: 0}
 	if loaded, err := loadFileResume(resumePath); err == nil && loaded.URL == info.URL {
