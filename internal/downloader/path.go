@@ -92,7 +92,7 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 			if info, err := os.Stat(dirCandidate); err == nil && info.IsDir() {
 				filename := fmt.Sprintf("%s.%s", title, ext)
 				// Build a path inside the verified safe directory.
-				fullPath, err := safeOutputPath(filepath.Join(path, filename), baseDir)
+				fullPath, err := safeOutputPath(filepath.Join(dirCandidate, filename), baseDir)
 				if err != nil {
 					return "", err
 				}
