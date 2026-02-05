@@ -78,11 +78,11 @@ ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 
 **Archive Playlists with Index:**
 ```bash
-ytdl-go -o "Archive/{playlist_title}/{index} - {title}.{ext}" URL
+ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
 **Supported Placeholders:**
-`{title}`, `{artist}`, `{album}`, `{id}`, `{ext}`, `{quality}`, `{playlist_title}`, `{playlist_id}`, `{index}`, `{count}`
+`{title}`, `{artist}`, `{album}`, `{id}`, `{ext}`, `{quality}`, `{playlist-title}`, `{playlist-id}`, `{index}`, `{count}`
 
 ---
 
@@ -166,8 +166,8 @@ ytdl-go -meta title="Custom Title" -meta artist="Custom Artist" URL
 | `{id}` | YouTube video ID | `dQw4w9WgXcQ` |
 | `{ext}` | File extension from format | `mp4`, `webm`, `m4a` |
 | `{quality}` | Quality label or bitrate | `1080p`, `128k` |
-| `{playlist_title}` or `{playlist-title}` | Playlist name | `My Awesome Playlist` |
-| `{playlist_id}` or `{playlist-id}` | Playlist ID | `PL59FEE129ADFF2B12` |
+| `{playlist-title}` | Playlist name | `My Awesome Playlist` |
+| `{playlist-id}` | Playlist ID | `PL59FEE129ADFF2B12` |
 | `{index}` | Current video index in playlist | `1`, `2`, `3` |
 | `{count}` | Total videos in playlist | `25` |
 
@@ -274,17 +274,17 @@ ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" "https://music.youtube.
 ytdl-go -audio -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" "https://music.youtube.com/playlist?list=..."
 
 # Download playlist songs under playlist folder
-ytdl-go -audio -o "Music/{playlist_title}/{title}.{ext}" "https://www.youtube.com/playlist?list=..."
+ytdl-go -audio -o "Music/{playlist-title}/{title}.{ext}" "https://www.youtube.com/playlist?list=..."
 
 # Download with playlist and track number
-ytdl-go -audio -o "Music/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=..."
+ytdl-go -audio -o "Music/{playlist-title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=..."
 ```
 
 ### 🎬 Video collection
 
 ```bash
 # Download with quality and date
-ytdl-go -o "Videos/{playlist_title}/{title} [{quality}].{ext}" "https://www.youtube.com/playlist?list=..."
+ytdl-go -o "Videos/{playlist-title}/{title} [{quality}].{ext}" "https://www.youtube.com/playlist?list=..."
 ```
 
 ### 📄 Metadata extraction
