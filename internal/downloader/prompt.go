@@ -50,10 +50,23 @@ func waitForPromptClear() {
 	promptMu.Unlock()
 }
 
-func handleExistingPath(path string, opts Options, printer *Printer) (string, bool, error) {
+func handleExistingPath(path, baseDir string, opts Options, printer *Printer) (string, bool, error) {
 	if isTerminal(os.Stdin) {
 		waitForPromptClear()
 	}
+	base := baseDir
+	if base == "" {
+		base = "."
+	}
+	relPath, err := filepath.Rel(base, path)
+	if err != nil {
+		return "", false, wrapCategory(CategoryFilesystem, err)
+	}
+	validatedPath, err := validatedOutputPath(relPath, baseDir)
+	if err != nil {
+		return "", false, wrapCategory(CategoryFilesystem, err)
+	}
+	path = validatedPath
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -72,7 +85,7 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 	case duplicateSkipAll:
 		return path, true, nil
 	case duplicateRenameAll:
-		newPath, err := nextAvailablePath(path)
+		newPath, err := nextAvailablePath(path, baseDir)
 		return newPath, false, err
 	}
 
@@ -112,11 +125,11 @@ func handleExistingPath(path string, opts Options, printer *Printer) (string, bo
 			globalDuplicateAction = duplicateSkipAll
 			return path, true, nil
 		case promptRename:
-			newPath, err := nextAvailablePath(path)
+			newPath, err := nextAvailablePath(path, baseDir)
 			return newPath, false, err
 		case promptRenameAll:
 			globalDuplicateAction = duplicateRenameAll
-			newPath, err := nextAvailablePath(path)
+			newPath, err := nextAvailablePath(path, baseDir)
 			return newPath, false, err
 		case promptQuit:
 			return "", false, errors.New("aborted by user")
@@ -150,11 +163,11 @@ stdinPrompt:
 			globalDuplicateAction = duplicateSkipAll
 			return path, true, nil
 		case "r", "rename":
-			newPath, err := nextAvailablePath(path)
+			newPath, err := nextAvailablePath(path, baseDir)
 			return newPath, false, err
 		case "R", "Rename":
 			globalDuplicateAction = duplicateRenameAll
-			newPath, err := nextAvailablePath(path)
+			newPath, err := nextAvailablePath(path, baseDir)
 			return newPath, false, err
 		case "q", "quit":
 			return "", false, errors.New("aborted by user")
@@ -164,7 +177,7 @@ stdinPrompt:
 	}
 }
 
-func nextAvailablePath(path string) (string, error) {
+func nextAvailablePath(path, baseDir string) (string, error) {
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
 	ext := filepath.Ext(base)
@@ -172,9 +185,21 @@ func nextAvailablePath(path string) (string, error) {
 
 	for i := 1; i < 10000; i++ {
 		candidate := filepath.Join(dir, fmt.Sprintf("%s (%d)%s", name, i, ext))
-		if _, err := os.Stat(candidate); err != nil {
+		baseDirectory := baseDir
+		if baseDirectory == "" {
+			baseDirectory = "."
+		}
+		relCandidate, err := filepath.Rel(baseDirectory, candidate)
+		if err != nil {
+			return "", wrapCategory(CategoryFilesystem, err)
+		}
+		validated, err := validatedOutputPath(relCandidate, baseDir)
+		if err != nil {
+			return "", wrapCategory(CategoryFilesystem, err)
+		}
+		if _, err := os.Stat(validated); err != nil {
 			if os.IsNotExist(err) {
-				return candidate, nil
+				return validated, nil
 			}
 			return "", wrapCategory(CategoryFilesystem, err)
 		}

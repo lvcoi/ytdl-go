@@ -22,21 +22,6 @@ const (
 	partSuffix        = ".part"
 )
 
-func sanitizeOutputPath(path string) (string, string, error) {
-	if path == "" {
-		return "", "", fmt.Errorf("empty output path")
-	}
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return "", "", fmt.Errorf("resolving output path: %w", err)
-	}
-	baseDir := filepath.Dir(absPath)
-	if baseDir == "" || baseDir == string(filepath.Separator) {
-		return "", "", fmt.Errorf("invalid base directory for output path: %q", baseDir)
-	}
-	return absPath, baseDir, nil
-}
-
 func downloadAdaptive(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, formatErr error) (downloadResult, error) {
 	if opts.AudioOnly {
 		return downloadResult{}, wrapCategory(CategoryUnsupported, fmt.Errorf("audio-only adaptive downloads are not supported yet (use --list-formats): %w", formatErr))
@@ -106,12 +91,7 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
 	}
-	// Normalize output path.
-	outputPath, _, err = sanitizeOutputPath(outputPath)
-	if err != nil {
-		return downloadResult{}, wrapCategory(CategoryFilesystem, err)
-	}
-	outputPath, skip, err := handleExistingPath(outputPath, opts, printer)
+	outputPath, skip, err := handleExistingPath(outputPath, opts.OutputDir, opts, printer)
 	if err != nil {
 		return downloadResult{}, err
 	}
@@ -119,7 +99,7 @@ func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Vid
 		return downloadResult{skipped: true, outputPath: outputPath}, nil
 	}
 
-	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, opts, printer, prefix)
+	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, opts.OutputDir, opts, printer, prefix)
 	if err == nil {
 		result.outputPath = outputPath
 	}
@@ -254,16 +234,16 @@ type hlsResumeState struct {
 	BytesWritten int64  `json:"bytes_written"`
 }
 
-func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
-	partPath, err := artifactPath(outputPath, partSuffix)
+func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+	partPath, err := artifactPath(outputPath, partSuffix, baseDir)
 	if err != nil {
 		return downloadResult{}, err
 	}
-	resumePath, err := artifactPath(outputPath, resumeSuffix)
+	resumePath, err := artifactPath(outputPath, resumeSuffix, baseDir)
 	if err != nil {
 		return downloadResult{}, err
 	}
-	segmentDir, err := artifactPath(outputPath, ".segments")
+	segmentDir, err := artifactPath(outputPath, ".segments", baseDir)
 	if err != nil {
 		return downloadResult{}, err
 	}
