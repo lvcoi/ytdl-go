@@ -3,5 +3,8 @@
         {
             "path": "."
         }
-    ]
+    ],
+    "settings": {
+        "codeQL.createQuery.qlPackLocation": "/Users/anthony/Code/GitHub-Code/ytdl-go"
+    }
 }
