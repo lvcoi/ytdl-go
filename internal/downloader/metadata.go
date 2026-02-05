@@ -122,7 +122,10 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 	if outputPath == "" {
 		return nil
 	}
-	path := sidecarPath(outputPath)
+	path, err := sidecarPath(outputPath)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating sidecar directory: %w", err))
 	}
@@ -142,8 +145,8 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 	return nil
 }
 
-func sidecarPath(outputPath string) string {
-	return outputPath + ".json"
+func sidecarPath(outputPath string) (string, error) {
+	return artifactPath(outputPath, ".json")
 }
 
 func bestThumbnailURL(thumbnails youtube.Thumbnails) string {

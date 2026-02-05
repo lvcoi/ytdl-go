@@ -60,7 +60,9 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{ext}", ext,
 		"{quality}", quality,
 		"{playlist_title}", playlistTitle,
+		"{playlist-title}", playlistTitle,
 		"{playlist_id}", playlistID,
+		"{playlist-id}", playlistID,
 		"{index}", index,
 		"{count}", total,
 	)
@@ -144,6 +146,19 @@ func outputDirCandidate(path string, baseDir string) string {
 		return path
 	}
 	return filepath.Join(baseDir, path)
+}
+
+func artifactPath(outputPath, suffix string) (string, error) {
+	if outputPath == "" {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("output path is empty"))
+	}
+	if strings.Contains(suffix, "/") || strings.Contains(suffix, "\\") {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("invalid artifact suffix"))
+	}
+	dir := filepath.Dir(outputPath)
+	base := filepath.Base(outputPath)
+	artifact := filepath.Join(dir, base+suffix)
+	return artifact, nil
 }
 
 func sanitize(name string) string {
