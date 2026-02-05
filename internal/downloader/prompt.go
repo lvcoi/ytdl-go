@@ -185,11 +185,11 @@ func nextAvailablePath(path, baseDir string) (string, error) {
 
 	for i := 1; i < 10000; i++ {
 		candidate := filepath.Join(dir, fmt.Sprintf("%s (%d)%s", name, i, ext))
-		base := baseDir
-		if base == "" {
-			base = "."
+		baseDirectory := baseDir
+		if baseDirectory == "" {
+			baseDirectory = "."
 		}
-		relCandidate, err := filepath.Rel(base, candidate)
+		relCandidate, err := filepath.Rel(baseDirectory, candidate)
 		if err != nil {
 			return "", wrapCategory(CategoryFilesystem, err)
 		}
