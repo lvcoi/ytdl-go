@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"mime"
@@ -52,6 +53,42 @@ type DownloadResponse struct {
 	ExitCode int                `json:"exit_code,omitempty"`
 	Error    string             `json:"error,omitempty"`
 	Options  downloader.Options `json:"options,omitempty"`
+}
+
+// validateWebOutputTemplate ensures that the output template provided via the web API
+// cannot be used to write files outside the intended output area. It is intentionally
+// conservative and rejects absolute paths, parent directory references, and directory
+// components in the literal prefix before the first placeholder.
+func validateWebOutputTemplate(tmpl string) error {
+	// Empty template is allowed; it will be defaulted later.
+	if strings.TrimSpace(tmpl) == "" {
+		return nil
+	}
+
+	// Reject simple parent-directory traversal patterns.
+	if strings.Contains(tmpl, "..") {
+		return fmt.Errorf("invalid output template: parent directory references are not allowed")
+	}
+
+	// Basic absolute path checks for Unix-like and Windows-style paths.
+	if strings.HasPrefix(tmpl, "/") || strings.HasPrefix(tmpl, `\\`) {
+		return fmt.Errorf("invalid output template: absolute paths are not allowed")
+	}
+	if len(tmpl) >= 2 && ((tmpl[0] >= 'A' && tmpl[0] <= 'Z') || (tmpl[0] >= 'a' && tmpl[0] <= 'z')) && tmpl[1] == ':' {
+		return fmt.Errorf("invalid output template: absolute paths are not allowed")
+	}
+
+	// Disallow explicit directory components in the literal prefix before the first placeholder.
+	prefixEnd := strings.Index(tmpl, "{")
+	if prefixEnd == -1 {
+		prefixEnd = len(tmpl)
+	}
+	literalPrefix := tmpl[:prefixEnd]
+	if strings.Contains(literalPrefix, "/") || strings.Contains(literalPrefix, `\`) {
+		return fmt.Errorf("invalid output template: directory components are not allowed in the literal prefix")
+	}
+
+	return nil
 }
 
 func ListenAndServe(ctx context.Context, addr string) error {
@@ -112,6 +149,11 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			Timeout:             time.Duration(req.Options.TimeoutSeconds) * time.Second,
 			Quiet:               req.Options.Quiet,
 			LogLevel:            req.Options.LogLevel,
+		}
+		// Validate web-provided output template to avoid writing files to arbitrary locations.
+		if err := validateWebOutputTemplate(opts.OutputTemplate); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
 		}
 		if opts.OutputTemplate == "" {
 			opts.OutputTemplate = "{title}.{ext}"
