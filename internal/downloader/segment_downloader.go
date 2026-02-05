@@ -217,12 +217,26 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 				if evalErr != nil {
 					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("evaluating parent directory symlinks: %w", evalErr))
 				}
-				// Compute the relative path from parent to the original temp path
+				// Compute the relative path from parent to the original temp path.
 				relPath, relErr := filepath.Rel(parent, originalAbsTemp)
 				if relErr != nil {
 					return "", wrapCategory(CategoryFilesystem, fmt.Errorf("computing relative path: %w", relErr))
 				}
-				// Reconstruct the full path using the evaluated parent
+				// NOTE SECURITY / RACE CONDITION:
+				// At this point we have:
+				//   - Resolved symlinks only for the *existing* parent directory (evalParent).
+				//   - A relative suffix (relPath) that may refer to path components which do not yet exist.
+				//
+				// When we reconstruct evalTemp below, any symlinks that might later appear in the
+				// non-existent portion of relPath will not have been validated here. This means the
+				// security guarantee provided by this check only applies to path components that
+				// exist at validation time.
+				//
+				// Callers that rely on strict confinement (e.g. ensuring the final path remains
+				// under a specific base directory) SHOULD perform a second validation after
+				// creating the intermediate directories, to ensure no symlinks were introduced
+				// between validation time and creation time.
+				// Reconstruct the full path using the evaluated parent and the (currently) unchecked suffix.
 				evalTemp = filepath.Join(evalParent, relPath)
 				found = true
 				break
