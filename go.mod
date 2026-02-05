@@ -2,7 +2,7 @@ module github.com/lvcoi/ytdl-go
 
 go 1.24
 
-toolchain go1.24.12
+toolchain go1.24
 
 require (
 	github.com/bogem/id3v2/v2 v2.1.4
