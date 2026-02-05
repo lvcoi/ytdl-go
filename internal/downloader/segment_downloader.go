@@ -264,18 +264,19 @@ func validateSegmentTempDir(tempDir, baseDir string) (string, error) {
 		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("relating temp directory: %w", err))
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", absTemp, absBase))
-	if info, err := os.Stat(absTemp); err != nil {
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp dir %q escapes base directory %q", evalTemp, evalBase))
+	}
+	// Ensure the validated temp directory exists and is a directory
+	if info, err := os.Stat(evalTemp); err != nil {
 		if os.IsNotExist(err) {
-			if mkErr := os.MkdirAll(absTemp, 0o755); mkErr != nil {
+			if mkErr := os.MkdirAll(evalTemp, 0o755); mkErr != nil {
 				return "", wrapCategory(CategoryFilesystem, fmt.Errorf("creating temp segments dir: %w", mkErr))
 			}
 		} else {
 			return "", wrapCategory(CategoryFilesystem, fmt.Errorf("stat temp directory for segments: %w", err))
 		}
 	} else if !info.IsDir() {
-		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp path for segments is not a directory: %q", absTemp))
-	}
+		return "", wrapCategory(CategoryFilesystem, fmt.Errorf("temp path for segments is not a directory: %q", evalTemp))
 	}
 	return evalTemp, nil
 }
