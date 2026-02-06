@@ -578,20 +578,18 @@ ytdl-go --web --web-addr "0.0.0.0:3000"
 **Type:** String  
 **Example:** `ytdl-go --web --web-addr "0.0.0.0:3000"`
 
-Specifies the address and port for the web server.
+Specifies the address and port for the web server.  
+For security reasons, you should normally bind the web server only to localhost (`127.0.0.1`) unless you fully understand the risks and have additional protections (such as host allowlisting and a reverse proxy) in place.
 
 **Format:** `host:port`
 
 **Examples:**
 
 ```bash
-# Localhost only (default)
+# Localhost only (default and recommended)
 ytdl-go --web --web-addr "127.0.0.1:8080"
 
-# All interfaces
-ytdl-go --web --web-addr "0.0.0.0:8080"
-
-# Custom port
+# Custom port on localhost
 ytdl-go --web --web-addr "127.0.0.1:3000"
 ```
 
