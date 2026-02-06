@@ -1,39 +1,27 @@
-# ytdl-go 📺
+<div align="center">
 
-![ytdl-go logo](screenshots/logo.svg)
+# ytdl-go
 
-## A powerful yt-dlp-style downloader written in Go
+**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive, and dependency-free._
 
-[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](https://github.com/lvcoi/ytdl-go/LICENSE)
-[![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=flat-square)](https://github.com/lvcoi/ytdl-go/releases)
-[![GoDoc](https://img.shields.io/badge/go.dev-reference-007d9c?style=flat-square&logo=go)](https://pkg.go.dev/github.com/lvcoi/ytdl-go)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
+[![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
+[![GoDoc](https://img.shields.io/badge/reference-go.dev-007d9c?style=for-the-badge&logo=go)](https://pkg.go.dev/github.com/lvcoi/ytdl-go)
 
-⚡ Blazing fast YouTube downloader with automatic retry, progress tracking, and YouTube Music support ⚡
+[Features](#-features-at-a-glance) • [Installation](#-installation) • [Usage](#-usage-guide) • [Options](#-command-line-options)
 
----
-
-## 📑 Table of Contents
-
-- [✨ Features](#-features)
-- [🚀 Installation](#-installation)
-- [📖 Quick Start](#-quick-start)
-- [💡 Usage Examples](#-usage-examples)
-- [📊 Command Line Options](#-command-line-options)
-- [🏷️ Output Templates](#️-output-templates)
-- [🔧 Troubleshooting](#-troubleshooting)
-- [🙏 Acknowledgments](#-acknowledgments)
-- [📜 License](#-license)
+</div>
 
 ---
 
-## ✨ Features
+## ✨ Features at a Glance
 
 | Core Capabilities | Advanced Tools |
-| :--- | :--- |
-| **🚀 High Performance**<br>Parallel downloads, automatic retries, and resume capability | **🎮 Interactive TUI**<br>Visual format selector to browse and pick quality streams |
-| **📺 Broad Support**<br>Videos, Audio, Playlists, and YouTube Music URLs | **🏷️ Rich Metadata**<br>ID3 tags, JSON metadata, and sidecar files |
-| **🎨 Format Control**<br>Select by quality (`1080p`, `best`), container (`mp4`), or itag | **⚙️ Automation Ready**<br>JSON output, custom templates, and quiet modes |
+| --- | --- |
+| **🚀 High Performance**<br>Parallel downloads, automatic retries, and resume capability. | **🎮 Interactive TUI**<br>Visual format selector to browse and pick specific quality streams. |
+| **📺 Broad Support**<br>Download Videos, Audio, Playlists, and YouTube Music URLs. | **🏷️ Rich Metadata**<br>Embeds ID3 tags, fetches structured JSON metadata, and handles sidecars. |
+| **🎨 Format Control**<br>Select by quality (`1080p`, `best`), container (`mp4`), or exact `itag`. | **⚙️ Automation Ready**<br>JSON output mode, custom output templates, and quiet modes for scripts. |
 
 ---
 
@@ -41,168 +29,135 @@
 
 ### Quick Install (Recommended)
 
-```bash
+Requires Go 1.23+ installed on your system.
+
+```shell
 go install github.com/lvcoi/ytdl-go@latest
 ```
 
-*Requires Go 1.23+. Ensure `$GOPATH/bin` is in your `$PATH`.*
+*Ensure your `$GOPATH/bin` is in your system `$PATH`.*
 
 ### Build from Source
 
-```bash
+<details>
+<summary>Click to expand build instructions</summary>
+
+```shell
+# Clone the repository
 git clone https://github.com/lvcoi/ytdl-go.git
 cd ytdl-go
+
+# Build the binary
 go build -o ytdl-go .
+
+# (Optional) Install to system path
+go install .
 ```
+
+</details>
 
 ---
 
-## 📖 Quick Start
+## 📖 Usage Guide
 
-### Basic Downloads
+### 🎯 The Essentials
 
-Download a video with best quality:
-```bash
-ytdl-go "https://youtube.com/watch?v=BaW_jenozKc"
+| Goal | Command |
+| --- | --- |
+| **Download Best Video** | `ytdl-go "https://youtube.com/watch?v=..."` |
+| **Download Audio Only** | `ytdl-go -audio "https://youtube.com/watch?v=..."` |
+| **Interactive Mode** | `ytdl-go -list-formats "https://youtube.com/watch?v=..."` |
+| **Download Playlist** | `ytdl-go "https://youtube.com/playlist?list=..."` |
+
+### 🎮 Interactive Mode (TUI)
+
+Don't guess the quality code. Use `-list-formats` to browse streams visually.
+
+```shell
+ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-![Video Download](screenshots/05-video-download.svg)
+> **Controls:** `↑/↓` to navigate, `Enter` to download, `1-9` to filter by itag.
 
-Download audio only:
-```bash
-ytdl-go -audio "https://youtube.com/watch?v=BaW_jenozKc"
-```
+![Interactive Format Selector](screenshots/interactive-format-selector.svg)
 
-![Audio Download](screenshots/06-audio-download.svg)
+### 📂 File Organization & Templates
 
-### Interactive Format Selection
+Customize where files go using the `-o` flag with placeholders.
 
-Browse available formats and select interactively:
-```bash
-ytdl-go -list-formats "https://youtube.com/watch?v=BaW_jenozKc"
-```
+**Organize Music by Artist:**
 
-**Controls:** `↑/↓` navigate • `Enter` download • `1-9` filter by itag • `q` quit
-
-### Playlist Downloads
-
-Download entire playlists:
-```bash
-ytdl-go "https://youtube.com/playlist?list=PL59FEE129ADFF2B12"
-```
-
-![Playlist Download](screenshots/11-playlist-download.svg)
-
----
-
-## 💡 Usage Examples
-
-### Music Library Organization
-
-**By Artist & Album:**
-```bash
+```shell
 ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 ```
 
-![Audio with Folders](screenshots/13-audio-playlist-folders.svg)
+**Archive Playlists with Index:**
 
-**Playlist with Track Numbers:**
-```bash
-ytdl-go -audio -o "Music/{playlist-title}/{index:02d} - {title}.{ext}" URL
+```shell
+ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
-![Custom Playlist](screenshots/12-custom-playlist.svg)
+**Supported Placeholders:**
+`{title}`, `{artist}`, `{album}`, `{id}`, `{ext}`, `{quality}`, `{playlist-title}`, `{playlist-id}`, `{index}`, `{count}`
 
-### Video Collection
+---
 
-**With Quality Labels:**
-```bash
-ytdl-go -o "Videos/{title} [{quality}].{ext}" URL
+## ⚙️ Advanced Usage
+
+### 📺 Format Selection & Quality
+
+```shell
+# Specific resolution
+ytdl-go -quality 1080p URL
+
+# Specific container
+ytdl-go -format mp4 URL
+
+# Exact YouTube itag
+ytdl-go -itag 137 URL
 ```
 
-![Quality Indicator](screenshots/10-quality-indicator.svg)
+### 🛠️ Network & Performance
 
-### Advanced Usage
+```shell
+# Parallel downloads (4 files at once)
+ytdl-go -jobs 4 URL1 URL2...
 
-**Get Metadata Only:**
-```bash
-ytdl-go -info URL
+# Custom Timeout
+ytdl-go -timeout 5m URL
+
+# Resume downloads
+ytdl-go URL  # (Automatic detection of .part files)
 ```
 
-![Metadata Info](screenshots/07-metadata-info.svg)
+### 🤖 Scripting & Metadata
 
-**Specific Quality & Format:**
-```bash
-ytdl-go -quality 720p -format mp4 URL
+```shell
+# Get JSON metadata (no download)
+ytdl-go -info -json URL
+
+# Override metadata manually
+ytdl-go -meta artist="My Artist" -meta title="Custom Title" URL
+
+# Quiet mode (no progress bars)
+ytdl-go -quiet URL
 ```
-
-**Parallel Downloads:**
-```bash
-ytdl-go -jobs 4 URL1 URL2 URL3 URL4
-```
-
-![Multiple URLs](screenshots/17-multiple-urls.svg)
-
-**Quiet Mode (for scripts):**
-```bash
-ytdl-go -quiet -audio URL
-```
-
-![Quiet Mode](screenshots/15-quiet-mode.svg)
 
 ---
 
 ## 📊 Command Line Options
 
 | Flag | Default | Description |
-| :--- | :--- | :--- |
-| `-o` | `{title}.{ext}` | Output template (see [Output Templates](#️-output-templates)) |
-| `-audio` | `false` | Download best audio-only format |
-| `-info` | `false` | Print video metadata as JSON without downloading |
-| `-list-formats` | `false` | Launch interactive format selector |
-| `-quality` | `best` | Target quality (`1080p`, `720p`, `128k`, `best`, `worst`) |
-| `-format` | `` | Preferred container (`mp4`, `webm`, `m4a`) |
-| `-itag` | `0` | Download specific format by itag number |
-| `-meta` | `` | Override metadata (`key=value`, repeatable) |
-| `-jobs` | `1` | Number of concurrent downloads |
-| `-json` | `false` | Output as JSON (suppresses progress) |
-| `-quiet` | `false` | Suppress progress output |
-| `-timeout` | `3m` | Per-request timeout (e.g., `30s`, `5m`, `1h`) |
-| `-log-level` | `info` | Log level: `debug`, `info`, `warn`, `error` |
-| `-progress-layout` | `` | Custom progress template |
-| `-segment-concurrency` | `auto` | Parallel segment downloads for HLS/DASH |
-| `-playlist-concurrency` | `auto` | Parallel playlist entry downloads |
-
----
-
-## 🏷️ Output Templates
-
-Use the `-o` flag with placeholders to customize output paths:
-
-| Placeholder | Description | Example |
-| :--- | :--- | :--- |
-| `{title}` | Video title (sanitized) | `My Video Title` |
-| `{artist}` | Video author/artist | `Artist Name` |
-| `{album}` | Album name (YouTube Music) | `Album Name` |
-| `{id}` | Video ID | `dQw4w9WgXcQ` |
-| `{ext}` | File extension | `mp4`, `webm`, `m4a` |
-| `{quality}` | Quality label or bitrate | `1080p`, `128k` |
-| `{playlist-title}` | Playlist name | `My Playlist` |
-| `{playlist-id}` | Playlist ID | `PL59FEE129ADFF2B12` |
-| `{index}` | Video index in playlist | `1`, `2`, `3` |
-| `{count}` | Total videos in playlist | `25` |
-
-**Template Examples:**
-```bash
-# Organize by artist and album
-ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
-
-# Playlist with index
-ytdl-go -o "{playlist-title}/{index:02d} - {title}.{ext}" URL
-
-# Quality in filename
-ytdl-go -o "Videos/{title} [{quality}].{ext}" URL
-```
+| --- | --- | --- |
+| `-o` | `{title}.{ext}` | Output template. |
+| `-audio` | `false` | Download best audio-only format. |
+| `-list-formats` | `false` | Launch interactive format selector. |
+| `-quality` | `best` | Target quality (`1080p`, `720p`, `worst`). |
+| `-format` | `` | Preferred container (`mp4`, `webm`, `m4a`). |
+| `-jobs` | `1` | Concurrent download jobs. |
+| `-json` | `false` | Output logs/status as JSON lines. |
+| `-quiet` | `false` | Suppress standard output. |
+| `-meta` | `` | Override metadata field (`key=value`). |
 
 ---
 
@@ -217,37 +172,12 @@ ytdl-go -o "Videos/{title} [{quality}].{ext}" URL
 
 </details>
 
-## 🙏 Acknowledgments
-
-### 🛠️ Tech Stack & Dependencies
-
-This project wouldn't be possible without the amazing open-source community:
-
-- **[Go](https://golang.org/)** - The powerful programming language that makes ytdl-go fast and efficient
-- **[github.com/kkdai/youtube/v2](https://github.com/kkdai/youtube)** - The core YouTube API library that handles all the heavy lifting
-- **[YouTube](https://youtube.com)** - The platform we all love (and sometimes need to download from)
-
-### 🌟 Special Thanks
-
-- The Go community for creating such an amazing ecosystem
-- The maintainers of `kkdai/youtube` for their excellent library
-- All the contributors and users who help improve this project
-- The yt-dlp project for inspiration and setting the standard for YouTube downloaders
-
-### 🤝 Contributing
-
-We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-### 📬 Contact
-
-Have questions or feedback? Feel free to open an issue on GitHub.
-
 ---
 
-## Made with ❤️ by the ytdl-go team (aka ...me)
+<div align="center">
 
----
+Made with ❤️ by the ytdl-go team
 
-## 📜 License
+[License](LICENSE) • [Report Issue](https://github.com/lvcoi/ytdl-go/issues)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+</div>
