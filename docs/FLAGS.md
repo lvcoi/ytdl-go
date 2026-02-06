@@ -107,7 +107,6 @@ Launches an interactive terminal UI to browse and select from all available form
 **Features:**
 - View all video and audio formats
 - See quality, codec, bitrate, file size
-- Filter by format type
 - Quick jump by itag number
 
 **Keyboard Controls:**
