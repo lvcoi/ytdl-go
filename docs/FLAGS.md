@@ -39,9 +39,9 @@ Specifies the output path or template for downloaded files. Supports placeholder
 | `{count}` | Total videos in playlist | `25` |
 
 **Path Behavior:**
-- Relative paths are relative to current working directory
-- Absolute paths are used as-is
-- Directories are created automatically if they don't exist
+- Output paths/templates must be *relative* (absolute paths are rejected)
+- Relative paths are resolved against `--output-dir` if set, otherwise the current working directory
+- Directories are created automatically for relative paths if they don't exist
 - Trailing slash forces directory interpretation
 
 **Examples:**
