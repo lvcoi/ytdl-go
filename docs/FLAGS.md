@@ -643,8 +643,10 @@ When flags conflict:
 These combinations don't make sense:
 - `--info` + `-o` (metadata only, no file written)
 - `--list-formats` + `--quiet` (interactive UI needs output)
-- `--json` + `--list-formats` (JSON mode is non-interactive)
 
+### Special Combinations
+
+- `--json` + `--list-formats` emits a machine-readable `{"type":"formats", ...}` JSON payload instead of launching the interactive selector.
 ---
 
 **Last Updated:** 2026-02-05  
