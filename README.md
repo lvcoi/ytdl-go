@@ -77,7 +77,7 @@ Don't guess the quality code. Use `-list-formats` to browse streams visually.
 ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-> **Controls:** `↑/↓` to navigate, `Enter` to download, `1-9` to filter by itag.
+> **Controls:** `↑/↓` to navigate, `Enter` to download, type digits for itag (e.g., `101`), repeat quickly to cycle.
 
 ![Interactive Format Selector](screenshots/interactive-format-selector.svg)
 
