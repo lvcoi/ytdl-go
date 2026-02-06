@@ -286,10 +286,10 @@ Download Goroutine N ──┘
 ```
 
 **Thread Safety:**
-- All progress updates go through channels (not shared memory)
+- All progress updates go through channels / Bubble Tea message passing (no shared mutable state exposed to callers)
 - `tea.Program.Send()` is thread-safe and goroutine-friendly
 - Each download goroutine gets a unique ID
-- No locks needed for progress updates
+- `ProgressManager` uses a mutex and atomic counters internally to coordinate shared state safely
 
 #### Lifecycle
 
