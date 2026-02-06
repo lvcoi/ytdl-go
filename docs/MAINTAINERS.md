@@ -427,7 +427,7 @@ Monitor for security vulnerabilities:
 
 Security vulnerabilities should be reported privately:
 1. Do NOT open a public GitHub issue
-2. Follow instructions in SECURITY.md
+2. Use the repository's private vulnerability reporting mechanism (for example, GitHub's "Report a vulnerability" feature) or follow SECURITY.md if it contains project-specific instructions
 3. Email maintainers directly if specified
 
 ### Handling Security Reports
