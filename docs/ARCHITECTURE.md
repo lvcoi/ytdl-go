@@ -111,7 +111,6 @@ The TUI has two primary views:
    - Shows quality, codec, bitrate, and file size
    - Allows keyboard navigation (↑/↓, j/k, Page Up/Down, Home/End)
    - Quick jump by itag number (1-9 keys)
-   - Supports search and filtering
 
 2. **`SeamlessViewProgress`** - Download progress display
    - Shows real-time progress bars for active downloads
