@@ -282,32 +282,34 @@ ytdl-go --jobs 1 video1.com video2.com
 
 ### `--playlist-concurrency` (Playlist Entry Concurrency)
 
-**Default:** `0` (auto - based on CPU count)  
+**Default:** `0` (currently ignored)  
 **Type:** Integer  
 **Example:** `ytdl-go --playlist-concurrency 3 [PLAYLIST_URL]`
 
-Number of playlist entries to download in parallel.
+This flag is reserved for future versions that will support downloading playlist
+entries in parallel. In the current implementation, playlist entries are always
+downloaded sequentially, and changing this value does **not** affect behavior.
 
-**Special Values:**
-- `0` - Auto (runtime.NumCPU() / 2)
+**Current Behavior:**
+- All playlist items are processed one at a time, in order.
+- Any value passed to `--playlist-concurrency` is accepted but ignored.
+
+**Special Values (future intent, not yet implemented):**
+- `0` - Auto (e.g., based on CPU count)
 - `1` - Sequential (one at a time)
 - `N` - Specific concurrency level
 
-**Recommendations:**
-- **Default (auto)**: Good for most cases
-- **Sequential (1)**: When order matters or debugging
-- **High (4-8)**: Fast network, many small videos
+**Recommendations (for current version):**
+- You can safely omit this flag; behavior is always sequential.
+- If you do pass it, use `1` to reflect the actual sequential behavior.
 
-**Examples:**
+**Examples (no effect in current version):**
 
 ```bash
-# Auto-detect concurrency
+# Currently has no effect; playlist items are still downloaded sequentially
 ytdl-go --playlist-concurrency 0 [PLAYLIST_URL]
 
-# Sequential downloads
-ytdl-go --playlist-concurrency 1 [PLAYLIST_URL]
-
-# High concurrency
+# Also has no effect; behavior is the same as without the flag
 ytdl-go --playlist-concurrency 8 [PLAYLIST_URL]
 ```
 
