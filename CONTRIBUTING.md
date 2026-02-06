@@ -42,7 +42,7 @@ Before you begin, ensure you have the following installed:
 - **Make** (if using Makefile - currently not present but may be added)
   ```bash
   # macOS (included in Xcode Command Line Tools)
-  xcode-select --install
+  xcode-select -install
   
   # Ubuntu/Debian
   sudo apt-get install build-essential
@@ -64,7 +64,7 @@ Before you begin, ensure you have the following installed:
 
 - **Git** (for version control)
   ```bash
-  git --version
+  git -version
   ```
 
 ## Getting Started
@@ -104,10 +104,10 @@ go install .
 
 ```bash
 # Run the built binary
-./ytdl-go --help
+./ytdl-go -help
 
 # Or if installed to $GOPATH/bin
-ytdl-go --help
+ytdl-go -help
 ```
 
 ### Alternative: Custom Cache Locations
@@ -228,7 +228,7 @@ golangci-lint run
 To automatically fix issues where possible:
 
 ```bash
-golangci-lint run --fix
+golangci-lint run -fix
 ```
 
 ### Formatting
@@ -350,7 +350,7 @@ Then open a pull request on GitHub with:
 ### Enable Debug Logging
 
 ```bash
-ytdl-go --log-level debug [URL]
+ytdl-go -log-level debug [URL]
 ```
 
 ### Inspect Network Requests
@@ -395,6 +395,6 @@ For a deep dive into the codebase architecture:
 
 By contributing, you agree that your contributions will be licensed under the MIT License (see [LICENSE](LICENSE) file).
 
----
+--
 
 Thank you for contributing to ytdl-go! Your efforts help make this tool better for everyone. 🎉

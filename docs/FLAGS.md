@@ -15,7 +15,7 @@ This comprehensive reference documents all command-line flags available in ytdl-
 
 ## Input/Output Flags
 
-### `-o` / `--output` (Output Template)
+### `-o` (Output Template)
 
 **Default:** `{title}.{ext}`  
 **Type:** String  
@@ -40,7 +40,7 @@ Specifies the output path or template for downloaded files. Supports placeholder
 
 **Path Behavior:**
 - Output paths/templates must be *relative* (absolute paths are rejected)
-- Relative paths are resolved against `--output-dir` if set, otherwise the current working directory
+- Relative paths are resolved against `-output-dir` if set, otherwise the current working directory
 - Directories are created automatically for relative paths if they don't exist
 - Trailing slash forces directory interpretation
 
@@ -63,11 +63,11 @@ ytdl-go -o "Playlist/{playlist_title}/{index} - {title}.{ext}" [URL]
 ytdl-go -o "Videos/{title} [{quality}].{ext}" [URL]
 ```
 
-### `--output-dir` (Output Directory Constraint)
+### `-output-dir` (Output Directory Constraint)
 
 **Default:** (none)  
 **Type:** String  
-**Example:** `ytdl-go --output-dir /safe/downloads -o "../../etc/passwd" [URL]`
+**Example:** `ytdl-go -output-dir /safe/downloads -o "../../etc/passwd" [URL]`
 
 Security feature that constrains all output paths to be within a specified base directory. Prevents directory traversal attacks.
 
@@ -78,11 +78,11 @@ Security feature that constrains all output paths to be within a specified base 
 
 ## Format Selection Flags
 
-### `--audio` (Audio-Only Mode)
+### `-audio` (Audio-Only Mode)
 
 **Default:** `false`  
 **Type:** Boolean  
-**Example:** `ytdl-go --audio [URL]`
+**Example:** `ytdl-go -audio [URL]`
 
 Downloads the best available audio-only format. Automatically selects the highest bitrate audio stream.
 
@@ -96,11 +96,11 @@ Downloads the best available audio-only format. Automatically selects the highes
 2. If 403 error, retry with single request
 3. If still fails, use FFmpeg fallback (extract from progressive video)
 
-### `--list-formats` (Interactive Format Browser)
+### `-list-formats` (Interactive Format Browser)
 
 **Default:** `false`  
 **Type:** Boolean  
-**Example:** `ytdl-go --list-formats [URL]`
+**Example:** `ytdl-go -list-formats [URL]`
 
 Launches an interactive terminal UI to browse and select from all available formats.
 
@@ -118,11 +118,11 @@ Launches an interactive terminal UI to browse and select from all available form
 - `b` - Go back without downloading
 - `q/Esc/Ctrl+C` - Quit
 
-### `--quality` (Quality Preference)
+### `-quality` (Quality Preference)
 
 **Default:** (best available)  
 **Type:** String  
-**Example:** `ytdl-go --quality 720p [URL]`
+**Example:** `ytdl-go -quality 720p [URL]`
 
 Specifies preferred quality for video or audio downloads.
 
@@ -139,26 +139,26 @@ Specifies preferred quality for video or audio downloads.
 **Behavior:**
 - Selects closest available quality if exact match not found
 - For video, only progressive formats are selected
-- For audio (with `--audio`), selects audio-only formats
+- For audio (with `-audio`), selects audio-only formats
 
 **Examples:**
 
 ```bash
 # Download 720p video
-ytdl-go --quality 720p [URL]
+ytdl-go -quality 720p [URL]
 
 # Download 128k audio
-ytdl-go --audio --quality 128k [URL]
+ytdl-go -audio --quality 128k [URL]
 
 # Download worst quality (smallest file)
-ytdl-go --quality worst [URL]
+ytdl-go -quality worst [URL]
 ```
 
-### `--format` (Container/Extension Preference)
+### `-format` (Container/Extension Preference)
 
 **Default:** (any)  
 **Type:** String  
-**Example:** `ytdl-go --format mp4 [URL]`
+**Example:** `ytdl-go -format mp4 [URL]`
 
 Specifies preferred container format or file extension.
 
@@ -171,27 +171,27 @@ Specifies preferred container format or file extension.
 
 **Behavior:**
 - Filters available formats by container type
-- Combined with `--quality` for precise selection
+- Combined with `-quality` for precise selection
 - If format unavailable, download may fail
 
 **Examples:**
 
 ```bash
 # Prefer MP4 container
-ytdl-go --format mp4 [URL]
+ytdl-go -format mp4 [URL]
 
 # Download audio as M4A
-ytdl-go --audio --format m4a [URL]
+ytdl-go -audio --format m4a [URL]
 
 # Specific quality and format
-ytdl-go --quality 720p --format mp4 [URL]
+ytdl-go -quality 720p -format mp4 [URL]
 ```
 
-### `--itag` (Direct Format Selection)
+### `-itag` (Direct Format Selection)
 
 **Default:** `0` (auto-select)  
 **Type:** Integer  
-**Example:** `ytdl-go --itag 251 [URL]`
+**Example:** `ytdl-go -itag 251 [URL]`
 
 Downloads a specific format by its YouTube itag number. Bypasses all automatic format selection.
 
@@ -209,7 +209,7 @@ Downloads a specific format by its YouTube itag number. Bypasses all automatic f
 
 ```bash
 # List all available formats with itags
-ytdl-go --list-formats [URL]
+ytdl-go -list-formats [URL]
 ```
 
 **Use Cases:**
@@ -219,11 +219,11 @@ ytdl-go --list-formats [URL]
 
 ## Network Flags
 
-### `--timeout` (Request Timeout)
+### `-timeout` (Request Timeout)
 
 **Default:** `3m` (3 minutes)  
 **Type:** Duration  
-**Example:** `ytdl-go --timeout 10m [URL]`
+**Example:** `ytdl-go -timeout 10m [URL]`
 
 Sets the timeout for individual network requests. Does not apply to entire download, only individual HTTP requests.
 
@@ -241,21 +241,21 @@ Sets the timeout for individual network requests. Does not apply to entire downl
 
 ```bash
 # Long timeout for slow connections
-ytdl-go --timeout 10m [URL]
+ytdl-go -timeout 10m [URL]
 
 # Short timeout for quick failure detection
-ytdl-go --timeout 30s [URL]
+ytdl-go -timeout 30s [URL]
 ```
 
 **Note:** For HLS/DASH streams, this applies to each segment download, not the entire stream.
 
 ## Concurrency Flags
 
-### `--jobs` (Concurrent Downloads)
+### `-jobs` (Concurrent Downloads)
 
 **Default:** `1`  
 **Type:** Integer  
-**Example:** `ytdl-go --jobs 4 [URL1] [URL2] [URL3] [URL4]`
+**Example:** `ytdl-go -jobs 4 [URL1] [URL2] [URL3] [URL4]`
 
 Number of URLs to download simultaneously when multiple URLs are provided.
 
@@ -274,17 +274,17 @@ Number of URLs to download simultaneously when multiple URLs are provided.
 
 ```bash
 # Download 4 videos concurrently
-ytdl-go --jobs 4 video1.com video2.com video3.com video4.com
+ytdl-go -jobs 4 video1.com video2.com video3.com video4.com
 
 # Single job (sequential)
-ytdl-go --jobs 1 video1.com video2.com
+ytdl-go -jobs 1 video1.com video2.com
 ```
 
-### `--playlist-concurrency` (Playlist Entry Concurrency)
+### `-playlist-concurrency` (Playlist Entry Concurrency)
 
 **Default:** `0` (currently ignored)  
 **Type:** Integer  
-**Example:** `ytdl-go --playlist-concurrency 3 [PLAYLIST_URL]`
+**Example:** `ytdl-go -playlist-concurrency 3 [PLAYLIST_URL]`
 
 This flag is reserved for future versions that will support downloading playlist
 entries in parallel. In the current implementation, playlist entries are always
@@ -292,7 +292,7 @@ downloaded sequentially, and changing this value does **not** affect behavior.
 
 **Current Behavior:**
 - All playlist items are processed one at a time, in order.
-- Any value passed to `--playlist-concurrency` is accepted but ignored.
+- Any value passed to `-playlist-concurrency` is accepted but ignored.
 
 **Special Values (future intent, not yet implemented):**
 - `0` - Auto (e.g., based on CPU count)
@@ -307,17 +307,17 @@ downloaded sequentially, and changing this value does **not** affect behavior.
 
 ```bash
 # Currently has no effect; playlist items are still downloaded sequentially
-ytdl-go --playlist-concurrency 0 [PLAYLIST_URL]
+ytdl-go -playlist-concurrency 0 [PLAYLIST_URL]
 
 # Also has no effect; behavior is the same as without the flag
-ytdl-go --playlist-concurrency 8 [PLAYLIST_URL]
+ytdl-go -playlist-concurrency 8 [PLAYLIST_URL]
 ```
 
-### `--segment-concurrency` (Segment Download Concurrency)
+### `-segment-concurrency` (Segment Download Concurrency)
 
 **Default:** `0` (auto - based on CPU count)  
 **Type:** Integer  
-**Example:** `ytdl-go --segment-concurrency 4 [HLS_URL]`
+**Example:** `ytdl-go -segment-concurrency 4 [HLS_URL]`
 
 For HLS/DASH streams, number of segments to download in parallel.
 
@@ -338,11 +338,11 @@ For HLS/DASH streams, number of segments to download in parallel.
 
 ## Output Control Flags
 
-### `--quiet` (Suppress Progress)
+### `-quiet` (Suppress Progress)
 
 **Default:** `false`  
 **Type:** Boolean  
-**Example:** `ytdl-go --quiet [URL]`
+**Example:** `ytdl-go -quiet [URL]`
 
 Suppresses all progress output. Errors are still shown to stderr.
 
@@ -356,17 +356,17 @@ Suppresses all progress output. Errors are still shown to stderr.
 
 ```bash
 # Quiet download
-ytdl-go --quiet [URL]
+ytdl-go -quiet [URL]
 
 # Quiet with output file capture
-ytdl-go --quiet [URL] 2>errors.log
+ytdl-go -quiet [URL] 2>errors.log
 ```
 
-### `--json` (JSON Output Mode)
+### `-json` (JSON Output Mode)
 
 **Default:** `false`  
 **Type:** Boolean  
-**Example:** `ytdl-go --json [URL]`
+**Example:** `ytdl-go -json [URL]`
 
 Emits newline-delimited JSON output for machine parsing. Suppresses all human-readable progress output.
 
@@ -375,39 +375,38 @@ Emits newline-delimited JSON output for machine parsing. Suppresses all human-re
 Each line is a JSON object representing an event:
 
 ```json
-{"type":"start","url":"...","title":"..."}
-{"type":"progress","url":"...","percent":25.5,"current":1048576,"total":4194304}
-{"type":"complete","url":"...","output":"video.mp4","size":4194304}
-{"type":"error","url":"...","category":"network","error":"connection timeout"}
+{"type":"item","status":"ok","url":"...","output":"video.mp4","bytes":4194304,"retries":false}
+{"type":"item","status":"error","url":"...","error":"connection timeout"}
+{"type":"formats","formats":[...]}
+{"type":"error","url":"...","category":"network","error":"..."}
 ```
 
 **Event Types:**
-- `start` - Download started
-- `progress` - Progress update
-- `complete` - Download successful
-- `error` - Download failed
+- `item` - Download result (status: "ok" or "error")
+- `formats` - Available formats list (when using `-json -list-formats`)
+- `error` - Top-level error
 
 **Use Cases:**
 - Integration with other tools
-- Progress monitoring from scripts
 - Automated processing pipelines
 - Web UI backends
+- Scripting with machine-readable output
 
 **Examples:**
 
 ```bash
 # JSON output
-ytdl-go --json [URL]
+ytdl-go -json [URL]
 
-# JSON output piped to jq
-ytdl-go --json [URL] | jq -r 'select(.type=="complete") | .output'
+# JSON output piped to jq (filter successful downloads)
+ytdl-go -json [URL] | jq -r 'select(.type=="item" and .status=="ok") | .output'
 ```
 
-### `--info` (Metadata Only)
+### `-info` (Metadata Only)
 
 **Default:** `false`  
 **Type:** Boolean  
-**Example:** `ytdl-go --info [URL]`
+**Example:** `ytdl-go -info [URL]`
 
 Extracts and prints metadata as JSON without downloading. Does not write any files.
 
@@ -428,22 +427,22 @@ Extracts and prints metadata as JSON without downloading. Does not write any fil
 
 ```bash
 # Get metadata as JSON
-ytdl-go --info [URL]
+ytdl-go -info [URL]
 
 # Pretty-print with jq
-ytdl-go --info [URL] | jq .
+ytdl-go -info [URL] | jq .
 
 # Extract just the title
-ytdl-go --info [URL] | jq -r .title
+ytdl-go -info [URL] | jq -r .title
 ```
 
 ## Metadata Flags
 
-### `--meta` (Metadata Override)
+### `-meta` (Metadata Override)
 
 **Default:** (none)  
 **Type:** Key=Value (repeatable)  
-**Example:** `ytdl-go --meta title="Custom Title" --meta artist="Custom Artist" [URL]`
+**Example:** `ytdl-go -meta title="Custom Title" -meta artist="Custom Artist" [URL]`
 
 Overrides specific metadata fields. Can be specified multiple times for different fields.
 
@@ -467,28 +466,28 @@ Overrides specific metadata fields. Can be specified multiple times for differen
 
 ```bash
 # Override title and artist
-ytdl-go --meta title="My Song" --meta artist="My Artist" [URL]
+ytdl-go -meta title="My Song" -meta artist="My Artist" [URL]
 
 # Set album and track info
-ytdl-go --audio \
-  --meta album="Greatest Hits" \
-  --meta track=5 \
-  --meta artist="The Band" \
+ytdl-go -audio \
+  -meta album="Greatest Hits" \
+  -meta track=5 \
+  -meta artist="The Band" \
   [URL]
 
 # Multiple overrides
 ytdl-go \
-  --meta title="Episode 1" \
-  --meta release_date="2023-01-15" \
-  --meta author="Podcast Name" \
+  -meta title="Episode 1" \
+  -meta release_date="2023-01-15" \
+  -meta author="Podcast Name" \
   [URL]
 ```
 
-### `--progress-layout` (Custom Progress Format)
+### `-progress-layout` (Custom Progress Format)
 
 **Default:** (built-in format)  
 **Type:** String  
-**Example:** `ytdl-go --progress-layout "{label} {percent}% {rate}" [URL]`
+**Example:** `ytdl-go -progress-layout "{label} {percent}% {rate}" [URL]`
 
 Customizes the progress bar display format.
 
@@ -504,19 +503,19 @@ Customizes the progress bar display format.
 
 ```bash
 # Minimal progress
-ytdl-go --progress-layout "{percent}% {rate}" [URL]
+ytdl-go -progress-layout "{percent}% {rate}" [URL]
 
 # Detailed progress
-ytdl-go --progress-layout "{label} | {current}/{total} | {rate} | ETA: {eta}" [URL]
+ytdl-go -progress-layout "{label} | {current}/{total} | {rate} | ETA: {eta}" [URL]
 ```
 
 ## Advanced Flags
 
-### `--log-level` (Logging Verbosity)
+### `-log-level` (Logging Verbosity)
 
 **Default:** `info`  
 **Type:** String (debug, info, warn, error)  
-**Example:** `ytdl-go --log-level debug [URL]`
+**Example:** `ytdl-go -log-level debug [URL]`
 
 Controls logging verbosity.
 
@@ -536,13 +535,13 @@ Controls logging verbosity.
 
 ```bash
 # Debug mode for troubleshooting
-ytdl-go --log-level debug [URL]
+ytdl-go -log-level debug [URL]
 
 # Warnings and errors only
-ytdl-go --log-level warn [URL]
+ytdl-go -log-level warn [URL]
 ```
 
-### `--web` (Web UI Server)
+### `-web` (Web UI Server)
 
 **Default:** `false`  
 **Type:** Boolean  
@@ -554,10 +553,10 @@ Launches the web-based UI server instead of downloading from CLI.
 
 ```bash
 # Start web server on default address (127.0.0.1:8080)
-ytdl-go --web
+ytdl-go -web
 
 # Custom address
-ytdl-go --web --web-addr "0.0.0.0:3000"
+ytdl-go -web --web-addr "0.0.0.0:3000"
 ```
 
 **Web UI Features:**
@@ -566,11 +565,11 @@ ytdl-go --web --web-addr "0.0.0.0:3000"
 - Real-time progress
 - Format selection
 
-### `--web-addr` (Web Server Address)
+### `-web-addr` (Web Server Address)
 
 **Default:** `127.0.0.1:8080`  
 **Type:** String  
-**Example:** `ytdl-go --web --web-addr "0.0.0.0:3000"`
+**Example:** `ytdl-go -web --web-addr "0.0.0.0:3000"`
 
 Specifies the address and port for the web server.  
 For security reasons, you should normally bind the web server only to localhost (`127.0.0.1`) unless you fully understand the risks and have additional protections (such as host allowlisting and a reverse proxy) in place.
@@ -581,10 +580,10 @@ For security reasons, you should normally bind the web server only to localhost 
 
 ```bash
 # Localhost only (default and recommended)
-ytdl-go --web --web-addr "127.0.0.1:8080"
+ytdl-go -web --web-addr "127.0.0.1:8080"
 
 # Custom port on localhost
-ytdl-go --web --web-addr "127.0.0.1:3000"
+ytdl-go -web --web-addr "127.0.0.1:3000"
 ```
 
 ## Flag Combinations
@@ -593,63 +592,63 @@ ytdl-go --web --web-addr "127.0.0.1:3000"
 
 #### Music Library Archiving
 ```bash
-ytdl-go --audio \
+ytdl-go -audio \
   -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
-  --meta album="Album Name" \
+  -meta album="Album Name" \
   [PLAYLIST_URL]
 ```
 
 #### High-Quality Video Collection
 ```bash
-ytdl-go --quality 1080p \
-  --format mp4 \
+ytdl-go -quality 1080p \
+  -format mp4 \
   -o "Videos/{playlist_title}/{index} - {title} [{quality}].{ext}" \
   [PLAYLIST_URL]
 ```
 
 #### Batch Download with JSON Output
 ```bash
-ytdl-go --json \
-  --jobs 4 \
-  --quiet \
+ytdl-go -json \
+  -jobs 4 \
+  -quiet \
   [URL1] [URL2] [URL3] [URL4] \
   > downloads.jsonl
 ```
 
 #### Fast Playlist Download
 ```bash
-ytdl-go --audio \
-  --playlist-concurrency 8 \
-  --quiet \
+ytdl-go -audio \
+  -playlist-concurrency 8 \
+  -quiet \
   [PLAYLIST_URL]
 ```
 
 #### Debug Mode with Detailed Logging
 ```bash
-ytdl-go --log-level debug \
-  --timeout 30m \
-  --list-formats \
+ytdl-go -log-level debug \
+  -timeout 30m \
+  -list-formats \
   [URL]
 ```
 
 ### Flag Precedence
 
 When flags conflict:
-1. `--itag` overrides `--quality` and `--format`
-2. `--json` implies `--quiet`
-3. `--info` prevents downloading (metadata only)
-4. `--list-formats` prevents automatic downloading
+1. `-itag` overrides `-quality` and `-format`
+2. `-json` implies `-quiet`
+3. `-info` prevents downloading (metadata only)
+4. `-list-formats` prevents automatic downloading
 
 ### Invalid Combinations
 
 These combinations don't make sense:
-- `--info` + `-o` (metadata only, no file written)
-- `--list-formats` + `--quiet` (interactive UI needs output)
+- `-info` + `-o` (metadata only, no file written)
+- `-list-formats` + `-quiet` (interactive UI needs output)
 
 ### Special Combinations
 
-- `--json` + `--list-formats` emits a machine-readable `{"type":"formats", ...}` JSON payload instead of launching the interactive selector.
----
+- `-json` + `-list-formats` emits a machine-readable `{"type":"formats", ...}` JSON payload instead of launching the interactive selector.
+--
 
 **Last Updated:** 2026-02-05  
 **Version:** 1.0  

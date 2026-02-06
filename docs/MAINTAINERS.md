@@ -107,6 +107,9 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
+# Create output directory
+mkdir -p dist
+
 PLATFORMS=(
     "linux/amd64"
     "linux/arm64"
@@ -210,8 +213,8 @@ go mod tidy
 
 # Test thoroughly!
 go build .
-./ytdl-go --info https://www.youtube.com/watch?v=dQw4w9WgXcQ
-./ytdl-go --audio https://www.youtube.com/watch?v=dQw4w9WgXcQ
+./ytdl-go -info https://www.youtube.com/watch?v=dQw4w9WgXcQ
+./ytdl-go -audio https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
 #### Testing After Update
@@ -221,8 +224,8 @@ Always test these scenarios after updating `kkdai/youtube`:
 - [ ] Audio-only download
 - [ ] Playlist download
 - [ ] YouTube Music URL
-- [ ] Format listing (`--list-formats`)
-- [ ] Metadata extraction (`--info`)
+- [ ] Format listing (`-list-formats`)
+- [ ] Metadata extraction (`-info`)
 
 ### Other Dependencies
 
@@ -269,10 +272,10 @@ Monitor for security vulnerabilities:
 1. **Verify the issue:**
    ```bash
    # Test a known-working video
-   ytdl-go --info https://www.youtube.com/watch?v=dQw4w9WgXcQ
+   ytdl-go -info https://www.youtube.com/watch?v=dQw4w9WgXcQ
    
    # Try audio-only download
-   ytdl-go --audio https://www.youtube.com/watch?v=dQw4w9WgXcQ
+   ytdl-go -audio https://www.youtube.com/watch?v=dQw4w9WgXcQ
    ```
 
 2. **Check if it's widespread:**
@@ -302,8 +305,8 @@ Monitor for security vulnerabilities:
 3. **Temporary workaround (user-facing):**
    ```bash
    # If audio-only fails, try downloading progressive video format
-   ytdl-go --itag 22 [URL]  # 720p progressive
-   ytdl-go --itag 18 [URL]  # 360p progressive
+   ytdl-go -itag 22 [URL]  # 720p progressive
+   ytdl-go -itag 18 [URL]  # 360p progressive
    ```
 
 **Prevention:**
@@ -377,7 +380,7 @@ Monitor for security vulnerabilities:
 1. **Check concurrency settings:**
    ```bash
    # Too many concurrent downloads
-   ytdl-go --jobs 50 [URLs...]  # Reduce this!
+   ytdl-go -jobs 50 [URLs...]  # Reduce this!
    ```
 
 2. **Monitor resource usage:**
@@ -390,11 +393,11 @@ Monitor for security vulnerabilities:
 
 1. **Reduce concurrency:**
    ```bash
-   # Lower --jobs flag
-   ytdl-go --jobs 2 [URLs...]
+   # Lower -jobs flag
+   ytdl-go -jobs 2 [URLs...]
    
    # Lower playlist/segment concurrency
-   ytdl-go --playlist-concurrency 1 --segment-concurrency 1 [URL]
+   ytdl-go -playlist-concurrency 1 -segment-concurrency 1 [URL]
    ```
 
 2. **Check for leaks:**
@@ -489,7 +492,7 @@ When you receive a security report:
 - Add examples for new features
 - Fix documentation bugs promptly
 
----
+--
 
 **Maintainer Roster:**
 - Add maintainer names/handles here

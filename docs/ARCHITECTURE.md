@@ -121,29 +121,30 @@ The TUI has two primary views:
 
 ### Seamless Transition Concept
 
-One of the key innovations in ytdl-go's TUI is the **seamless transition** between views. Unlike traditional TUI applications that clear the screen or use alternate screen buffers, ytdl-go transitions smoothly:
+One of the key features in ytdl-go's TUI is the **seamless transition** between views. The TUI uses the alternate screen buffer (via `tea.WithAltScreen()`) but transitions smoothly between format selection and progress views within a single Bubble Tea program session:
 
 ```go
 // User selects a format in SeamlessViewFormatSelector
 format := user_selected_format
 
-// Transition happens WITHOUT clearing the screen
+// Transition happens within the SAME tea.Program session
 model.view = SeamlessViewProgress
 
-// Progress bars appear in the same terminal space
-// No jarring screen clear or flicker
+// Progress bars appear in the same TUI session
+// No program restart or screen reinitialization
 ```
 
 **Why this matters:**
-- **No visual disruption** - The user sees a continuous flow from selection to download
-- **Context preservation** - Previous output remains visible
+- **Smooth user experience** - The user sees a continuous flow from selection to download within one TUI session
+- **Context preservation** - The same program handles both views
 - **Better UX** - Feels like a single, cohesive application rather than separate tools
 
 **Implementation details:**
 - Both views share the same `tea.Program` instance
-- View changes are handled through model updates
+- View changes are handled through model updates within the same session
 - The `selectionChan` communicates format selection without quitting the TUI
 - Progress updates continue seamlessly after format selection
+- Uses alternate screen buffer for clean terminal handling
 
 ### Message Flow
 
@@ -317,18 +318,18 @@ pm.Stop()
 
 ytdl-go supports multiple levels of concurrency:
 
-#### 1. Job-Level Concurrency (`--jobs N`)
+#### 1. Job-Level Concurrency (`-jobs N`)
 - Downloads multiple URLs simultaneously
 - Each URL gets its own download goroutine
 - Progress bars shown for each active download
-- Controlled by `--jobs` flag
+- Controlled by `-jobs` flag
 
-#### 2. Playlist-Level Concurrency (`--playlist-concurrency N`)
+#### 2. Playlist-Level Concurrency (`-playlist-concurrency N`)
 - Downloads multiple playlist entries in parallel
 - Default: auto (based on CPU count)
 - Can be disabled (1) or maximized (high number)
 
-#### 3. Segment-Level Concurrency (`--segment-concurrency N`)
+#### 3. Segment-Level Concurrency (`-segment-concurrency N`)
 - For HLS/DASH streams, downloads segments in parallel
 - Default: auto (based on CPU count)
 - Implemented in `segment_downloader.go`
@@ -403,26 +404,32 @@ main.go
           └─→ internal/downloader/tags.go (Embed Tags)
 ```
 
-### Key Interfaces
+### Key Interfaces and Types
 
-#### Printer Interface
-Abstracts logging and output:
+#### Printer Struct
+Coordinates logging and output (defined in `printer.go` as a concrete struct):
 ```go
-type Printer interface {
-    Log(level LogLevel, msg string)
-    Progress(current, total int64)
+type Printer struct {
+    quiet    bool
+    color    bool
+    renderer ProgressRenderer
+    // ...
 }
 ```
 
-#### ProgressWriter Interface
-Coordinates progress tracking:
+#### ProgressWriter Type
+Coordinates progress tracking using atomics (defined in `progress.go`):
 ```go
 type progressWriter struct {
-    w      io.Writer
-    pm     *ProgressManager
-    id     string
-    total  int64
-    // ...
+    size       atomic.Int64
+    total      atomic.Int64
+    start      atomic.Int64
+    lastUpdate atomic.Int64
+    finished   atomic.Bool
+    prefix     string
+    printer    *Printer
+    taskID     string
+    renderer   ProgressRenderer
 }
 ```
 
@@ -430,8 +437,8 @@ type progressWriter struct {
 
 ### 1. **Progressive Enhancement**
 - Basic functionality works without TUI
-- `--quiet` flag for non-interactive use
-- `--json` for machine-readable output
+- `-quiet` flag for non-interactive use
+- `-json` for machine-readable output
 - TUI adds polish but isn't required
 
 ### 2. **Fail-Safe Defaults**
@@ -473,7 +480,7 @@ type progressWriter struct {
 - Content re-encoding
 - Platform-specific hacks
 
----
+--
 
 **Last Updated:** 2026-02-05  
 **Version:** 1.0  
