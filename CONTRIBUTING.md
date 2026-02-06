@@ -18,9 +18,9 @@ Before you begin, ensure you have the following installed:
 
 ### Required
 
-- **Go 1.23+** - [Download and install Go](https://golang.org/dl/)
+- **Go 1.24+** - [Download and install Go](https://golang.org/dl/)
   ```bash
-  go version  # Should show 1.23 or higher
+  go version  # Should show 1.24 or higher
   ```
 
 ### Recommended

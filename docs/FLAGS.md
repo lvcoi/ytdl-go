@@ -29,7 +29,6 @@ Specifies the output path or template for downloaded files. Supports placeholder
 |-------------|-------------|---------|
 | `{title}` | Video title (sanitized for filesystem) | `My Video Title` |
 | `{artist}` | Video author/artist (sanitized) | `Artist Name` |
-| `{author}` | Video uploader/channel name | `Channel Name` |
 | `{album}` | Album name (YouTube Music metadata) | `Album Name` |
 | `{id}` | YouTube video ID | `dQw4w9WgXcQ` |
 | `{ext}` | File extension from format | `mp4`, `webm`, `m4a` |
@@ -58,17 +57,11 @@ ytdl-go -o "{artist} - {title}.{ext}" [URL]
 ytdl-go -o "Music/{artist}/{album}/{title}.{ext}" [URL]
 
 # Playlist with index
-ytdl-go -o "Playlist/{playlist_title}/{index:02d} - {title}.{ext}" [URL]
+ytdl-go -o "Playlist/{playlist_title}/{index} - {title}.{ext}" [URL]
 
 # Quality indicator
 ytdl-go -o "Videos/{title} [{quality}].{ext}" [URL]
 ```
-
-**Format Specifiers:**
-
-Numeric placeholders support format specifiers:
-- `{index:02d}` - Zero-padded to 2 digits (01, 02, 03, ...)
-- `{index:03d}` - Zero-padded to 3 digits (001, 002, 003, ...)
 
 ### `--output-dir` (Output Directory Constraint)
 
@@ -600,7 +593,7 @@ ytdl-go --web --web-addr "127.0.0.1:3000"
 #### Music Library Archiving
 ```bash
 ytdl-go --audio \
-  -o "Music/{artist}/{album}/{track:02d} - {title}.{ext}" \
+  -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
   --meta album="Album Name" \
   [PLAYLIST_URL]
 ```
@@ -609,7 +602,7 @@ ytdl-go --audio \
 ```bash
 ytdl-go --quality 1080p \
   --format mp4 \
-  -o "Videos/{playlist_title}/{index:02d} - {title} [{quality}].{ext}" \
+  -o "Videos/{playlist_title}/{index} - {title} [{quality}].{ext}" \
   [PLAYLIST_URL]
 ```
 

@@ -180,14 +180,14 @@ ytdl-go "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 
 ```bash
 # Download playlist with custom structure
-ytdl-go -o "downloads/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
+ytdl-go -o "downloads/{playlist_title}/{index} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 ```
 
 ![Custom playlist structure](screenshots/12-custom-playlist.svg)
 
 ```bash
 # Download playlist as audio-only with artist folders
-ytdl-go --audio -o "music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
+ytdl-go --audio -o "music/{artist}/{playlist_title}/{index} - {title}.{ext}" "https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12"
 ```
 
 ![Audio playlist with folders](screenshots/13-audio-playlist-folders.svg)
@@ -394,13 +394,13 @@ The downloader includes robust error handling:
 ytdl-go --audio -o "Music/{artist}/{album}/{title}.{ext}" "https://music.youtube.com/playlist?list=..."
 
 # Download with track numbers
-ytdl-go --audio -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" "https://music.youtube.com/playlist?list=..."
+ytdl-go --audio -o "Music/{artist}/{album}/{index} - {title}.{ext}" "https://music.youtube.com/playlist?list=..."
 
 # Download playlist songs under playlist folder
 ytdl-go --audio -o "Music/{playlist_title}/{title}.{ext}" "https://www.youtube.com/playlist?list=..."
 
 # Download with playlist and track number
-ytdl-go --audio -o "Music/{playlist_title}/{index:02d} - {title}.{ext}" "https://www.youtube.com/playlist?list=..."
+ytdl-go --audio -o "Music/{playlist_title}/{index} - {title}.{ext}" "https://www.youtube.com/playlist?list=..."
 ```
 
 ### 🎬 Video collection
