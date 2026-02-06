@@ -156,7 +156,7 @@ ytdl-go -quiet URL
 | `-format` | `` | Preferred container (`mp4`, `webm`, `m4a`). |
 | `-jobs` | `1` | Concurrent download jobs. |
 | `-json` | `false` | Output logs/status as JSON lines. |
-| `-quiet` | `false` | Suppress standard output. |
+| `-quiet` | `false` | Suppress progress and other non-error output (errors are still printed). |
 | `-meta` | `` | Override metadata field (`key=value`). |
 
 ---
