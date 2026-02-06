@@ -409,12 +409,12 @@ ytdl-go --json [URL] | jq -r 'select(.type=="complete") | .output'
 
 Extracts and prints metadata as JSON without downloading. Does not write any files.
 
-**Output Includes:**
-- Video ID, title, author
-- Duration, views, upload date
-- Available formats with quality/codec/bitrate
-- Thumbnail URLs
-- Playlist information (if applicable)
+**Output Includes (JSON fields):**
+- `id`
+- `title`
+- `description`
+- `author`
+- `duration_seconds`
 
 **Use Cases:**
 - Checking video information
