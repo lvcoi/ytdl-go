@@ -285,14 +285,20 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			results, exitCode := app.Run(ctx, req.URLs, opts, jobs)
 			job.closeDuplicatePrompts(downloader.DuplicateDecisionSkip)
 			status := job.SetOutcome(results, exitCode)
-			select {
-			case job.Events <- ProgressEvent{
-				Type:    "done",
-				Message: status,
-			}:
-			default:
+			snapshot := job.progressSnapshot()
+			doneEvt := ProgressEvent{
+				Type:     "done",
+				Status:   status,
+				Message:  status,
+				ExitCode: snapshot.ExitCode,
+				Error:    snapshot.Error,
 			}
-			close(job.Events)
+			if snapshot.Stats.Total > 0 {
+				stats := snapshot.Stats
+				doneEvt.Stats = &stats
+			}
+			_ = job.enqueueCriticalEvent(doneEvt, criticalEventTimeout)
+			job.CloseEvents()
 		}()
 
 		writeJSON(w, http.StatusOK, map[string]string{
@@ -369,6 +375,16 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		w.Header().Set("X-Accel-Buffering", "no")
 		flusher.Flush()
 
+		afterSeq := int64(0)
+		if seq, ok := parseProgressSeq(r.URL.Query().Get("since")); ok {
+			afterSeq = seq
+		} else if seq, ok := parseProgressSeq(r.Header.Get("Last-Event-ID")); ok {
+			afterSeq = seq
+		}
+
+		stream, cancel := job.Subscribe(afterSeq)
+		defer cancel()
+
 		enc := json.NewEncoder(w)
 		enc.SetEscapeHTML(false)
 
@@ -376,18 +392,24 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			select {
 			case <-r.Context().Done():
 				return
-			case evt, ok := <-job.Events:
+			case evt, ok := <-stream:
 				if !ok {
-					fmt.Fprintf(w, "data: ")
-					_ = enc.Encode(ProgressEvent{Type: "done", Message: job.StatusValue()})
-					fmt.Fprintf(w, "\n")
-					flusher.Flush()
+					doneEvt := ProgressEvent{
+						Type:    "done",
+						Status:  job.StatusValue(),
+						Message: job.StatusValue(),
+					}
+					snapshot := job.progressSnapshot()
+					doneEvt.ExitCode = snapshot.ExitCode
+					doneEvt.Error = snapshot.Error
+					if snapshot.Stats.Total > 0 {
+						stats := snapshot.Stats
+						doneEvt.Stats = &stats
+					}
+					writeSSEEvent(w, flusher, enc, doneEvt)
 					return
 				}
-				fmt.Fprintf(w, "data: ")
-				_ = enc.Encode(evt)
-				fmt.Fprintf(w, "\n")
-				flusher.Flush()
+				writeSSEEvent(w, flusher, enc, evt)
 			}
 		}
 	})
@@ -494,6 +516,16 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(payload)
+}
+
+func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, enc *json.Encoder, evt ProgressEvent) {
+	if evt.Seq > 0 || evt.Type == "snapshot" {
+		fmt.Fprintf(w, "id: %d\n", evt.Seq)
+	}
+	fmt.Fprintf(w, "data: ")
+	_ = enc.Encode(evt)
+	fmt.Fprintf(w, "\n")
+	flusher.Flush()
 }
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {

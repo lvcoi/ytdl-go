@@ -69,17 +69,30 @@ Streams progress and state events for a job.
 - **URL:** `/download/progress?id={jobId}`
 - **Method:** `GET`
 - **Content-Type:** `text/event-stream`
+- **Optional Query Param:** `since` (event sequence number to replay from)
+  - `since=0` replays all retained events for the job.
 
 Each SSE `data:` line is JSON. Event types include:
 
+- `snapshot` (initial state on connect/reconnect)
+- `status` (`queued`, `running`, `complete`, `error`)
 - `register`
 - `progress`
 - `finish`
 - `log`
 - `duplicate`
+- `duplicate-resolved`
 - `done`
 
-`done` includes `message` with `complete` or `error`.
+Most events now include envelope fields for replay-safe clients:
+
+- `jobId` — owning job id
+- `seq` — monotonically increasing event sequence
+- `at` — RFC3339 timestamp
+
+`done` includes terminal state (`status` / `message`), optional `exitCode`, `error`, and `stats`.
+
+`snapshot` always describes the job's **current** state at subscription time, even when `since` is provided.
 
 ## 3. Duplicate Prompt Response
 
