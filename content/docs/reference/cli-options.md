@@ -293,7 +293,7 @@ ytdl-go -jobs 1 video1.com video2.com
 **Type:** Integer  
 **Example:** `ytdl-go -playlist-concurrency 3 [PLAYLIST_URL]`
 
-> **Warning:** This flag is currently **not implemented** and has no effect. It is reserved for future versions that will support downloading playlist entries in parallel.
+> **Warning:** This flag is currently **not implemented** and has no effect. It is reserved for future versions that will support downloading playlist entries in parallel. Check the project's GitHub issues for implementation status.
 
 In the current implementation, playlist entries are always downloaded sequentially, and changing this value does **not** affect behavior.
 

@@ -286,8 +286,9 @@ ytdl-go -o "{playlist_title}/{index} - {title}.{ext}" [PLAYLIST_URL]
 # Results in: 1, 2, 3... 10, 11, 12...
 
 # Note: Index is not zero-padded automatically
-# For better sorting in file managers, consider using external tools
-# or organizing by playlist folder instead of relying on numerical order
+# Without padding, files sort as: 1, 10, 11, 2, 20, 3...
+# Most file managers use "natural sort" which handles this correctly
+# However, tools like `ls` may sort incorrectly without additional flags
 ```
 
 ## Template Testing
