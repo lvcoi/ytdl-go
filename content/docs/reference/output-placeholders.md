@@ -80,16 +80,16 @@ All placeholders containing text are automatically sanitized for filesystem comp
 
 If a placeholder's value is not available, it is replaced with a safe default:
 
-- Text placeholders → `"unknown"` or empty string
+- Text placeholders → empty string (for optional metadata like `{album}`)
 - Numeric placeholders → `0`
-- ID placeholders → video ID or `"unknown"`
+- ID placeholders → video ID (these are generally always available)
 
 **Example:**
 
 ```bash
 # No album metadata available
 ytdl-go -o "{artist}/{album}/{title}.{ext}" [URL]
-# Results in: "Artist Name/unknown/Video Title.mp4"
+# Results in: "Artist Name//Video Title.mp4"
 ```
 
 ### Case Sensitivity
