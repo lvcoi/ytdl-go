@@ -92,7 +92,6 @@ ytdl-go -list-formats https://www.youtube.com/watch?v=dQw4w9WgXcQ
 | 🏷️ **Rich Metadata** | ID3 tags, JSON metadata, and sidecar files |
 | ⚙️ **Automation Ready** | JSON output mode for scripting and integration |
 | 🌐 **Web Interface** | Optional browser-based UI for non-CLI users |
-| 🔒 **Cookie Support** | Access age-restricted and private content |
 
 ---
 
