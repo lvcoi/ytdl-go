@@ -13,7 +13,7 @@
 
 </div>
 
----
+--
 
 ## ✨ Features at a Glance
 
@@ -172,7 +172,7 @@ ytdl-go -quiet URL
 
 </details>
 
----
+--
 
 <div align="center">
 
