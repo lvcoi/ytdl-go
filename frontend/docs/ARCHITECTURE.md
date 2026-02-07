@@ -13,7 +13,7 @@ The frontend is a **Single Page Application (SPA)** built with [SolidJS](https:/
 | UI Framework | SolidJS |
 | Build Tool | Vite |
 | Styling | Tailwind CSS |
-| Icons | Lucide (vanilla) |
+| Icons | lucide-solid |
 | Language | JavaScript (JSX) |
 
 ## Component Structure
@@ -55,7 +55,10 @@ Only durable state is persisted to localStorage. Transient runtime state (active
 The frontend communicates with the Go backend via JSON over HTTP:
 
 - **`POST /api/download`** — Submit URLs for download (synchronous, returns results).
-- **`GET /api/library`** — Fetch downloaded media list (planned).
-- **`GET /api/status`** — Server health and active job count (planned).
+- **`GET /api/download/progress`** — Receive job progress events (SSE stream).
+- **`POST /api/download/duplicate-response`** — Resolve duplicate-file prompts.
+- **`GET /api/media/`** — Fetch downloaded media list.
+- **`GET /api/media/{filename}`** — Serve a specific media file.
+- **`GET /api/status`** — Server health and active job count.
 
 See [API.md](API.md) for the full contract.

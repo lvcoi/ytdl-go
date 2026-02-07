@@ -1,30 +1,49 @@
 # Contributing to the Frontend
 
-We welcome contributions! Whether you're fixing a bug, improving the design, or adding a new feature, here's how to get started.
+This guide covers contributions to the web UI under `frontend/`.
+For repository-wide contribution workflow, see `docs/CONTRIBUTING.md`.
 
-## Development Workflow
+## Frontend Workflow
 
-1. **Fork & Clone:** Fork the repository and clone it locally.
-2. **Install:** Run `npm install` inside the `frontend/` folder.
-3. **Branch:** Create a feature branch: `git checkout -b feature/amazing-new-view`.
-4. **Code:** Make your changes.
-   - **Hot Reloading:** Use `npm run dev` to see changes instantly.
-   - **Custom backend port:** Set `VITE_API_PROXY_TARGET` (for example, `VITE_API_PROXY_TARGET=http://127.0.0.1:9090 npm run dev`).
-5. **Test:** Ensure everything works in the browser console (no red errors!).
-6. **Build:** Run `npm run build` to ensure the build passes and files are generated correctly.
-   - **Optional full-stack check:** From the repo root, run `./build.sh` to validate integrated backend + frontend build behavior.
-7. **Push & PR:** Push your branch and open a Pull Request.
+1. Fork and clone the repository.
+2. Install frontend dependencies:
 
-## Code Style Guidelines
+   ```sh
+   cd frontend
+   npm install
+   ```
 
-- **Components:** Use functional components. Keep them small and focused.
-- **File Naming:** PascalCase for components (e.g., `DownloadView.jsx`), camelCase for logic/utils.
-- **Styling:** Prefer **Tailwind CSS** utility classes over custom CSS. Only use `index.css` for highly specific global overrides (like scrollbars).
-- **Icons:** Use `lucide` icons via `createIcons()`. Always ensure icons are re-initialized in `createEffect` if the DOM structure changes significantly.
+3. Create a feature branch:
 
-## Adding New Dependencies
+   ```sh
+   git checkout -b feature/frontend-change
+   ```
 
-Please discuss adding large new dependencies in an Issue first. We aim to keep the bundle size small to ensure the Go binary remains lightweight.
+4. Implement your change in `frontend/src/`.
+5. Validate the frontend build:
 
-- **Allowed:** Small utility libraries, UI helpers.
-- **Avoid:** Heavy component libraries (MUI, Bootstrap), massive data visualization libraries (unless properly tree-shaken).
+   ```sh
+   npm run build
+   ```
+
+6. If your change touches API behavior or integration paths, run backend tests from repo root:
+
+   ```sh
+   go test ./...
+   ```
+
+7. Push and open a pull request.
+
+## Frontend Conventions
+
+- Components: keep components focused and colocate related logic where practical.
+- Naming: PascalCase for component files, camelCase for helpers/utilities.
+- Styling: prefer Tailwind utility classes, keeping global CSS in `frontend/index.css` minimal.
+- Icons: use `lucide-solid` through `frontend/src/components/Icon.jsx`; add icons by importing them there and extending `iconMap`.
+
+## Dependency Policy
+
+Keep dependencies lean.
+
+- Preferred: small focused libraries.
+- Avoid by default: large UI frameworks and heavy libraries that increase bundle size significantly.
