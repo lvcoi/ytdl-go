@@ -2,20 +2,54 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Only the latest version is actively supported with security updates. We recommend always running:
+
+```bash
+go install github.com/lvcoi/ytdl-go@latest
+```
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| v1.x    | :white_check_mark: |
+| < v1.0  | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+If you discover a security vulnerability in ytdl-go, please report it responsibly:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+1. **Do not** open a public GitHub issue for security vulnerabilities
+2. Email the maintainer directly or use GitHub's private vulnerability reporting feature
+3. Include a clear description of the vulnerability and steps to reproduce
+
+You can expect:
+
+- **Initial response**: Within 48 hours
+- **Status update**: Within 7 days
+- **Fix timeline**: Depends on severity, typically within 14-30 days
+
+## Security Scope
+
+ytdl-go is a CLI tool that downloads publicly accessible YouTube content. Relevant security concerns include:
+
+- **Path traversal** in output templates or filenames
+- **Command injection** via crafted URLs or metadata
+- **Dependency vulnerabilities** in third-party Go modules
+- **Unsafe file operations** that could overwrite unintended files
+
+### Out of Scope
+
+The following are **not** security vulnerabilities:
+
+- Ability to download copyrighted content (this is a user responsibility)
+- YouTube API rate limiting or blocking
+- Issues in upstream dependencies (report those upstream)
+
+## Security Design
+
+ytdl-go follows these security principles:
+
+- **No credential storage**: Does not store passwords, tokens, or cookies
+- **No browser automation**: Does not interact with browsers or extract session data
+- **No DRM circumvention**: Refuses encrypted/protected content
+- **Filesystem sanitization**: Output filenames are sanitized to prevent path traversal
+- **No code execution**: Downloaded content is never executed

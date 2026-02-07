@@ -27,6 +27,10 @@ type Options struct {
 	Timeout             time.Duration
 	ProgressLayout      string
 	LogLevel            string
+	Renderer            ProgressRenderer  `json:"-"`
+	OnDuplicate         DuplicatePolicy   `json:"on-duplicate,omitempty"`
+	DuplicatePrompter   DuplicatePrompter `json:"-"`
+	DuplicateSession    *DuplicateSession `json:"-"`
 }
 
 type outputContext struct {
@@ -115,7 +119,7 @@ func Process(ctx context.Context, url string, opts Options) error {
 // multiple concurrent downloads. If manager is nil, a new one is created.
 func ProcessWithManager(ctx context.Context, url string, opts Options, manager *ProgressManager) error {
 	var ownedManager *ProgressManager
-	if manager == nil {
+	if manager == nil && opts.Renderer == nil {
 		ownedManager = NewProgressManager(opts)
 		if ownedManager != nil {
 			ownedManager.Start(ctx)

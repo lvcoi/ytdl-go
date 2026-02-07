@@ -13,7 +13,27 @@
 
 </div>
 
---
+## Table of Contents
+
+- [✨ Features](#-features)
+- [🚀 Installation](#-installation)
+  - [🧰 One-command build script (build.sh)](#-one-command-build-script-buildsh)
+- [📖 Usage](#-usage)
+  - [🎯 Basic usage](#-basic-usage)
+  - [🎨 Output customization](#-output-customization)
+  - [📚 Playlist downloads](#-playlist-downloads)
+  - [⚙️ Advanced options](#️-advanced-options)
+- [📊 Command Line Options](#-command-line-options)
+- [🏷️ Output Template Placeholders](#️-output-template-placeholders)
+- [🧾 Metadata & Sidecars](#-metadata--sidecars)
+- [🎮 Interactive Features](#-interactive-features)
+- [🛡️ Error Handling](#️-error-handling)
+- [💡 Examples by Use Case](#-examples-by-use-case)
+- [📝 Notes / Limitations](#-notes--limitations)
+- [🔧 Troubleshooting](#-troubleshooting)
+- [⚡ Performance](#-performance)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📜 License](#-license)
 
 ## ✨ Features at a Glance
 
@@ -56,7 +76,66 @@ go install .
 
 </details>
 
----
+### 🧰 One-command build script (build.sh)
+
+Use `build.sh` for an integrated repository build (Go binary + frontend assets).
+
+```bash
+# Build backend + frontend, then prompt to launch the UI
+./build.sh
+
+# Build and automatically launch the UI
+./build.sh --web
+
+# Build and launch UI against a backend running on a different port
+VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
+
+# Show script options
+./build.sh --help
+```
+
+What it does:
+
+- Builds the Go binary to `./bin/yt`
+- Builds frontend assets into `internal/web/assets/`
+- Prompts to launch the UI unless `--web` is passed
+- Uses `VITE_API_PROXY_TARGET` for frontend API proxy target (default `http://127.0.0.1:8080`)
+
+Options:
+
+| Option | Description |
+| --- | --- |
+| `-w`, `--web` | Automatically launch the UI after building |
+| `-h`, `--help` | Show help message |
+
+Automation example (non-interactive "do not launch UI" path):
+
+```bash
+printf 'n\n' | ./build.sh
+```
+
+## 📖 Usage
+
+### 🎯 Basic usage
+
+```bash
+# Download video with best quality
+ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
+```
+
+![Video download](screenshots/05-video-download.svg)
+
+```bash
+# Download audio-only
+ytdl-go --audio https://www.youtube.com/watch?v=BaW_jenozKc
+```
+
+![Audio download](screenshots/06-audio-download.svg)
+
+```bash
+# Get video metadata without downloading
+ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
+```
 
 ## 📖 Usage Guide
 

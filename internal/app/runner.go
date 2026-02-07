@@ -7,13 +7,17 @@ import (
 )
 
 type Result struct {
-	URL string
-	Err error
+	URL   string `json:"url"`
+	Error string `json:"error,omitempty"`
+	Err   error  `json:"-"`
 }
 
 func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]Result, int) {
 	if jobs < 1 {
 		jobs = 1
+	}
+	if opts.DuplicateSession == nil {
+		opts.DuplicateSession = downloader.NewDuplicateSession()
 	}
 
 	type task struct {
@@ -23,7 +27,7 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 	results := make(chan Result, len(urls))
 
 	var sharedManager *downloader.ProgressManager
-	if jobs > 1 {
+	if jobs > 1 && opts.Renderer == nil {
 		sharedManager = downloader.NewProgressManager(opts)
 		if sharedManager != nil {
 			sharedManager.Start(ctx)
@@ -47,8 +51,12 @@ func Run(ctx context.Context, urls []string, opts downloader.Options, jobs int) 
 					} else {
 						err = downloader.Process(ctx, t.url, opts)
 					}
+					res := Result{URL: t.url, Err: err}
+					if err != nil {
+						res.Error = err.Error()
+					}
 					select {
-					case results <- Result{URL: t.url, Err: err}:
+					case results <- res:
 					case <-ctx.Done():
 						return
 					}
@@ -73,9 +81,6 @@ done:
 	for i := 0; i < len(urls); i++ {
 		select {
 		case <-ctx.Done():
-			if sharedManager != nil {
-				sharedManager.Stop()
-			}
 			return output, 130
 		case res := <-results:
 			output = append(output, res)

@@ -90,3 +90,6 @@ site/
 # Backup files
 *.bak
 *.backup
+
+# Frontend (Node.js)
+frontend/node_modules/
