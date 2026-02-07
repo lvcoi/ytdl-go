@@ -317,6 +317,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	if err := ensureMediaLayout(mediaDir); err != nil {
 		return err
 	}
+	playlistStore := newSavedPlaylistStore(filepath.Join(mediaDir, mediaFolderData, savedPlaylistsFileName))
 	log.Printf("Media directory: %s", mediaDir)
 	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
 
@@ -488,6 +489,54 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"active_downloads": tracker.ActiveCount(),
 			"uptime":           uptime,
+		})
+	})
+
+	mux.HandleFunc("/api/library/playlists", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			state, err := playlistStore.Load()
+			if err != nil {
+				writeJSONError(w, http.StatusInternalServerError, "failed to read saved playlists")
+				return
+			}
+			writeJSON(w, http.StatusOK, state)
+		case http.MethodPut:
+			var req savedPlaylistState
+			if err := decodeJSONBody(w, r, &req); err != nil {
+				writeJSONError(w, err.status, err.message)
+				return
+			}
+			state, saveErr := playlistStore.Replace(req)
+			if saveErr != nil {
+				writeJSONError(w, http.StatusInternalServerError, "failed to persist saved playlists")
+				return
+			}
+			writeJSON(w, http.StatusOK, state)
+		default:
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	})
+
+	mux.HandleFunc("/api/library/playlists/migrate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		var req savedPlaylistState
+		if err := decodeJSONBody(w, r, &req); err != nil {
+			writeJSONError(w, err.status, err.message)
+			return
+		}
+		state, migrated, migrateErr := playlistStore.MigrateFromLegacy(req)
+		if migrateErr != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to migrate saved playlists")
+			return
+		}
+		writeJSON(w, http.StatusOK, savedPlaylistMigrationResponse{
+			Playlists:   state.Playlists,
+			Assignments: state.Assignments,
+			Migrated:    migrated,
 		})
 	})
 

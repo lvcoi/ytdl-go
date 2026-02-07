@@ -41,6 +41,8 @@ State is centralized in `store/appStore.jsx` using Solid's context + store primi
 - **`download.urlInput`** — Current URL draft in the download textarea
 
 Runtime download progress state is also centralized so tab navigation does not reset active download progress UI.
+Saved playlists and media-to-playlist assignments are persisted on the backend (`media/data/saved_playlists.json`) and synced through `/api/library/playlists`.
+A one-time frontend migration path (`/api/library/playlists/migrate`) seeds backend data from legacy localStorage state.
 Only durable state is persisted to localStorage. Transient runtime state (active job status/progress/logs/prompts) is intentionally not persisted.
 
 ## Build & Integration Pipeline
@@ -59,6 +61,9 @@ The frontend communicates with the Go backend via JSON over HTTP:
 - **`POST /api/download/duplicate-response`** — Resolve duplicate-file prompts.
 - **`GET /api/media/`** — Fetch downloaded media list.
 - **`GET /api/media/{filename}`** — Serve a specific media file.
+- **`GET /api/library/playlists`** — Load saved playlists + assignments.
+- **`PUT /api/library/playlists`** — Persist saved playlists + assignments.
+- **`POST /api/library/playlists/migrate`** — One-time migration from legacy local state.
 - **`GET /api/status`** — Server health and active job count.
 
 See [API.md](API.md) for the full contract.

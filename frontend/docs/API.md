@@ -165,3 +165,60 @@ Serves a media file from the media directory.
 - **Method:** `GET`
 
 Path traversal and symlink escape are rejected.
+
+## 7. Saved Playlists State
+
+Reads or replaces the saved-playlist state used by the Library tab.
+
+- **URL:** `/library/playlists`
+- **Methods:** `GET`, `PUT`
+- **Content-Type (`PUT`):** `application/json`
+
+### Payload Shape
+
+```json
+{
+  "playlists": [
+    {
+      "id": "saved-123",
+      "name": "Road Trip",
+      "createdAt": "2026-02-07T12:00:00Z",
+      "updatedAt": "2026-02-07T12:00:00Z"
+    }
+  ],
+  "assignments": {
+    "video/file.mp4": "saved-123"
+  }
+}
+```
+
+Notes:
+
+- `playlists[].id` and `playlists[].name` are required.
+- Invalid/duplicate entries are normalized server-side.
+- `assignments` values must reference an existing playlist id.
+
+## 8. Legacy Saved Playlists Migration
+
+One-time migration endpoint for moving legacy localStorage playlists into backend storage.
+
+- **URL:** `/library/playlists/migrate`
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+- **Body:** same shape as section 7 payload
+
+### Success Response
+
+```json
+{
+  "playlists": [
+    { "id": "saved-123", "name": "Road Trip" }
+  ],
+  "assignments": {
+    "video/file.mp4": "saved-123"
+  },
+  "migrated": true
+}
+```
+
+If backend storage already has playlist data, migration is skipped and `migrated` is `false`.

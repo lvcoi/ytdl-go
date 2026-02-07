@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import Icon from './components/Icon';
 import DownloadView from './components/DownloadView';
 import LibraryView from './components/LibraryView';
@@ -29,6 +29,10 @@ const encodeMediaPath = (relativePath) => (
 );
 
 const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
+const SAVED_PLAYLISTS_ENDPOINT = '/api/library/playlists';
+const SAVED_PLAYLISTS_MIGRATION_ENDPOINT = '/api/library/playlists/migrate';
+const SAVED_PLAYLISTS_MIGRATION_KEY = 'ytdl-go:saved-playlists:backend-migration:v1';
+
 const normalizeSavedPlaylistName = (value) => (
   String(value || '')
     .trim()
@@ -37,6 +41,72 @@ const normalizeSavedPlaylistName = (value) => (
 );
 const normalizeSavedPlaylistId = (value) => String(value || '').trim();
 const normalizeMediaKey = (value) => String(value || '').trim();
+const normalizeSavedPlaylistEntry = (value) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const id = normalizeSavedPlaylistId(source.id);
+  const name = normalizeSavedPlaylistName(source.name);
+  if (id === '' || name === '') {
+    return null;
+  }
+  return {
+    id,
+    name,
+    createdAt: typeof source.createdAt === 'string' ? source.createdAt.trim() : '',
+    updatedAt: typeof source.updatedAt === 'string' ? source.updatedAt.trim() : '',
+  };
+};
+const normalizeSavedPlaylists = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out = [];
+  const seenIds = new Set();
+  const seenNames = new Set();
+  for (const entry of value) {
+    const normalized = normalizeSavedPlaylistEntry(entry);
+    if (!normalized) {
+      continue;
+    }
+    if (seenIds.has(normalized.id)) {
+      continue;
+    }
+    const nameKey = normalized.name.toLowerCase();
+    if (seenNames.has(nameKey)) {
+      continue;
+    }
+    seenIds.add(normalized.id);
+    seenNames.add(nameKey);
+    out.push(normalized);
+  }
+  return out;
+};
+const normalizePlaylistAssignments = (value, validPlaylistIds) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const out = {};
+  for (const [mediaKey, playlistId] of Object.entries(source)) {
+    const normalizedMediaKey = normalizeMediaKey(mediaKey);
+    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
+    if (normalizedMediaKey === '' || normalizedPlaylistId === '' || !validPlaylistIds.has(normalizedPlaylistId)) {
+      continue;
+    }
+    out[normalizedMediaKey] = normalizedPlaylistId;
+  }
+  return out;
+};
+const normalizeSavedPlaylistStatePayload = (value) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const playlists = normalizeSavedPlaylists(source.playlists);
+  const validPlaylistIds = new Set(playlists.map((playlist) => playlist.id));
+  return {
+    playlists,
+    assignments: normalizePlaylistAssignments(source.assignments, validPlaylistIds),
+  };
+};
+const hasSavedPlaylistStateData = (value) => (
+  Array.isArray(value?.playlists) && value.playlists.length > 0
+) || (
+  value?.assignments && typeof value.assignments === 'object' && Object.keys(value.assignments).length > 0
+);
 const hasSavedPlaylistNameConflict = (playlists, playlistName, excludedId = '') => (
   playlists.some((playlist) => (
     playlist.id !== excludedId &&
@@ -49,11 +119,30 @@ const createSavedPlaylistId = () => {
   }
   return `saved-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
+const responseErrorMessage = async (response, fallbackMessage) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload.error === 'string' && payload.error.trim() !== '') {
+      return payload.error.trim();
+    }
+  } catch (error) {
+    // Ignore JSON parse issues and use fallback.
+  }
+  return fallbackMessage;
+};
+const isAbortError = (error) => (
+  error && typeof error === 'object' && error.name === 'AbortError'
+);
 
 function App() {
   const { state, setState } = useAppStore();
+  const [savedPlaylistInitError, setSavedPlaylistInitError] = createSignal('');
   let mediaListAbortController = null;
+  let savedPlaylistInitAbortController = null;
+  let savedPlaylistPersistAbortController = null;
   let mediaListRequestToken = 0;
+  let savedPlaylistMutationVersion = 0;
+  let savedPlaylistMutationQueue = Promise.resolve();
   let lastSyncedLibraryJobId = '';
   let pendingLibrarySyncJobId = '';
   let librarySyncRetryTimer = null;
@@ -79,6 +168,162 @@ function App() {
     if (librarySyncRetryTimer) {
       clearTimeout(librarySyncRetryTimer);
       librarySyncRetryTimer = null;
+    }
+  };
+
+  const enqueueSavedPlaylistMutation = (mutateFn) => {
+    const next = savedPlaylistMutationQueue.then(mutateFn, mutateFn);
+    savedPlaylistMutationQueue = next.catch(() => {});
+    return next;
+  };
+
+  const hasCompletedSavedPlaylistMigration = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      return window.localStorage.getItem(SAVED_PLAYLISTS_MIGRATION_KEY) === '1';
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const markSavedPlaylistMigrationComplete = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(SAVED_PLAYLISTS_MIGRATION_KEY, '1');
+    } catch (error) {
+      // Ignore storage write failures; backend remains source of truth.
+    }
+  };
+
+  const getSavedPlaylistStateSnapshot = () => normalizeSavedPlaylistStatePayload({
+    playlists: state.library.savedPlaylists,
+    assignments: state.library.playlistAssignments,
+  });
+
+  const applySavedPlaylistState = (nextValue) => {
+    const normalized = normalizeSavedPlaylistStatePayload(nextValue);
+    const validIds = new Set(normalized.playlists.map((playlist) => playlist.id));
+    setState('library', 'savedPlaylists', normalized.playlists);
+    setState('library', 'playlistAssignments', normalized.assignments);
+    setState('library', 'filters', 'savedPlaylistId', (current) => (
+      validIds.has(normalizeSavedPlaylistId(current)) ? current : ''
+    ));
+  };
+
+  const fetchSavedPlaylistState = async (signal) => {
+    const response = await fetch(SAVED_PLAYLISTS_ENDPOINT, { signal });
+    if (!response.ok) {
+      throw new Error(await responseErrorMessage(response, 'Unable to load saved playlists from backend.'));
+    }
+    const payload = await response.json();
+    return normalizeSavedPlaylistStatePayload(payload);
+  };
+
+  const persistSavedPlaylistState = async (nextState, signal) => {
+    const normalized = normalizeSavedPlaylistStatePayload(nextState);
+    const response = await fetch(SAVED_PLAYLISTS_ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(normalized),
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error(await responseErrorMessage(response, 'Unable to persist saved playlists.'));
+    }
+    const payload = await response.json();
+    return normalizeSavedPlaylistStatePayload(payload);
+  };
+
+  const migrateSavedPlaylistState = async (legacyState, signal) => {
+    const normalizedLegacy = normalizeSavedPlaylistStatePayload(legacyState);
+    const response = await fetch(SAVED_PLAYLISTS_MIGRATION_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(normalizedLegacy),
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error(await responseErrorMessage(response, 'Unable to migrate saved playlists.'));
+    }
+    const payload = await response.json();
+    return {
+      state: normalizeSavedPlaylistStatePayload(payload),
+      migrated: Boolean(payload && payload.migrated),
+    };
+  };
+
+  const persistAndApplySavedPlaylistState = async (nextState) => {
+    savedPlaylistMutationVersion += 1;
+    const mutationVersion = savedPlaylistMutationVersion;
+    if (savedPlaylistPersistAbortController) {
+      savedPlaylistPersistAbortController.abort();
+    }
+    const controller = new AbortController();
+    savedPlaylistPersistAbortController = controller;
+    try {
+      const persisted = await persistSavedPlaylistState(nextState, controller.signal);
+      if (!isDisposed && mutationVersion === savedPlaylistMutationVersion) {
+        applySavedPlaylistState(persisted);
+        setSavedPlaylistInitError('');
+      }
+      return persisted;
+    } finally {
+      if (savedPlaylistPersistAbortController === controller) {
+        savedPlaylistPersistAbortController = null;
+      }
+    }
+  };
+
+  const initializeSavedPlaylists = async () => {
+    if (savedPlaylistInitAbortController) {
+      savedPlaylistInitAbortController.abort();
+    }
+    const controller = new AbortController();
+    savedPlaylistInitAbortController = controller;
+    const startMutationVersion = savedPlaylistMutationVersion;
+    const legacySnapshot = getSavedPlaylistStateSnapshot();
+    try {
+      const backendState = await fetchSavedPlaylistState(controller.signal);
+      if (isDisposed || controller.signal.aborted || savedPlaylistMutationVersion !== startMutationVersion) {
+        return;
+      }
+      applySavedPlaylistState(backendState);
+      setSavedPlaylistInitError('');
+
+      if (hasSavedPlaylistStateData(backendState)) {
+        markSavedPlaylistMigrationComplete();
+        return;
+      }
+      if (!hasSavedPlaylistStateData(legacySnapshot)) {
+        if (!hasCompletedSavedPlaylistMigration()) {
+          markSavedPlaylistMigrationComplete();
+        }
+        return;
+      }
+
+      const migration = await migrateSavedPlaylistState(legacySnapshot, controller.signal);
+      if (isDisposed || controller.signal.aborted || savedPlaylistMutationVersion !== startMutationVersion) {
+        return;
+      }
+      applySavedPlaylistState(migration.state);
+      if (migration.migrated || hasSavedPlaylistStateData(migration.state)) {
+        markSavedPlaylistMigrationComplete();
+      }
+    } catch (error) {
+      if (isAbortError(error) || (controller.signal && controller.signal.aborted)) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Failed to initialize saved playlists.';
+      setSavedPlaylistInitError(message);
+      console.error('Failed to initialize saved playlists:', error);
+    } finally {
+      if (savedPlaylistInitAbortController === controller) {
+        savedPlaylistInitAbortController = null;
+      }
     }
   };
 
@@ -151,6 +396,7 @@ function App() {
   // Load media files when component mounts and when switching to library tab
   onMount(() => {
     void fetchMediaFiles();
+    void initializeSavedPlaylists();
   });
 
   // Refresh media files when switching to library tab
@@ -185,6 +431,14 @@ function App() {
       mediaListAbortController.abort();
       mediaListAbortController = null;
     }
+    if (savedPlaylistInitAbortController) {
+      savedPlaylistInitAbortController.abort();
+      savedPlaylistInitAbortController = null;
+    }
+    if (savedPlaylistPersistAbortController) {
+      savedPlaylistPersistAbortController.abort();
+      savedPlaylistPersistAbortController = null;
+    }
   });
 
   const openPlayer = (item) => {
@@ -197,35 +451,44 @@ function App() {
     setState('player', 'active', true);
   };
 
-  const createSavedPlaylist = (rawName) => {
+  const createSavedPlaylist = (rawName) => enqueueSavedPlaylistMutation(async () => {
     const normalizedName = normalizeSavedPlaylistName(rawName);
     if (normalizedName === '') {
       return { ok: false, error: 'Playlist name is required.' };
+    }
+
+    const current = getSavedPlaylistStateSnapshot();
+    if (hasSavedPlaylistNameConflict(current.playlists, normalizedName)) {
+      return { ok: false, error: 'A playlist with that name already exists.' };
     }
 
     const timestamp = new Date().toISOString();
-    let createdPlaylist = null;
-    setState('library', 'savedPlaylists', (previous) => {
-      const playlists = Array.isArray(previous) ? previous : [];
-      if (hasSavedPlaylistNameConflict(playlists, normalizedName)) {
-        return playlists;
+    const createdPlaylist = {
+      id: createSavedPlaylistId(),
+      name: normalizedName,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    try {
+      const persisted = await persistAndApplySavedPlaylistState({
+        playlists: [...current.playlists, createdPlaylist],
+        assignments: current.assignments,
+      });
+      const persistedPlaylist = persisted.playlists.find((playlist) => playlist.id === createdPlaylist.id);
+      if (!persistedPlaylist) {
+        return { ok: false, error: 'A playlist with that name already exists.' };
       }
-      createdPlaylist = {
-        id: createSavedPlaylistId(),
-        name: normalizedName,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      };
-      return [...playlists, createdPlaylist];
-    });
-
-    if (!createdPlaylist) {
-      return { ok: false, error: 'A playlist with that name already exists.' };
+      return { ok: true, playlist: persistedPlaylist };
+    } catch (error) {
+      if (isAbortError(error)) {
+        return { ok: false, error: 'Request canceled.' };
+      }
+      return { ok: false, error: error instanceof Error ? error.message : 'Unable to create saved playlist.' };
     }
-    return { ok: true, playlist: createdPlaylist };
-  };
+  });
 
-  const renameSavedPlaylist = (playlistId, rawName) => {
+  const renameSavedPlaylist = (playlistId, rawName) => enqueueSavedPlaylistMutation(async () => {
     const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
     const normalizedName = normalizeSavedPlaylistName(rawName);
     if (normalizedPlaylistId === '') {
@@ -235,108 +498,117 @@ function App() {
       return { ok: false, error: 'Playlist name is required.' };
     }
 
-    let resultCode = 'missing';
-    const updatedAt = new Date().toISOString();
-    setState('library', 'savedPlaylists', (previous) => {
-      const playlists = Array.isArray(previous) ? previous : [];
-      const exists = playlists.some((playlist) => playlist.id === normalizedPlaylistId);
-      if (!exists) {
-        resultCode = 'missing';
-        return playlists;
-      }
-      if (hasSavedPlaylistNameConflict(playlists, normalizedName, normalizedPlaylistId)) {
-        resultCode = 'duplicate';
-        return playlists;
-      }
-      resultCode = 'ok';
-      return playlists.map((playlist) => (
-        playlist.id === normalizedPlaylistId
-          ? { ...playlist, name: normalizedName, updatedAt }
-          : playlist
-      ));
-    });
-
-    if (resultCode === 'ok') {
-      return { ok: true };
+    const current = getSavedPlaylistStateSnapshot();
+    const exists = current.playlists.some((playlist) => playlist.id === normalizedPlaylistId);
+    if (!exists) {
+      return { ok: false, error: 'Playlist not found.' };
     }
-    if (resultCode === 'duplicate') {
+    if (hasSavedPlaylistNameConflict(current.playlists, normalizedName, normalizedPlaylistId)) {
       return { ok: false, error: 'A playlist with that name already exists.' };
     }
-    return { ok: false, error: 'Playlist not found.' };
-  };
 
-  const deleteSavedPlaylist = (playlistId) => {
+    const updatedAt = new Date().toISOString();
+    const nextPlaylists = current.playlists.map((playlist) => (
+      playlist.id === normalizedPlaylistId
+        ? { ...playlist, name: normalizedName, updatedAt }
+        : playlist
+    ));
+
+    try {
+      const persisted = await persistAndApplySavedPlaylistState({
+        playlists: nextPlaylists,
+        assignments: current.assignments,
+      });
+      const persistedPlaylist = persisted.playlists.find((playlist) => playlist.id === normalizedPlaylistId);
+      if (!persistedPlaylist) {
+        return { ok: false, error: 'Playlist not found.' };
+      }
+      if (persistedPlaylist.name.localeCompare(normalizedName, undefined, { sensitivity: 'base' }) !== 0) {
+        return { ok: false, error: 'A playlist with that name already exists.' };
+      }
+      return { ok: true };
+    } catch (error) {
+      if (isAbortError(error)) {
+        return { ok: false, error: 'Request canceled.' };
+      }
+      return { ok: false, error: error instanceof Error ? error.message : 'Unable to rename saved playlist.' };
+    }
+  });
+
+  const deleteSavedPlaylist = (playlistId) => enqueueSavedPlaylistMutation(async () => {
     const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
     if (normalizedPlaylistId === '') {
       return { ok: false, error: 'Playlist not found.' };
     }
 
-    let removed = false;
-    setState('library', 'savedPlaylists', (previous) => {
-      const playlists = Array.isArray(previous) ? previous : [];
-      const nextPlaylists = playlists.filter((playlist) => playlist.id !== normalizedPlaylistId);
-      removed = nextPlaylists.length !== playlists.length;
-      return nextPlaylists;
-    });
-
-    if (!removed) {
+    const current = getSavedPlaylistStateSnapshot();
+    const nextPlaylists = current.playlists.filter((playlist) => playlist.id !== normalizedPlaylistId);
+    if (nextPlaylists.length === current.playlists.length) {
       return { ok: false, error: 'Playlist not found.' };
     }
 
-    setState('library', 'playlistAssignments', (previous) => {
-      const assignments = previous && typeof previous === 'object' ? previous : {};
-      let changed = false;
-      const nextAssignments = {};
-      for (const [mediaKey, assignedPlaylistId] of Object.entries(assignments)) {
-        if (assignedPlaylistId === normalizedPlaylistId) {
-          changed = true;
-          continue;
-        }
-        nextAssignments[mediaKey] = assignedPlaylistId;
+    const nextAssignments = {};
+    for (const [mediaKey, assignedPlaylistId] of Object.entries(current.assignments)) {
+      if (assignedPlaylistId === normalizedPlaylistId) {
+        continue;
       }
-      return changed ? nextAssignments : assignments;
-    });
+      nextAssignments[mediaKey] = assignedPlaylistId;
+    }
 
-    setState('library', 'filters', 'savedPlaylistId', (current) => (
-      current === normalizedPlaylistId ? '' : current
-    ));
+    try {
+      await persistAndApplySavedPlaylistState({
+        playlists: nextPlaylists,
+        assignments: nextAssignments,
+      });
+      return { ok: true };
+    } catch (error) {
+      if (isAbortError(error)) {
+        return { ok: false, error: 'Request canceled.' };
+      }
+      return { ok: false, error: error instanceof Error ? error.message : 'Unable to delete saved playlist.' };
+    }
+  });
 
-    return { ok: true };
-  };
-
-  const assignSavedPlaylist = (mediaKey, playlistId) => {
+  const assignSavedPlaylist = (mediaKey, playlistId) => enqueueSavedPlaylistMutation(async () => {
     const normalizedMediaKey = normalizeMediaKey(mediaKey);
     const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
     if (normalizedMediaKey === '') {
       return;
     }
 
-    const playlistExists = normalizedPlaylistId === '' || state.library.savedPlaylists.some(
+    const current = getSavedPlaylistStateSnapshot();
+    const playlistExists = normalizedPlaylistId === '' || current.playlists.some(
       (playlist) => playlist.id === normalizedPlaylistId,
     );
     if (!playlistExists) {
       return;
     }
 
-    setState('library', 'playlistAssignments', (previous) => {
-      const assignments = previous && typeof previous === 'object' ? previous : {};
-      if (normalizedPlaylistId === '') {
-        if (!(normalizedMediaKey in assignments)) {
-          return assignments;
-        }
-        const nextAssignments = { ...assignments };
-        delete nextAssignments[normalizedMediaKey];
-        return nextAssignments;
+    const nextAssignments = { ...current.assignments };
+    if (normalizedPlaylistId === '') {
+      if (!(normalizedMediaKey in nextAssignments)) {
+        return;
       }
-      if (assignments[normalizedMediaKey] === normalizedPlaylistId) {
-        return assignments;
+      delete nextAssignments[normalizedMediaKey];
+    } else {
+      if (nextAssignments[normalizedMediaKey] === normalizedPlaylistId) {
+        return;
       }
-      return {
-        ...assignments,
-        [normalizedMediaKey]: normalizedPlaylistId,
-      };
-    });
-  };
+      nextAssignments[normalizedMediaKey] = normalizedPlaylistId;
+    }
+
+    try {
+      await persistAndApplySavedPlaylistState({
+        playlists: current.playlists,
+        assignments: nextAssignments,
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
+      console.error('Failed to assign saved playlist:', error);
+    }
+  });
 
   return (
     <div class="flex h-screen bg-[#05070a] text-gray-200 overflow-hidden font-sans select-none">
@@ -419,6 +691,8 @@ function App() {
                       onRenameSavedPlaylist={renameSavedPlaylist}
                       onDeleteSavedPlaylist={deleteSavedPlaylist}
                       onAssignSavedPlaylist={assignSavedPlaylist}
+                      savedPlaylistSyncError={() => savedPlaylistInitError()}
+                      onRetrySavedPlaylistSync={() => { void initializeSavedPlaylists(); }}
                       openPlayer={openPlayer}
                   />
               </div>

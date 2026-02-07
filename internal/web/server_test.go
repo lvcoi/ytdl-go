@@ -194,6 +194,283 @@ func TestEnsureMediaLayoutCreatesRequiredSubdirs(t *testing.T) {
 	}
 }
 
+func TestSavedPlaylistsAPIReplaceAndLoad(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		initialResp, err := client.Get(baseURL + "/api/library/playlists")
+		if err != nil {
+			t.Fatalf("request initial playlists: %v", err)
+		}
+		defer initialResp.Body.Close()
+		if initialResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for initial playlists, got %d", initialResp.StatusCode)
+		}
+		var initialState savedPlaylistState
+		if err := json.NewDecoder(initialResp.Body).Decode(&initialState); err != nil {
+			t.Fatalf("decode initial playlists: %v", err)
+		}
+		if len(initialState.Playlists) != 0 {
+			t.Fatalf("expected no saved playlists initially, got %d", len(initialState.Playlists))
+		}
+		if len(initialState.Assignments) != 0 {
+			t.Fatalf("expected no assignments initially, got %d", len(initialState.Assignments))
+		}
+
+		putPayload := `{
+			"playlists": [
+				{"id": "pl-1", "name": "  Road   Trip  ", "createdAt": "2026-02-07T10:00:00Z", "updatedAt": "2026-02-07T10:00:00Z"},
+				{"id": "pl-2", "name": "Chill Mix"},
+				{"id": "pl-2", "name": "Duplicate Id"},
+				{"id": "pl-3", "name": "Road Trip"}
+			],
+			"assignments": {
+				"video/road.mp4": "pl-1",
+				"video/ghost.mp4": "missing",
+				"": "pl-1"
+			}
+		}`
+		putReq, err := http.NewRequest(http.MethodPut, baseURL+"/api/library/playlists", strings.NewReader(putPayload))
+		if err != nil {
+			t.Fatalf("new put request: %v", err)
+		}
+		putReq.Header.Set("Content-Type", "application/json")
+
+		putResp, err := client.Do(putReq)
+		if err != nil {
+			t.Fatalf("put playlists: %v", err)
+		}
+		defer putResp.Body.Close()
+		if putResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for put playlists, got %d", putResp.StatusCode)
+		}
+
+		var savedState savedPlaylistState
+		if err := json.NewDecoder(putResp.Body).Decode(&savedState); err != nil {
+			t.Fatalf("decode put response: %v", err)
+		}
+		if len(savedState.Playlists) != 2 {
+			t.Fatalf("expected 2 normalized playlists, got %d", len(savedState.Playlists))
+		}
+		if savedState.Playlists[0].Name != "Road Trip" {
+			t.Fatalf("expected normalized first playlist name, got %q", savedState.Playlists[0].Name)
+		}
+		if savedState.Playlists[1].ID != "pl-2" {
+			t.Fatalf("expected second playlist id pl-2, got %q", savedState.Playlists[1].ID)
+		}
+		if len(savedState.Assignments) != 1 || savedState.Assignments["video/road.mp4"] != "pl-1" {
+			t.Fatalf("expected filtered assignments to keep only valid mapping, got %+v", savedState.Assignments)
+		}
+
+		playlistFile := filepath.Join(tmpDir, "media", mediaFolderData, savedPlaylistsFileName)
+		fileData, err := os.ReadFile(playlistFile)
+		if err != nil {
+			t.Fatalf("read saved playlist file: %v", err)
+		}
+		if len(fileData) == 0 {
+			t.Fatalf("expected saved playlist file to contain data")
+		}
+
+		reloadResp, err := client.Get(baseURL + "/api/library/playlists")
+		if err != nil {
+			t.Fatalf("request reloaded playlists: %v", err)
+		}
+		defer reloadResp.Body.Close()
+		if reloadResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for reloaded playlists, got %d", reloadResp.StatusCode)
+		}
+
+		var reloadedState savedPlaylistState
+		if err := json.NewDecoder(reloadResp.Body).Decode(&reloadedState); err != nil {
+			t.Fatalf("decode reloaded playlists: %v", err)
+		}
+		if len(reloadedState.Playlists) != 2 {
+			t.Fatalf("expected 2 playlists after reload, got %d", len(reloadedState.Playlists))
+		}
+		if reloadedState.Assignments["video/road.mp4"] != "pl-1" {
+			t.Fatalf("expected assignment to persist after reload, got %+v", reloadedState.Assignments)
+		}
+	})
+}
+
+func TestSavedPlaylistsMigrationEndpointSeedsOnlyWhenEmpty(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		migratePayload := `{
+			"playlists": [
+				{"id": "legacy-1", "name": "Legacy Mix"}
+			],
+			"assignments": {
+				"audio/legacy.mp3": "legacy-1"
+			}
+		}`
+
+		migrateReq, err := http.NewRequest(http.MethodPost, baseURL+"/api/library/playlists/migrate", strings.NewReader(migratePayload))
+		if err != nil {
+			t.Fatalf("new migrate request: %v", err)
+		}
+		migrateReq.Header.Set("Content-Type", "application/json")
+
+		migrateResp, err := client.Do(migrateReq)
+		if err != nil {
+			t.Fatalf("migrate request: %v", err)
+		}
+		defer migrateResp.Body.Close()
+		if migrateResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for first migrate request, got %d", migrateResp.StatusCode)
+		}
+
+		var firstMigration savedPlaylistMigrationResponse
+		if err := json.NewDecoder(migrateResp.Body).Decode(&firstMigration); err != nil {
+			t.Fatalf("decode first migration response: %v", err)
+		}
+		if !firstMigration.Migrated {
+			t.Fatalf("expected first migration request to migrate data")
+		}
+		if len(firstMigration.Playlists) != 1 || firstMigration.Playlists[0].ID != "legacy-1" {
+			t.Fatalf("expected migrated playlist to be returned, got %+v", firstMigration.Playlists)
+		}
+
+		secondPayload := `{
+			"playlists": [
+				{"id": "legacy-2", "name": "Should Not Replace"}
+			],
+			"assignments": {
+				"audio/new.mp3": "legacy-2"
+			}
+		}`
+		secondReq, err := http.NewRequest(http.MethodPost, baseURL+"/api/library/playlists/migrate", strings.NewReader(secondPayload))
+		if err != nil {
+			t.Fatalf("new second migrate request: %v", err)
+		}
+		secondReq.Header.Set("Content-Type", "application/json")
+
+		secondResp, err := client.Do(secondReq)
+		if err != nil {
+			t.Fatalf("second migrate request: %v", err)
+		}
+		defer secondResp.Body.Close()
+		if secondResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for second migrate request, got %d", secondResp.StatusCode)
+		}
+
+		var secondMigration savedPlaylistMigrationResponse
+		if err := json.NewDecoder(secondResp.Body).Decode(&secondMigration); err != nil {
+			t.Fatalf("decode second migration response: %v", err)
+		}
+		if secondMigration.Migrated {
+			t.Fatalf("expected second migration request to be ignored")
+		}
+		if len(secondMigration.Playlists) != 1 || secondMigration.Playlists[0].ID != "legacy-1" {
+			t.Fatalf("expected existing migrated data to remain unchanged, got %+v", secondMigration.Playlists)
+		}
+		if secondMigration.Assignments["audio/legacy.mp3"] != "legacy-1" {
+			t.Fatalf("expected existing assignment to remain unchanged, got %+v", secondMigration.Assignments)
+		}
+	})
+}
+
+func TestSavedPlaylistsEndpointMethodAndPayloadValidation(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		postReq, err := http.NewRequest(http.MethodPost, baseURL+"/api/library/playlists", strings.NewReader(`{}`))
+		if err != nil {
+			t.Fatalf("new invalid method request: %v", err)
+		}
+		postReq.Header.Set("Content-Type", "application/json")
+		postResp, err := client.Do(postReq)
+		if err != nil {
+			t.Fatalf("invalid method request failed: %v", err)
+		}
+		postResp.Body.Close()
+		if postResp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("expected 405 for POST /api/library/playlists, got %d", postResp.StatusCode)
+		}
+
+		getMigrateResp, err := client.Get(baseURL + "/api/library/playlists/migrate")
+		if err != nil {
+			t.Fatalf("invalid method migrate request failed: %v", err)
+		}
+		getMigrateResp.Body.Close()
+		if getMigrateResp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("expected 405 for GET /api/library/playlists/migrate, got %d", getMigrateResp.StatusCode)
+		}
+
+		invalidJSONReq, err := http.NewRequest(http.MethodPut, baseURL+"/api/library/playlists", strings.NewReader(`{"playlists":`))
+		if err != nil {
+			t.Fatalf("new invalid json request: %v", err)
+		}
+		invalidJSONReq.Header.Set("Content-Type", "application/json")
+		invalidJSONResp, err := client.Do(invalidJSONReq)
+		if err != nil {
+			t.Fatalf("invalid json request failed: %v", err)
+		}
+		invalidJSONResp.Body.Close()
+		if invalidJSONResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400 for invalid JSON payload, got %d", invalidJSONResp.StatusCode)
+		}
+	})
+}
+
+func TestSavedPlaylistsEndpointReturnsServerErrorForEmptyDataFile(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		dataDir := filepath.Join(tmpDir, "media", mediaFolderData)
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
+			t.Fatalf("mkdir data dir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dataDir, savedPlaylistsFileName), []byte(" \n\t"), 0o644); err != nil {
+			t.Fatalf("write empty playlist file: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get(baseURL + "/api/library/playlists")
+		if err != nil {
+			t.Fatalf("request playlists: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("expected 500 for empty playlist file, got %d", resp.StatusCode)
+		}
+	})
+}
+
 func TestParseDownloadRequestNormalizesOutputTemplateForMediaLayout(t *testing.T) {
 	tests := []struct {
 		name       string

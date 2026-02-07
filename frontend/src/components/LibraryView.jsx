@@ -180,6 +180,12 @@ export default function LibraryView(props) {
     const source = typeof props.savedPlaylists === 'function' ? props.savedPlaylists() : props.savedPlaylists;
     return normalizeSavedPlaylists(source);
   });
+  const savedPlaylistSyncError = createMemo(() => {
+    const source = typeof props.savedPlaylistSyncError === 'function'
+      ? props.savedPlaylistSyncError()
+      : props.savedPlaylistSyncError;
+    return typeof source === 'string' ? source.trim() : '';
+  });
 
   const playlistAssignments = createMemo(() => {
     const source = typeof props.playlistAssignments === 'function' ? props.playlistAssignments() : props.playlistAssignments;
@@ -269,7 +275,7 @@ export default function LibraryView(props) {
     setPlaylistMessage(text);
   };
 
-  const handleCreateSavedPlaylist = () => {
+  const handleCreateSavedPlaylist = async () => {
     const nextName = normalizeSavedPlaylistName(newSavedPlaylistName());
     if (nextName === '') {
       setPlaylistFeedback('error', 'Enter a playlist name.');
@@ -279,7 +285,7 @@ export default function LibraryView(props) {
       return;
     }
 
-    const result = props.onCreateSavedPlaylist(nextName);
+    const result = await props.onCreateSavedPlaylist(nextName);
     if (!result || result.ok === false) {
       setPlaylistFeedback('error', result?.error || 'Unable to create saved playlist.');
       return;
@@ -288,7 +294,7 @@ export default function LibraryView(props) {
     setPlaylistFeedback('success', `Saved playlist "${nextName}" created.`);
   };
 
-  const handleRenameSavedPlaylist = (playlist) => {
+  const handleRenameSavedPlaylist = async (playlist) => {
     if (typeof window === 'undefined' || typeof props.onRenameSavedPlaylist !== 'function') {
       return;
     }
@@ -296,7 +302,7 @@ export default function LibraryView(props) {
     if (proposedName === null) {
       return;
     }
-    const result = props.onRenameSavedPlaylist(playlist.id, proposedName);
+    const result = await props.onRenameSavedPlaylist(playlist.id, proposedName);
     if (!result || result.ok === false) {
       setPlaylistFeedback('error', result?.error || 'Unable to rename saved playlist.');
       return;
@@ -305,7 +311,7 @@ export default function LibraryView(props) {
     setPlaylistFeedback('success', `Saved playlist renamed to "${normalizedName || playlist.name}".`);
   };
 
-  const handleDeleteSavedPlaylist = (playlist) => {
+  const handleDeleteSavedPlaylist = async (playlist) => {
     if (typeof window === 'undefined' || typeof props.onDeleteSavedPlaylist !== 'function') {
       return;
     }
@@ -313,7 +319,7 @@ export default function LibraryView(props) {
     if (!confirmed) {
       return;
     }
-    const result = props.onDeleteSavedPlaylist(playlist.id);
+    const result = await props.onDeleteSavedPlaylist(playlist.id);
     if (!result || result.ok === false) {
       setPlaylistFeedback('error', result?.error || 'Unable to delete saved playlist.');
       return;
@@ -329,7 +335,7 @@ export default function LibraryView(props) {
     if (mediaKey === '') {
       return;
     }
-    props.onAssignSavedPlaylist(mediaKey, nextSavedPlaylistId);
+    void props.onAssignSavedPlaylist(mediaKey, nextSavedPlaylistId);
   };
 
   const activeMediaLabel = createMemo(() => (activeMediaType() === 'audio' ? 'audio' : 'video'));
@@ -400,6 +406,21 @@ export default function LibraryView(props) {
             </div>
           </div>
 
+          <Show when={savedPlaylistSyncError() !== ''}>
+            <div class="flex items-center justify-between gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              <span>{savedPlaylistSyncError()}</span>
+              <Show when={typeof props.onRetrySavedPlaylistSync === 'function'}>
+                <button
+                  type="button"
+                  onClick={() => { void props.onRetrySavedPlaylistSync(); }}
+                  class="rounded-lg border border-red-300/30 px-2 py-1 font-semibold text-red-100 hover:bg-red-500/20 transition-colors"
+                >
+                  Retry
+                </button>
+              </Show>
+            </div>
+          </Show>
+
           <div class="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
@@ -408,7 +429,7 @@ export default function LibraryView(props) {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  handleCreateSavedPlaylist();
+                  void handleCreateSavedPlaylist();
                 }
               }}
               placeholder="New saved playlist name"
@@ -416,7 +437,7 @@ export default function LibraryView(props) {
             />
             <button
               type="button"
-              onClick={handleCreateSavedPlaylist}
+              onClick={() => { void handleCreateSavedPlaylist(); }}
               class="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-500 transition-colors"
             >
               Create
@@ -458,7 +479,7 @@ export default function LibraryView(props) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleRenameSavedPlaylist(playlist)}
+                      onClick={() => { void handleRenameSavedPlaylist(playlist); }}
                       class="px-1 text-gray-400 hover:text-gray-200 transition-colors"
                       title={`Rename ${playlist.name}`}
                     >
@@ -466,7 +487,7 @@ export default function LibraryView(props) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteSavedPlaylist(playlist)}
+                      onClick={() => { void handleDeleteSavedPlaylist(playlist); }}
                       class="px-1 text-red-400/80 hover:text-red-300 transition-colors"
                       title={`Delete ${playlist.name}`}
                     >
