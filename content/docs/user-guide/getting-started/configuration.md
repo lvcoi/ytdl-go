@@ -15,29 +15,14 @@ ytdl-go is designed to work out of the box with sensible defaults, but offers ex
 
 ## Cookie Files
 
-Use cookie files to access age-restricted, private, or members-only content.
+Some video platforms require authentication (for example, for age-restricted, private, or members-only content). A common way for CLI tools to support this is by accepting a browser-exported cookie file.
 
-### Exporting Cookies
+At the moment, the `ytdl-go` CLI does **not** support passing a cookie file via a `-cookies` flag or any other command-line option. This means that:
 
-> **Warning: Browser Extensions**
->
-> Use a browser extension to export cookies in Netscape format:
->
-> - **Chrome/Edge**: [Get cookies.txt](https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid)
-> - **Firefox**: [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)
+- You can only download content that is accessible without logging in.
+- Examples you may see elsewhere using `ytdl-go -cookies …` refer to a flag that is not implemented in the current CLI.
 
-### Using Cookies
-
-```bash
-# Download age-restricted video
-ytdl-go -cookies cookies.txt https://www.youtube.com/watch?v=VIDEO_ID
-
-# Download members-only content
-ytdl-go -cookies cookies.txt https://www.youtube.com/watch?v=MEMBER_VIDEO_ID
-```
-
-> **Tip:** Store your cookie file in a secure location and never commit it to version control.
-
+Support for cookie files may be added in a future release. Until then, there is no need to export cookies from your browser for use with `ytdl-go`.
 ---
 
 ## Environment Variables
