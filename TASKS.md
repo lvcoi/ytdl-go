@@ -15,8 +15,16 @@
 ## Current Branch Snapshot
 
 - Branch: `web-ui`
-- Last committed PR work: `PR7`
-- Local in-progress changes: none
+- Last committed PR work: `PR7` (`3e6bc51`)
+- Latest commit on branch: docs consistency pass (`33d6bb0`)
+- Local in-progress changes: PR8 backend playlist persistence + frontend migration wiring
+
+## Recent Non-PR Work
+
+- Documentation structure + consistency correction completed and committed (`33d6bb0`):
+  - Restored frontend-owned docs under `frontend/docs/`
+  - Rewrote root `docs/` files as project-wide
+  - Updated frontend architecture API endpoint docs to current backend routes
 
 ## PR Roadmap
 
@@ -63,7 +71,7 @@
 9. **PR8: Saved Playlists Backend Persistence + Migration**
    - Covers: `5` (phase B)
    - Scope: backend playlist storage in `media/data`, API endpoints, one-time migration from localStorage.
-   - Status: ⏳ Pending
+   - Status: 🟡 Implemented locally (not committed)
 
 10. **PR9: Player Visual Refresh**
     - Covers: `7`
