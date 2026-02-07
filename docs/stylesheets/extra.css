@@ -1,0 +1,45 @@
+/* Custom styles for ytdl-go documentation */
+
+/* YouTube-inspired accent colors */
+:root {
+  --yt-red: #FF0000;
+  --yt-dark-red: #CC0000;
+}
+
+/* Code block enhancements */
+.md-typeset code {
+  border-radius: 0.2rem;
+}
+
+/* Improve table styling */
+.md-typeset table:not([class]) {
+  border-radius: 0.2rem;
+  overflow: hidden;
+}
+
+/* Better spacing for admonitions */
+.md-typeset .admonition {
+  margin: 1.5625em 0;
+}
+
+/* Custom button styling */
+.md-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.md-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Enhanced search results */
+.md-search-result__article {
+  padding: 0.8rem;
+}
+
+/* Better mobile spacing */
+@media screen and (max-width: 76.1875em) {
+  .md-nav__item {
+    padding: 0.4rem 0;
+  }
+}
