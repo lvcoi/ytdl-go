@@ -15,9 +15,9 @@
 ## Current Branch Snapshot
 
 - Branch: `web-ui`
-- Last committed PR work: `PR8` (`6d068fa`)
-- Latest commit on branch: PR8 backend playlist persistence + migration (`6d068fa`)
-- Local in-progress changes: PR9 player visual refresh (thumbnail-first now-playing layout + unified metadata presentation)
+- Last committed PR work: `PR9` (`e7d0009`)
+- Latest commit on branch: PR9 player visual refresh (`e7d0009`)
+- Local in-progress changes: `PR10` player window controls + minimized mode, including post-review fixes (uncommitted)
 
 ## Recent Non-PR Work
 
@@ -76,12 +76,12 @@
 10. **PR9: Player Visual Refresh**
     - Covers: `7`
     - Scope: replace generic icon with thumbnail on left, unify metadata presentation.
-    - Status: 🟡 Implemented locally (not committed)
+    - Status: ✅ Completed and committed (`e7d0009`)
 
 11. **PR10: Player Window Controls + Minimized Mode**
     - Covers: `8`
     - Scope: close/minimize buttons, docked mini bar with Play/Next/Queue, draggable full player (disabled when minimized).
-    - Status: ⏳ Pending
+    - Status: 🟡 Implemented locally (not committed; review feedback integrated)
 
 12. **PR11: Port Bind Failure Handling**
     - Covers: `10`, final part of `9`

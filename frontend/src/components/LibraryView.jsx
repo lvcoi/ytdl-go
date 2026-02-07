@@ -650,7 +650,7 @@ export default function LibraryView(props) {
                   <button
                     onClick={() => {
                       if (typeof props.openPlayer === 'function') {
-                        props.openPlayer(item);
+                        props.openPlayer(item, visibleItems());
                       }
                     }}
                     class="p-3 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all"

@@ -6,6 +6,7 @@ import SettingsView from './components/SettingsView';
 import Player from './components/Player';
 import { useAppStore } from './store/appStore';
 import { normalizeDownloadStatus } from './utils/downloadStatus';
+import { detectMediaType } from './utils/mediaType';
 
 const toSucceededCount = (stats) => {
   if (!stats || typeof stats !== 'object') return 0;
@@ -27,6 +28,7 @@ const encodeMediaPath = (relativePath) => (
     .map((segment) => encodeURIComponent(segment))
     .join('/')
 );
+const normalizeQueueKey = (value) => String(value || '').trim();
 
 const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
 const SAVED_PLAYLISTS_ENDPOINT = '/api/library/playlists';
@@ -137,6 +139,7 @@ const isAbortError = (error) => (
 function App() {
   const { state, setState } = useAppStore();
   const [savedPlaylistInitError, setSavedPlaylistInitError] = createSignal('');
+  const [playerQueue, setPlayerQueue] = createSignal([]);
   let mediaListAbortController = null;
   let savedPlaylistInitAbortController = null;
   let savedPlaylistPersistAbortController = null;
@@ -441,13 +444,76 @@ function App() {
     }
   });
 
-  const openPlayer = (item) => {
-    // Add the full media URL for the player
-    const mediaItem = {
-      ...item,
-      url: `/api/media/${encodeMediaPath(item.filename)}`
-    };
-    setState('player', 'selectedMedia', mediaItem);
+  const toPlayerMediaItem = (item) => ({
+    ...item,
+    url: `/api/media/${encodeMediaPath(item.filename)}`,
+  });
+
+  const toQueueItems = (candidateItems, anchorItem) => {
+    const fallback = Array.isArray(state.library.downloads) ? state.library.downloads : [];
+    const source = Array.isArray(candidateItems) && candidateItems.length > 0 ? candidateItems : fallback;
+    const uniqueItems = [];
+    const seen = new Set();
+    for (const entry of source) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const queueKey = normalizeQueueKey(entry.filename);
+      if (queueKey === '' || seen.has(queueKey)) {
+        continue;
+      }
+      seen.add(queueKey);
+      uniqueItems.push(entry);
+    }
+    const anchorKey = normalizeQueueKey(anchorItem?.filename);
+    if (anchorKey !== '' && !seen.has(anchorKey)) {
+      uniqueItems.unshift(anchorItem);
+    }
+    return uniqueItems;
+  };
+
+  const openPlayer = (item, queueItems) => {
+    if (!item || typeof item !== 'object' || String(item.filename || '').trim() === '') {
+      return;
+    }
+    const preparedQueue = toQueueItems(queueItems, item);
+    setPlayerQueue(preparedQueue);
+    setState('player', 'selectedMedia', toPlayerMediaItem(item));
+    setState('player', 'minimized', false);
+    setState('player', 'active', true);
+  };
+
+  const closePlayer = () => {
+    setState('player', 'active', false);
+    setState('player', 'selectedMedia', null);
+    setState('player', 'minimized', false);
+    setPlayerQueue([]);
+  };
+
+  const openQueue = () => {
+    const selected = state.player.selectedMedia;
+    if (selected) {
+      const mediaType = detectMediaType(selected);
+      if (mediaType === 'audio' || mediaType === 'video') {
+        setState('library', 'activeMediaType', mediaType);
+      }
+    }
+    setActiveTab('library');
+  };
+
+  const playNextInQueue = () => {
+    const queue = playerQueue();
+    if (queue.length === 0) {
+      return;
+    }
+    const activeFilename = normalizeQueueKey(state.player.selectedMedia?.filename);
+    const currentIndex = queue.findIndex((entry) => normalizeQueueKey(entry.filename) === activeFilename);
+    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % queue.length;
+    const nextItem = queue[nextIndex];
+    if (!nextItem) {
+      return;
+    }
+    setState('player', 'selectedMedia', toPlayerMediaItem(nextItem));
     setState('player', 'active', true);
   };
 
@@ -707,7 +773,14 @@ function App() {
         {state.player.active && (
           <Player 
              media={state.player.selectedMedia} 
-             onClose={() => setState('player', 'active', false)} 
+             minimized={() => state.player.minimized}
+             queueCount={() => playerQueue().length}
+             canGoNext={() => playerQueue().length > 1}
+             onMinimize={() => setState('player', 'minimized', true)}
+             onRestore={() => setState('player', 'minimized', false)}
+             onNext={playNextInQueue}
+             onQueue={openQueue}
+             onClose={closePlayer}
           />
         )}
       </main>

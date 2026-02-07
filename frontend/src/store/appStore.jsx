@@ -53,6 +53,7 @@ const createDefaultState = () => ({
   player: {
     active: false,
     selectedMedia: null,
+    minimized: false,
   },
   download: {
     urlInput: '',
