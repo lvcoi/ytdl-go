@@ -1,18 +1,94 @@
-import { createSignal, For, Show, onCleanup } from 'solid-js';
+import { For, Show, onCleanup, onMount } from 'solid-js';
 import Icon from './Icon';
 import DuplicateModal from './DuplicateModal';
+import { MAX_JOBS, MAX_TIMEOUT_SECONDS, useAppStore } from '../store/appStore';
 
-export default function DownloadView({ settings, setSettings, isAdvanced }) {
-  const [urlInput, setUrlInput] = createSignal('');
-  const [isDownloading, setIsDownloading] = createSignal(false);
-  const [jobStatus, setJobStatus] = createSignal(null);
-  const [progressTasks, setProgressTasks] = createSignal({});
-  const [logMessages, setLogMessages] = createSignal([]);
-  const [duplicateQueue, setDuplicateQueue] = createSignal([]);
-  const [duplicateError, setDuplicateError] = createSignal('');
+export default function DownloadView() {
+  const { state, setState } = useAppStore();
+
+  const urlInput = () => state.download.urlInput;
+  const setUrlInput = (nextValue) => {
+    setState('download', 'urlInput', nextValue);
+  };
+
+  const isDownloading = () => state.download.isDownloading;
+  const setIsDownloading = (nextValue) => {
+    setState('download', 'isDownloading', nextValue);
+  };
+
+  const jobStatus = () => state.download.jobStatus;
+  const setJobStatus = (nextValue) => {
+    setState('download', 'jobStatus', (prev) => (
+      typeof nextValue === 'function' ? nextValue(prev) : nextValue
+    ));
+  };
+
+  const progressTasks = () => state.download.progressTasks;
+  const setProgressTasks = (nextValue) => {
+    setState('download', 'progressTasks', (prev) => (
+      typeof nextValue === 'function' ? nextValue(prev) : nextValue
+    ));
+  };
+
+  const logMessages = () => state.download.logMessages;
+  const setLogMessages = (nextValue) => {
+    setState('download', 'logMessages', (prev) => (
+      typeof nextValue === 'function' ? nextValue(prev) : nextValue
+    ));
+  };
+
+  const duplicateQueue = () => state.download.duplicateQueue;
+  const setDuplicateQueue = (nextValue) => {
+    setState('download', 'duplicateQueue', (prev) => (
+      typeof nextValue === 'function' ? nextValue(prev) : nextValue
+    ));
+  };
+
+  const duplicateError = () => state.download.duplicateError;
+  const setDuplicateError = (nextValue) => {
+    setState('download', 'duplicateError', nextValue);
+  };
+
+  const settings = () => state.settings;
+  const isAdvanced = () => state.ui.isAdvanced;
+  const setSettings = (nextSettings) => {
+    if (typeof nextSettings === 'function') {
+      setState('settings', (prev) => {
+        const resolved = nextSettings(prev);
+        if (!resolved || typeof resolved !== 'object') {
+          return prev;
+        }
+        return {
+          ...prev,
+          ...resolved,
+        };
+      });
+      return;
+    }
+
+    if (!nextSettings || typeof nextSettings !== 'object') {
+      return;
+    }
+
+    setState('settings', (prev) => ({
+      ...prev,
+      ...nextSettings,
+    }));
+  };
 
   const reconnectDelaysMs = [1000, 2000, 4000, 8000, 10000];
   const maxReconnectAttempts = 5;
+  const toBoundedPositiveInteger = (value, fallback, max) => {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    const normalized = Math.trunc(parsed);
+    if (normalized <= 0) {
+      return fallback;
+    }
+    return Math.min(normalized, max);
+  };
 
   let eventSource = null;
   let reconnectTimer = null;
@@ -90,9 +166,11 @@ export default function DownloadView({ settings, setSettings, isAdvanced }) {
     }
   };
 
-  if (typeof window !== 'undefined') {
-    window.addEventListener('keydown', handleDuplicateShortcut);
-  }
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleDuplicateShortcut);
+    }
+  });
 
   const closeProgressStream = () => {
     if (eventSource) {
@@ -192,8 +270,8 @@ export default function DownloadView({ settings, setSettings, isAdvanced }) {
         audio: s.audioOnly,
         quality: s.quality,
         format: s.format,
-        jobs: parseInt(s.jobs, 10) || 1,
-        timeout: parseInt(s.timeout, 10) || 180,
+        jobs: toBoundedPositiveInteger(s.jobs, 1, MAX_JOBS),
+        timeout: toBoundedPositiveInteger(s.timeout, 180, MAX_TIMEOUT_SECONDS),
         'on-duplicate': s.onDuplicate || 'prompt',
       }
     };

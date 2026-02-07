@@ -1,39 +1,54 @@
-import { createSignal, onMount, createEffect } from 'solid-js';
+import { createEffect, onCleanup, onMount, Show } from 'solid-js';
 import Icon from './components/Icon';
 import DownloadView from './components/DownloadView';
 import LibraryView from './components/LibraryView';
 import SettingsView from './components/SettingsView';
 import Player from './components/Player';
+import { useAppStore } from './store/appStore';
 
 function App() {
-  const [activeTab, setActiveTab] = createSignal('download');
-  const [isAdvanced, setIsAdvanced] = createSignal(false);
-  const [downloads, setDownloads] = createSignal([]);
-  const [playerActive, setPlayerActive] = createSignal(false);
-  const [selectedMedia, setSelectedMedia] = createSignal(null);
-  const [settings, setSettings] = createSignal({
-    output: '{title}.{ext}',
-    quality: 'best',
-    jobs: 1,
-    timeout: 180,
-    format: '',
-    audioOnly: false,
-    onDuplicate: 'prompt',
-    useCookies: true,
-    poTokenExtension: false
-  });
+  const { state, setState } = useAppStore();
+  let mediaListAbortController = null;
+  let mediaListRequestToken = 0;
+
+  const activeTab = () => state.ui.activeTab;
+  const isAdvanced = () => state.ui.isAdvanced;
+
+  const setActiveTab = (tab) => {
+    setState('ui', 'activeTab', tab);
+  };
+
+  const toggleAdvanced = () => {
+    setState('ui', 'isAdvanced', (prev) => !prev);
+  };
 
   // Fetch media files from the API
   const fetchMediaFiles = async () => {
+    if (mediaListAbortController) {
+      mediaListAbortController.abort();
+    }
+    mediaListAbortController = new AbortController();
+    const requestToken = ++mediaListRequestToken;
+
     try {
-      const response = await fetch('/api/media/');
+      const response = await fetch('/api/media/', { signal: mediaListAbortController.signal });
       if (response.ok) {
         const payload = await response.json();
+        if (requestToken !== mediaListRequestToken) {
+          return;
+        }
         const files = Array.isArray(payload) ? payload : (payload.items || []);
-        setDownloads(files);
+        setState('library', 'downloads', files);
       }
     } catch (error) {
+      if (error && typeof error === 'object' && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to fetch media files:', error);
+    } finally {
+      if (requestToken === mediaListRequestToken) {
+        mediaListAbortController = null;
+      }
     }
   };
 
@@ -49,14 +64,21 @@ function App() {
     }
   });
 
+  onCleanup(() => {
+    if (mediaListAbortController) {
+      mediaListAbortController.abort();
+      mediaListAbortController = null;
+    }
+  });
+
   const openPlayer = (item) => {
     // Add the full media URL for the player
     const mediaItem = {
       ...item,
       url: `/api/media/${item.filename}`
     };
-    setSelectedMedia(mediaItem);
-    setPlayerActive(true);
+    setState('player', 'selectedMedia', mediaItem);
+    setState('player', 'active', true);
   };
 
   return (
@@ -108,35 +130,35 @@ function App() {
                     <span class="text-xs font-bold text-gray-300 italic">YT_AUTH_OK</span>
                     <Icon name="chevron-down" class="w-3 h-3 text-gray-500" />
                 </div>
-                <button onClick={() => setIsAdvanced(!isAdvanced())} class={`px-4 py-2 rounded-full text-xs font-bold transition-all ${isAdvanced() ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-gray-500 hover:text-gray-300'}`}>
+                <button onClick={toggleAdvanced} class={`px-4 py-2 rounded-full text-xs font-bold transition-all ${isAdvanced() ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-gray-500 hover:text-gray-300'}`}>
                     Advanced Mode
                 </button>
             </div>
         </header>
 
         <div class="flex-1 overflow-y-auto p-10 custom-scrollbar">
-            <div class="max-w-4xl mx-auto">
-                {activeTab() === 'download' && (
-                    <DownloadView 
-                        settings={settings} 
-                        setSettings={setSettings} 
-                        isAdvanced={isAdvanced}
-                    />
-                )}
-                {activeTab() === 'library' && (
-                    <LibraryView 
-                        downloads={downloads} 
-                        openPlayer={openPlayer} 
-                    />
-                )}
-                {activeTab() === 'settings' && <SettingsView />}
+            <div class={`max-w-4xl mx-auto ${activeTab() === 'download' ? '' : 'hidden'}`}>
+                <DownloadView />
             </div>
+            <Show when={activeTab() === 'library'}>
+              <div class="max-w-4xl mx-auto">
+                  <LibraryView
+                      downloads={() => state.library.downloads}
+                      openPlayer={openPlayer}
+                  />
+              </div>
+            </Show>
+            <Show when={activeTab() === 'settings'}>
+              <div class="max-w-4xl mx-auto">
+                  <SettingsView />
+              </div>
+            </Show>
         </div>
         
-        {playerActive() && (
+        {state.player.active && (
           <Player 
-             media={selectedMedia} 
-             onClose={() => setPlayerActive(false)} 
+             media={state.player.selectedMedia} 
+             onClose={() => setState('player', 'active', false)} 
           />
         )}
       </main>

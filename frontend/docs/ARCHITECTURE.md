@@ -20,8 +20,10 @@ The frontend is a **Single Page Application (SPA)** built with [SolidJS](https:/
 
 ```text
 src/
-├── App.jsx              # Root component, routing, global state
-├── index.jsx            # Entry point, mounts App into DOM
+├── App.jsx              # Root component and top-level layout
+├── index.jsx            # Entry point, mounts App + store provider
+├── store/
+│   └── appStore.jsx     # Central app state + localStorage persistence
 └── components/
     ├── DownloadView.jsx  # URL input, download options, result display
     ├── LibraryView.jsx   # Downloaded media list, search/filter
@@ -31,12 +33,15 @@ src/
 
 ## State Management
 
-SolidJS signals and props are used for all state management — no external state library. Key signals live in `App.jsx` and are passed down as props:
+State is centralized in `store/appStore.jsx` using Solid's context + store primitives. The app persists key UI fields in localStorage so layout and form choices survive reloads:
 
-- **`settings`** — Download options (output template, quality, jobs, audio-only, etc.)
-- **`activeTab`** — Current view (download, library, settings)
-- **`downloads`** — Library items (currently mock data)
-- **`isAdvanced`** — Toggle for power-user options
+- **`ui.activeTab`** — Current view (download, library, settings)
+- **`ui.isAdvanced`** — Power-user toggle state
+- **`settings`** — Download options (output template, quality, jobs, audio-only, duplicate policy)
+- **`download.urlInput`** — Current URL draft in the download textarea
+
+Runtime download progress state is also centralized so tab navigation does not reset active download progress UI.
+Only durable state is persisted to localStorage. Transient runtime state (active job status/progress/logs/prompts) is intentionally not persisted.
 
 ## Build & Integration Pipeline
 
