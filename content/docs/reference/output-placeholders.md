@@ -360,5 +360,4 @@ ytdl-go -info [URL] | jq .
 
 - [CLI Options](cli-options) - Complete flag reference
 - [Basic Downloads](../user-guide/usage/basic-downloads) - Getting started guide
-- [Advanced Usage](../user-guide/usage/advanced-usage) - Complex download scenarios
 - [Troubleshooting](../user-guide/troubleshooting) - Common issues and solutions
