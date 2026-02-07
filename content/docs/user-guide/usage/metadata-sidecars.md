@@ -323,7 +323,7 @@ ytdl-go -o "{artist}/{release_year} - {album}/{title}.{ext}" URL
 
 ```bash
 # Playlist with default metadata
-ytdl-go -audio -o "{playlist-title}/{index:02d} - {title}.{ext}" PLAYLIST_URL
+ytdl-go -audio -o "{playlist-title}/{index} - {title}.{ext}" PLAYLIST_URL
 ```
 
 Result includes:
@@ -336,7 +336,7 @@ Result includes:
 ```bash
 # Set album name for entire playlist
 ytdl-go -audio \
-        -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
         -meta artist="Artist Name" \
         -meta album="Album Name" \
         PLAYLIST_URL

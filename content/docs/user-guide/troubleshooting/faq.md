@@ -386,10 +386,7 @@ Use JSON mode:
 ytdl-go -json URL
 ```
 
-This outputs NDJSON (newline-delimited JSON) with:
-- Download progress
-- Format information
-- Errors
+This outputs NDJSON (newline-delimited JSON) with download information and errors.
 
 ### What JSON event types are available?
 
@@ -398,6 +395,8 @@ This outputs NDJSON (newline-delimited JSON) with:
 {"type": "formats", "formats": [...]}
 {"type": "error", "category": "network", "message": "..."}
 ```
+
+JSON mode does NOT output progress events - only item, formats, and error types.
 
 See [Metadata & Sidecars](../usage/metadata-sidecars#json-output-mode) for details.
 
@@ -437,7 +436,7 @@ This is usually temporary. ytdl-go automatically retries. If persistent:
 
 ```bash
 # Increase timeout
-ytdl-go -timeout 600 URL
+ytdl-go -timeout 10m URL
 
 # Use cookies for authentication
 ytdl-go -cookies cookies.txt URL
@@ -445,7 +444,7 @@ ytdl-go -cookies cookies.txt URL
 
 ### Downloads hang or freeze
 
-1. **Increase timeout**: `-timeout 600`
+1. **Increase timeout**: `-timeout 10m`
 2. **Check network**: `ping youtube.com`
 3. **Try one at a time**: `-jobs 1`
 4. **Enable JSON mode for debug**: `-json`

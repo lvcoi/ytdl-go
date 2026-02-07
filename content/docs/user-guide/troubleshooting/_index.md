@@ -34,7 +34,7 @@ For detailed debugging information:
 ytdl-go -json URL
 
 # Increase timeout for slow connections
-ytdl-go -timeout 300 URL
+ytdl-go -timeout 5m URL
 
 # Test without downloading
 ytdl-go -info URL

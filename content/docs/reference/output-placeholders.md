@@ -34,15 +34,12 @@ ytdl-go -o "{artist} - {title}.{ext}" [URL]
 | Placeholder | Description | Example Value | Notes |
 |-------------|-------------|---------------|-------|
 | `{artist}` | Video author/artist (sanitized) | `Artist Name` | From uploader or metadata |
-| `{author}` | Channel/uploader name (sanitized) | `Channel Name` | Same as artist in most cases |
 
 ### Album Placeholders
 
 | Placeholder | Description | Example Value | Notes |
 |-------------|-------------|---------------|-------|
 | `{album}` | Album name (sanitized) | `Album Name` | From YouTube Music metadata |
-| `{track}` | Track number | `5` | From metadata (if available) |
-| `{disc}` | Disc number | `1` | From metadata (if available) |
 
 ### Playlist Placeholders
 
@@ -54,25 +51,6 @@ ytdl-go -o "{artist} - {title}.{ext}" [URL]
 | `{playlist-id}` | Playlist ID | `PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf` | Alternative syntax |
 | `{index}` | Video position in playlist | `1`, `2`, `3` | 1-based indexing |
 | `{count}` | Total videos in playlist | `25` | Total playlist size |
-
-### Date/Time Placeholders
-
-| Placeholder | Description | Example Value | Notes |
-|-------------|-------------|---------------|-------|
-| `{release_date}` | Release date | `2023-01-15` | Format: YYYY-MM-DD |
-| `{release_year}` | Release year | `2023` | Format: YYYY |
-| `{upload_date}` | Upload date | `20230115` | Format: YYYYMMDD |
-
-### Technical Placeholders
-
-| Placeholder | Description | Example Value | Notes |
-|-------------|-------------|---------------|-------|
-| `{itag}` | YouTube format tag | `251`, `140`, `22` | Internal format identifier |
-| `{codec}` | Video/audio codec | `h264`, `vp9`, `opus` | Container codec |
-| `{bitrate}` | Audio bitrate | `128000`, `256000` | In bits per second |
-| `{fps}` | Video frame rate | `30`, `60` | Frames per second |
-| `{width}` | Video width | `1920`, `1280` | In pixels |
-| `{height}` | Video height | `1080`, `720` | In pixels |
 
 ## Placeholder Behavior
 
@@ -153,9 +131,9 @@ ytdl-go -o "{title} ({id}).{ext}" [URL]
 ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" [URL]
 # Output: "Music/Artist Name/Album Name/Song Title.m4a"
 
-# Include track numbers
-ytdl-go -audio -o "Music/{artist}/{album}/{track} - {title}.{ext}" [URL]
-# Output: "Music/Artist Name/Album Name/05 - Song Title.m4a"
+# Include track numbers (from metadata if available)
+ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" [URL]
+# Output: "Music/Artist Name/Album Name/Song Title.m4a"
 
 # Flat structure with artist
 ytdl-go -audio -o "Music/{artist} - {title}.{ext}" [URL]
@@ -167,11 +145,11 @@ ytdl-go -audio -o "Music/{artist} - {title}.{ext}" [URL]
 ```bash
 # Numbered playlist items
 ytdl-go -o "{playlist_title}/{index} - {title}.{ext}" [PLAYLIST_URL]
-# Output: "My Playlist/01 - Video Title.mp4"
+# Output: "My Playlist/1 - Video Title.mp4"
 
 # Include total count
 ytdl-go -o "{playlist_title}/{index} of {count} - {title}.{ext}" [PLAYLIST_URL]
-# Output: "My Playlist/01 of 25 - Video Title.mp4"
+# Output: "My Playlist/1 of 25 - Video Title.mp4"
 
 # Organize by playlist
 ytdl-go -o "Playlists/{playlist_title}/{title}.{ext}" [PLAYLIST_URL]
@@ -210,15 +188,11 @@ ytdl-go -o "Videos/{title} [{quality}].{ext}" [URL]
 ```bash
 # Complete organization
 ytdl-go -o "{artist}/{album}/{index} - {title} [{quality}].{ext}" [URL]
-# Output: "Artist/Album/01 - Song [1080p].mp4"
+# Output: "Artist/Album/1 - Song [1080p].mp4"
 
-# Podcast structure
-ytdl-go -audio -o "Podcasts/{author}/{release_date} - {title}.{ext}" [URL]
-# Output: "Podcasts/Podcast Name/2023-01-15 - Episode Title.m4a"
-
-# Technical details included
-ytdl-go -o "Videos/{title} [{quality}] [{itag}].{ext}" [URL]
-# Output: "Videos/Video Title [720p] [22].mp4"
+# Playlist with quality
+ytdl-go -o "Playlists/{playlist-title}/{index} - {title}.{ext}" [URL]
+# Output: "Playlists/My Playlist/1 - Video Title.mp4"
 ```
 
 ## Best Practices
@@ -289,8 +263,6 @@ ytdl-go -o "{playlist_title}/{index} - {title}.{ext}" [PLAYLIST_URL]
 # Most file managers use "natural sort" which handles this correctly
 # However, tools like `ls` may sort incorrectly without additional flags
 ```
-
-## Template Testing
 
 Test templates with `-info` flag to preview filenames without downloading:
 

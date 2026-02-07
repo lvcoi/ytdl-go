@@ -34,11 +34,11 @@ ytdl-go uses a smart audio selection strategy:
 If direct audio download fails (403 error):
 
 1. Retry with single request method
-2. Use FFmpeg fallback (extracts from video)
+2. Use FFmpeg fallback (extracts from video) - FFmpeg is required for this fallback method
 
-> **No External Dependencies**
+> **FFmpeg for Fallback**
 >
-> ytdl-go handles audio extraction internally without requiring FFmpeg to be installed.
+> FFmpeg is required for fallback audio extraction when direct audio streams are unavailable. Install FFmpeg to enable this feature.
 
 ## Audio Quality Selection
 
@@ -175,12 +175,12 @@ ytdl-go -audio https://www.youtube.com/playlist?list=PLxxxxx
 
 # Organized with track numbers
 ytdl-go -audio \
-        -o "Music/{playlist-title}/{index:02d} - {title}.{ext}" \
+        -o "Music/{playlist-title}/{index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 
 # With artist/album structure
 ytdl-go -audio \
-        -o "Music/{artist}/{playlist-title}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{playlist-title}/{index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -227,7 +227,7 @@ For playlists, set consistent metadata:
 
 ```bash
 ytdl-go -audio \
-        -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
         -meta artist="Artist Name" \
         -meta album="Album Name" \
         https://www.youtube.com/playlist?list=PLxxxxx
@@ -250,7 +250,7 @@ ytdl-go -audio https://music.youtube.com/playlist?list=PLxxxxx
 
 # Album with metadata
 ytdl-go -audio \
-        -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
         -meta artist="Artist Name" \
         -meta album="Album Name" \
         https://music.youtube.com/playlist?list=PLxxxxx
@@ -262,7 +262,7 @@ ytdl-go -audio \
 
 ```bash
 ytdl-go -audio -quality 256k -format m4a \
-        -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
         -meta artist="Artist Name" \
         -meta album="Album Name" \
         https://www.youtube.com/playlist?list=PLxxxxx
@@ -272,7 +272,7 @@ ytdl-go -audio -quality 256k -format m4a \
 
 ```bash
 ytdl-go -audio -quality 96k \
-        -o "Podcasts/{playlist-title}/Episode {index:03d} - {title}.{ext}" \
+        -o "Podcasts/{playlist-title}/Episode {index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -280,7 +280,7 @@ ytdl-go -audio -quality 96k \
 
 ```bash
 ytdl-go -audio -quality 128k \
-        -o "Audiobooks/{playlist-title}/Chapter {index:02d} - {title}.{ext}" \
+        -o "Audiobooks/{playlist-title}/Chapter {index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -288,7 +288,7 @@ ytdl-go -audio -quality 128k \
 
 ```bash
 ytdl-go -audio -quality 96k -format m4a \
-        -o "Lectures/{playlist-title}/{index:03d} - {title}.{ext}" \
+        -o "Lectures/{playlist-title}/{index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 

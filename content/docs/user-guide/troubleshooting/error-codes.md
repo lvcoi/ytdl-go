@@ -190,7 +190,7 @@ ytdl-go URL
 
 ```bash
 # Increase timeout
-ytdl-go -timeout 600 URL
+ytdl-go -timeout 10m URL
 
 # Retry with exponential backoff (manual)
 for i in 1 2 3; do

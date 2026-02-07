@@ -35,7 +35,7 @@ ytdl-go -o "{playlist-title}/{title}.{ext}" https://www.youtube.com/playlist?lis
 ytdl-go -o "{playlist-title}/{index} - {title}.{ext}" https://www.youtube.com/playlist?list=PLxxxxx
 
 # Full organization with quality indicator
-ytdl-go -o "{playlist-title}/{index:03d} - {title} [{quality}].{ext}" https://www.youtube.com/playlist?list=PLxxxxx
+ytdl-go -o "{playlist-title}/{index} - {title} [{quality}].{ext}" https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
 ### Available Playlist Placeholders
@@ -46,10 +46,6 @@ ytdl-go -o "{playlist-title}/{index:03d} - {title} [{quality}].{ext}" https://ww
 | `{playlist-id}` or `{playlist_id}` | Playlist ID | `PLxxxxxxxxxxxxxxxxxxx` |
 | `{index}` | Video position in playlist (1-based) | `1`, `2`, `3`, ... |
 | `{count}` | Total videos in playlist | `25` |
-
-> **Index Formatting**
->
-> You can format the index with zero-padding: `{index:03d}` produces `001`, `002`, etc.
 
 ### Example Directory Structures
 
@@ -77,16 +73,16 @@ My Playlist/
 ytdl-go -o "{playlist-title}/{index} - {title}.{ext}" PLAYLIST_URL
 ```
 
-**Zero-padded numbering:**
+**With quality label:**
 ```
 My Playlist/
-├── 001 - Video Title 1.mp4
-├── 002 - Video Title 2.mp4
-└── 025 - Video Title 3.mp4
+├── 1 - Video Title 1 [1080p].mp4
+├── 2 - Video Title 2 [720p].mp4
+└── 3 - Video Title 3 [1080p].mp4
 ```
 
 ```bash
-ytdl-go -o "{playlist-title}/{index:03d} - {title}.{ext}" PLAYLIST_URL
+ytdl-go -o "{playlist-title}/{index} - {title} [{quality}].{ext}" PLAYLIST_URL
 ```
 
 ## Quality Control for Playlists
@@ -102,7 +98,7 @@ ytdl-go -format mp4 https://www.youtube.com/playlist?list=PLxxxxx
 
 # Combine quality, format, and organization
 ytdl-go -quality 1080p -format mp4 \
-        -o "{playlist-title}/{index:03d} - {title}.{ext}" \
+        -o "{playlist-title}/{index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -115,7 +111,7 @@ Download entire playlists as audio:
 ytdl-go -audio https://www.youtube.com/playlist?list=PLxxxxx
 
 # Organized music library
-ytdl-go -audio -o "Music/{playlist-title}/{index:02d} - {title}.{ext}" \
+ytdl-go -audio -o "Music/{playlist-title}/{index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -164,15 +160,14 @@ ytdl-go skips already downloaded files and resumes partial downloads.
 
 ## Concurrent Processing
 
-Currently, playlist videos are downloaded sequentially (one at a time).
-
-> **Future Feature**
->
-> The `-playlist-concurrency` flag is reserved for future versions that will support parallel playlist downloads. It currently has no effect.
+Control how many playlist videos are downloaded in parallel:
 
 ```bash
-# This flag is accepted but doesn't change behavior (sequential download)
+# Download 4 videos at a time
 ytdl-go -playlist-concurrency 4 PLAYLIST_URL
+
+# Automatic (based on system resources)
+ytdl-go -playlist-concurrency 0 PLAYLIST_URL
 ```
 
 For now, to download multiple playlists concurrently:
@@ -188,7 +183,7 @@ ytdl-go -jobs 3 PLAYLIST_URL1 PLAYLIST_URL2 PLAYLIST_URL3
 
 ```bash
 ytdl-go -quality 1080p -format mp4 \
-        -o "Archive/{playlist-title}/{index:03d} - {title} [{id}].{ext}" \
+        -o "Archive/{playlist-title}/{index} - {title} [{id}].{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -196,7 +191,7 @@ ytdl-go -quality 1080p -format mp4 \
 
 ```bash
 ytdl-go -audio \
-        -o "Music/{playlist-title}/{index:02d} - {artist} - {title}.{ext}" \
+        -o "Music/{playlist-title}/{index} - {artist} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -204,7 +199,7 @@ ytdl-go -audio \
 
 ```bash
 ytdl-go -quality 720p \
-        -o "Courses/{playlist-title}/Lesson {index:02d} - {title}.{ext}" \
+        -o "Courses/{playlist-title}/Lesson {index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -212,7 +207,7 @@ ytdl-go -quality 720p \
 
 ```bash
 ytdl-go -audio -quality 128k \
-        -o "Podcasts/{playlist-title}/Episode {index:03d} - {title}.{ext}" \
+        -o "Podcasts/{playlist-title}/Episode {index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -232,7 +227,7 @@ Override metadata for the entire playlist:
 
 ```bash
 ytdl-go -audio \
-        -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
         -meta artist="Artist Name" \
         -meta album="Album Name" \
         https://www.youtube.com/playlist?list=PLxxxxx
@@ -307,17 +302,17 @@ For very large playlists (100+ videos):
 ```bash
 # Increase timeout for slow connections
 ytdl-go -timeout 30m \
-        -o "{playlist-title}/{index:04d} - {title}.{ext}" \
+        -o "{playlist-title}/{index} - {title}.{ext}" \
         PLAYLIST_URL
 
 # Use quiet mode to reduce terminal clutter
 ytdl-go -quiet \
-        -o "{playlist-title}/{index:04d} - {title}.{ext}" \
+        -o "{playlist-title}/{index} - {title}.{ext}" \
         PLAYLIST_URL
 
 # JSON logging for monitoring
 ytdl-go -json \
-        -o "{playlist-title}/{index:04d} - {title}.{ext}" \
+        -o "{playlist-title}/{index} - {title}.{ext}" \
         PLAYLIST_URL > playlist-download.log
 ```
 
@@ -361,10 +356,9 @@ ytdl-go -quality 480p PLAYLIST_URL
 
 1. **Use numbered filenames** for playlists to maintain order
 2. **Include playlist title** in the path for organization
-3. **Use zero-padding** for large playlists (>99 videos)
-4. **Set appropriate quality** to balance size and download time
-5. **Use quiet or JSON mode** for large automated downloads
-6. **Monitor first few downloads** to ensure correct organization
+3. **Set appropriate quality** to balance size and download time
+4. **Use quiet or JSON mode** for large automated downloads
+5. **Monitor first few downloads** to ensure correct organization
 
 ## Example: Complete Workflow
 
@@ -376,12 +370,12 @@ ytdl-go -info https://www.youtube.com/playlist?list=PLxxxxx | jq .
 
 # 2. Download with proper organization
 ytdl-go -quality 720p -format mp4 \
-        -o "Courses/{playlist-title}/Lesson {index:02d} - {title}.{ext}" \
+        -o "Courses/{playlist-title}/Lesson {index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 
 # 3. If interrupted, resume with the same command
 ytdl-go -quality 720p -format mp4 \
-        -o "Courses/{playlist-title}/Lesson {index:02d} - {title}.{ext}" \
+        -o "Courses/{playlist-title}/Lesson {index} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
@@ -389,9 +383,9 @@ Result:
 ```
 Courses/
 └── Python Programming Course/
-    ├── Lesson 01 - Introduction.mp4
-    ├── Lesson 02 - Variables.mp4
-    ├── Lesson 03 - Functions.mp4
+    ├── Lesson 1 - Introduction.mp4
+    ├── Lesson 2 - Variables.mp4
+    ├── Lesson 3 - Functions.mp4
     └── ...
 ```
 

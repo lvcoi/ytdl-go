@@ -148,14 +148,11 @@ ytdl-go -o "{playlist-title}/{title}.{ext}" URL
 # Numbered files
 ytdl-go -o "{playlist-title}/{index} - {title}.{ext}" URL
 
-# Zero-padded index
-ytdl-go -o "{playlist-title}/{index:03d} - {title}.{ext}" URL
-
 # Complete playlist info
-ytdl-go -o "{playlist-title}/{index:03d} of {count} - {title}.{ext}" URL
+ytdl-go -o "{playlist-title}/{index} of {count} - {title}.{ext}" URL
 
 # Playlist with quality
-ytdl-go -o "{playlist-title}/{index:02d} - {title} [{quality}].{ext}" URL
+ytdl-go -o "{playlist-title}/{index} - {title} [{quality}].{ext}" URL
 ```
 
 ### Audio/Music Templates
@@ -167,42 +164,25 @@ ytdl-go -audio -o "Music/{artist} - {title}.{ext}" URL
 # Artist/Album structure
 ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 
-# With track numbers
-ytdl-go -audio -o "Music/{artist}/{album}/{track:02d} - {title}.{ext}" URL
+# With track numbers (if metadata available)
+ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 
 # Music playlist
-ytdl-go -audio -o "Music/{artist}/{playlist-title}/{index:02d} - {title}.{ext}" URL
+ytdl-go -audio -o "Music/{artist}/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
 ## Number Formatting
 
-### Zero-Padding
+### Index Numbers
 
-Use format specifiers for zero-padded numbers:
+For playlists, use the `{index}` placeholder:
 
 ```bash
-# 2 digits: 01, 02, 03, ..., 99
-ytdl-go -o "{playlist-title}/{index:02d} - {title}.{ext}" URL
-
-# 3 digits: 001, 002, 003, ..., 999
-ytdl-go -o "{playlist-title}/{index:03d} - {title}.{ext}" URL
-
-# 4 digits: 0001, 0002, 0003, ..., 9999
-ytdl-go -o "{playlist-title}/{index:04d} - {title}.{ext}" URL
+# Simple index: 1, 2, 3, ...
+ytdl-go -o "{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
-> **When to Use Padding**
->
-> Use zero-padding for playlists with more than 9 videos to ensure correct alphabetical sorting.
-
-### Format Specifiers
-
-| Specifier | Output | Use Case |
-|-----------|--------|----------|
-| `{index}` | 1, 2, 3, ... | Small playlists (1-9 videos) |
-| `{index:02d}` | 01, 02, 03, ... | Medium playlists (10-99 videos) |
-| `{index:03d}` | 001, 002, 003, ... | Large playlists (100-999 videos) |
-| `{index:04d}` | 0001, 0002, 0003, ... | Very large playlists (1000+ videos) |
+Indexes are not zero-padded. Most modern file managers use "natural sort" which correctly handles numeric sorting.
 
 ## Real-World Use Cases
 
@@ -210,7 +190,7 @@ ytdl-go -o "{playlist-title}/{index:04d} - {title}.{ext}" URL
 
 ```bash
 ytdl-go -quality 720p \
-        -o "Courses/{playlist-title}/Lesson {index:02d} - {title}.{ext}" \
+        -o "Courses/{playlist-title}/Lesson {index} - {title}.{ext}" \
         PLAYLIST_URL
 ```
 
@@ -218,16 +198,16 @@ Result:
 ```
 Courses/
 └── Python Programming/
-    ├── Lesson 01 - Introduction.mp4
-    ├── Lesson 02 - Variables.mp4
-    └── Lesson 03 - Functions.mp4
+    ├── Lesson 1 - Introduction.mp4
+    ├── Lesson 2 - Variables.mp4
+    └── Lesson 3 - Functions.mp4
 ```
 
 ### Music Album Collection
 
 ```bash
 ytdl-go -audio \
-        -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{index} - {title}.{ext}" \
         -meta artist="Artist Name" \
         -meta album="Album Name" \
         PLAYLIST_URL
@@ -238,16 +218,16 @@ Result:
 Music/
 └── Artist Name/
     └── Album Name/
-        ├── 01 - Song One.m4a
-        ├── 02 - Song Two.m4a
-        └── 03 - Song Three.m4a
+        ├── 1 - Song One.m4a
+        ├── 2 - Song Two.m4a
+        └── 3 - Song Three.m4a
 ```
 
 ### Podcast Episodes
 
 ```bash
 ytdl-go -audio -quality 96k \
-        -o "Podcasts/{playlist-title}/Episode {index:03d} - {title}.{ext}" \
+        -o "Podcasts/{playlist-title}/Episode {index} - {title}.{ext}" \
         PLAYLIST_URL
 ```
 
@@ -255,16 +235,16 @@ Result:
 ```
 Podcasts/
 └── My Podcast/
-    ├── Episode 001 - Pilot Episode.m4a
-    ├── Episode 002 - Guest Interview.m4a
-    └── Episode 003 - Deep Dive.m4a
+    ├── Episode 1 - Pilot Episode.m4a
+    ├── Episode 2 - Guest Interview.m4a
+    └── Episode 3 - Deep Dive.m4a
 ```
 
 ### Documentary Series
 
 ```bash
 ytdl-go -quality 1080p -format mp4 \
-        -o "Documentaries/{playlist-title}/Part {index:02d} - {title}.{ext}" \
+        -o "Documentaries/{playlist-title}/Part {index} - {title}.{ext}" \
         PLAYLIST_URL
 ```
 
@@ -272,7 +252,10 @@ Result:
 ```
 Documentaries/
 └── Nature Series/
-    ├── Part 01 - Oceans.mp4
+    ├── Part 1 - Oceans.mp4
+    ├── Part 2 - Forests.mp4
+    └── Part 3 - Mountains.mp4
+```
     ├── Part 02 - Forests.mp4
     └── Part 03 - Deserts.mp4
 ```
@@ -336,7 +319,7 @@ This ensures unique filenames even if titles are identical.
 ### Quality-Based Organization
 
 ```bash
-ytdl-go -o "{quality}/{playlist-title}/{index:02d} - {title}.{ext}" URL
+ytdl-go -o "{quality}/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
 Separates downloads by quality level.
@@ -344,15 +327,15 @@ Separates downloads by quality level.
 ### Date-Based Archival
 
 ```bash
-ytdl-go -o "Archive/{release_year}/{release_date} - {artist} - {title}.{ext}" URL
+ytdl-go -o "Archive/{artist} - {title}.{ext}" URL
 ```
 
-Organizes by year and date.
+Organizes by artist.
 
 ### Combined Information
 
 ```bash
-ytdl-go -o "{artist}/{album}/{index:02d} - {title} [{quality}] {id}.{ext}" URL
+ytdl-go -o "{artist}/{album}/{index} - {title} [{quality}] {id}.{ext}" URL
 ```
 
 Includes multiple metadata fields for maximum information.
@@ -363,10 +346,9 @@ Templates respect metadata overrides from `-meta`:
 
 ```bash
 ytdl-go -audio \
-        -o "Music/{artist}/{album}/{track:02d} - {title}.{ext}" \
+        -o "Music/{artist}/{album}/{title}.{ext}" \
         -meta artist="Custom Artist" \
         -meta album="Custom Album" \
-        -meta track=5 \
         URL
 ```
 
@@ -480,50 +462,47 @@ ytdl-go -o "{artist}/{id}.{ext}" URL
 
 # Album structure
 "Music/{artist}/{album}/{title}.{ext}"
-
-# With track
-"Music/{artist}/{album}/{track:02d} - {title}.{ext}"
 ```
 
 ### Playlists
 ```bash
 # Numbered
-"{playlist-title}/{index:02d} - {title}.{ext}"
+"{playlist-title}/{index} - {title}.{ext}"
 
 # Complete info
-"{playlist-title}/{index:03d} of {count} - {title}.{ext}"
+"{playlist-title}/{index} of {count} - {title}.{ext}"
 
 # With quality
-"{playlist-title}/{index:02d} - {title} [{quality}].{ext}"
+"{playlist-title}/{index} - {title} [{quality}].{ext}"
 ```
 
 ### Archives
 ```bash
-# By date
-"Archive/{release_year}/{title}.{ext}"
+# By artist
+"Archive/{artist}/{title}.{ext}"
 
 # Complete organization
-"Archive/{artist}/{release_date}/{title}-{id}.{ext}"
+"Archive/{artist}/{title}-{id}.{ext}"
 
 # Quality variants
-"{quality}/{playlist-title}/{index:02d} - {title}.{ext}"
+"{quality}/{playlist-title}/{index} - {title}.{ext}"
 ```
 
 ## Examples by Scenario
 
 ### Student/Learning
 ```bash
-ytdl-go -o "Courses/{playlist-title}/Lesson {index:02d} - {title}.{ext}" URL
+ytdl-go -o "Courses/{playlist-title}/Lesson {index} - {title}.{ext}" URL
 ```
 
 ### Music Collector
 ```bash
-ytdl-go -audio -o "Music/{artist}/{album}/{index:02d} - {title}.{ext}" URL
+ytdl-go -audio -o "Music/{artist}/{album}/{index} - {title}.{ext}" URL
 ```
 
 ### Podcast Listener
 ```bash
-ytdl-go -audio -o "Podcasts/{playlist-title}/Episode {index:03d} - {title}.{ext}" URL
+ytdl-go -audio -o "Podcasts/{playlist-title}/Episode {index} - {title}.{ext}" URL
 ```
 
 ### Content Creator

@@ -94,7 +94,6 @@ Output templates use placeholders that get replaced with video metadata:
 | `{id}` | Video ID | `dQw4w9WgXcQ` |
 | `{ext}` | File extension | `mp4`, `webm`, `m4a` |
 | `{artist}` | Artist/channel name | `Rick Astley` |
-| `{upload-date}` | Upload date | `20091024` |
 | `{playlist-title}` | Playlist name | `Best Music Videos` |
 
 **Example patterns:**
@@ -103,8 +102,8 @@ Output templates use placeholders that get replaced with video metadata:
 # Organize by artist
 ytdl-go -o "{artist}/{title}.{ext}" URL
 
-# Add date to filename
-ytdl-go -o "{upload-date}_{title}.{ext}" URL
+# Add quality to filename
+ytdl-go -o "{title} [{quality}].{ext}" URL
 
 # Playlist organization
 ytdl-go -o "{playlist-title}/{title}.{ext}" PLAYLIST_URL

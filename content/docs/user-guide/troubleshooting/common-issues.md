@@ -20,7 +20,7 @@ Solutions to the most frequently encountered problems with ytdl-go.
 1. **Automatic retry** - ytdl-go automatically retries with different methods
 2. **Increase timeout** - Some videos need more time to respond:
    ```bash
-   ytdl-go -timeout 300 URL
+   ytdl-go -timeout 5m URL
    ```
 3. **Check IP reputation** - Your IP might be rate-limited by YouTube
 4. **Use cookies** - For age-restricted or members-only content:
@@ -36,7 +36,7 @@ Solutions to the most frequently encountered problems with ytdl-go.
 
 ```bash
 # Increase timeout to 10 minutes
-ytdl-go -timeout 600 URL
+ytdl-go -timeout 10m URL
 
 # Retry with fewer concurrent jobs
 ytdl-go -jobs 1 URL
@@ -144,7 +144,7 @@ ytdl-go https://www.youtube.com/playlist?list=PLAYLIST_ID
 1. **Check network stability**
 2. **Increase timeout**:
    ```bash
-   ytdl-go -timeout 600 -jobs 2 PLAYLIST_URL
+   ytdl-go -timeout 10m -jobs 2 PLAYLIST_URL
    ```
 3. **Review skipped videos** - Some may be restricted or deleted
 

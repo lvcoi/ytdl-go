@@ -294,6 +294,6 @@ ytdl-go -timeout 30m https://www.youtube.com/watch?v=VIDEO_ID
 
 ## Related References
 
-- [Command-Line Flags Reference](../../reference/flags)
+- [Command-Line Options Reference](../../reference/cli-options)
 - [Format Selection Guide](format-selection)
 - [Troubleshooting Guide](../troubleshooting/common-issues)
