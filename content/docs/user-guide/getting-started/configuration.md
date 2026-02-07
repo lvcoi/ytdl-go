@@ -176,7 +176,7 @@ Adjust for slow connections:
 
 ```bash
 # Increase timeout to 5 minutes
-ytdl-go -timeout 300 URL
+ytdl-go -timeout 5m URL
 ```
 
 ### Retry Logic
