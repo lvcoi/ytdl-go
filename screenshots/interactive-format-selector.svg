@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+  <defs>
+    <style>
+      .terminal-bg { fill: #0d1117; }
+      .terminal-text { fill: #e6edf3; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .title-style { fill: #0B0B0B; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; font-weight: bold; }
+      .title-bg { fill: #7FDBFF; }
+      .help-style { fill: #A6ADC8; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .header-style { fill: #F8F8F2; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; font-weight: bold; }
+      .selected-bg { fill: #00F5D4; }
+      .selected-text { fill: #0B0B0B; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; font-weight: bold; }
+      .format-text { fill: #EAEAEA; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .border-color { stroke: #7FDBFF; fill: none; stroke-width: 2; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <rect class="terminal-bg" width="900" height="600" rx="8"/>
+  
+  <!-- Window controls (macOS style) -->
+  <circle cx="20" cy="20" r="6" fill="#ff5f57" opacity="0.9"/>
+  <circle cx="40" cy="20" r="6" fill="#febc2e" opacity="0.9"/>
+  <circle cx="60" cy="20" r="6" fill="#28c840" opacity="0.9"/>
+  
+  <!-- Title bar -->
+  <rect class="title-bg" x="20" y="50" width="170" height="24" rx="3"/>
+  <text class="title-style" x="30" y="68"> Format Selector </text>
+  <text class="help-style" x="200" y="68">Selected: itag 137 · Enter to download</text>
+  
+  <!-- Viewport border (rounded) -->
+  <rect class="border-color" x="30" y="85" width="840" height="450" rx="10"/>
+  
+  <!-- Viewport content -->
+  <text class="header-style" x="50" y="110">itag   ext    quality      size       audio   video</text>
+  
+  <!-- Format list -->
+  <text class="format-text" x="50" y="130">  22    mp4    720p         45.2 MB    2ch     1280x720</text>
+  <text class="format-text" x="50" y="148">  18    mp4    360p         23.1 MB    2ch     640x360</text>
+  <text class="format-text" x="50" y="166"> 140    m4a    audio        8.5 MB     2ch     -</text>
+  <text class="format-text" x="50" y="184"> 251    webm   audio        12.3 MB    2ch     -</text>
+  <text class="format-text" x="50" y="202"> 136    mp4    720p         89.4 MB    -       1280x720</text>
+  
+  <!-- Selected row (highlighted) -->
+  <rect class="selected-bg" x="45" y="207" width="805" height="18"/>
+  <text class="selected-text" x="50" y="220"> 137    mp4    1080p        156.8 MB   -       1920x1080</text>
+  
+  <text class="format-text" x="50" y="238"> 248    webm   1080p        178.2 MB   -       1920x1080</text>
+  <text class="format-text" x="50" y="256"> 244    webm   480p         45.6 MB    -       854x480</text>
+  <text class="format-text" x="50" y="274"> 135    mp4    480p         34.7 MB    -       854x480</text>
+  <text class="format-text" x="50" y="292"> 134    mp4    360p         22.3 MB    -       640x360</text>
+  <text class="format-text" x="50" y="310"> 133    mp4    240p         12.1 MB    -       426x240</text>
+  <text class="format-text" x="50" y="328"> 160    mp4    144p         5.8 MB     -       256x144</text>
+  <text class="format-text" x="50" y="346"> 278    webm   144p         6.2 MB     -       256x144</text>
+  <text class="format-text" x="50" y="364"> 242    webm   240p         13.4 MB    -       426x240</text>
+  <text class="format-text" x="50" y="382"> 243    webm   360p         24.1 MB    -       640x360</text>
+  <text class="format-text" x="50" y="400"> 247    webm   720p         92.7 MB    -       1280x720</text>
+  <text class="format-text" x="50" y="418"> 302    webm   720p         -          -       1280x720</text>
+  <text class="format-text" x="50" y="436"> 303    webm   1080p        -          -       1920x1080</text>
+  <text class="format-text" x="50" y="454"> 308    webm   1440p        -          -       2560x1440</text>
+  <text class="format-text" x="50" y="472"> 315    webm   2160p        -          -       3840x2160</text>
+  <text class="format-text" x="50" y="490"> 271    webm   1440p        287.3 MB   -       2560x1440</text>
+  <text class="format-text" x="50" y="508"> 313    webm   2160p        512.7 MB   -       3840x2160</text>
+  
+  <!-- Bottom help text -->
+  <text class="help-style" x="50" y="560">Type digits for itag (e.g., 137), repeat quickly to cycle, Home/End, b to go back</text>
+</svg>
