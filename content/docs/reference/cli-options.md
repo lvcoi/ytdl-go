@@ -611,10 +611,10 @@ ytdl-go -json \
   > downloads.jsonl
 ```
 
-#### Fast Playlist Download
+#### Sequential Playlist Download (Audio)
 ```bash
+# Note: Playlists are always downloaded sequentially in current version
 ytdl-go -audio \
-  -playlist-concurrency 8 \
   -quiet \
   [PLAYLIST_URL]
 ```
