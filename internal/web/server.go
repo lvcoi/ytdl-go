@@ -10,12 +10,15 @@ import (
 	"io/fs"
 	"log"
 	"mime"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/lvcoi/ytdl-go/internal/app"
@@ -33,6 +36,7 @@ const (
 	jobCompletedTTL       = 15 * time.Minute
 	jobErroredTTL         = 30 * time.Minute
 	jobCleanupInterval    = time.Minute
+	maxPortFallbacks      = 20
 	mediaFolderAudio      = "audio"
 	mediaFolderVideo      = "video"
 	mediaFolderPlaylist   = "playlist"
@@ -319,7 +323,6 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	}
 	playlistStore := newSavedPlaylistStore(filepath.Join(mediaDir, mediaFolderData, savedPlaylistsFileName))
 	log.Printf("Media directory: %s", mediaDir)
-	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
 
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
@@ -605,9 +608,23 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	listener, fallbackCount, err := listenWithPortFallback(addr, maxPortFallbacks)
+	if err != nil {
+		return err
+	}
+	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
+	actualAddr := listener.Addr().String()
+	server.Addr = actualAddr
+	log.Printf("Web server listening on %s", actualAddr)
+	log.Printf("Web UI available at %s", formatWebURL(actualAddr))
+	if fallbackCount > 0 {
+		log.Printf("Requested web address %s was unavailable. Auto-switched to %s after %d port attempt(s).", addr, actualAddr, fallbackCount)
+		log.Printf("If you run the frontend dev server, set VITE_API_PROXY_TARGET=%s", formatWebURL(actualAddr))
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.ListenAndServe()
+		errCh <- server.Serve(listener)
 	}()
 
 	select {
@@ -622,6 +639,70 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 		return err
 	}
+}
+
+func listenWithPortFallback(addr string, maxFallbacks int) (net.Listener, int, error) {
+	host, portText, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid web address %q (expected host:port): %w", addr, err)
+	}
+
+	port, err := strconv.Atoi(portText)
+	if err != nil || port < 0 || port > 65535 {
+		return nil, 0, fmt.Errorf("invalid port in web address %q", addr)
+	}
+
+	if maxFallbacks < 0 {
+		maxFallbacks = 0
+	}
+
+	var (
+		lastErr  error
+		attempts int
+	)
+	for offset := 0; offset <= maxFallbacks; offset++ {
+		candidatePort := port + offset
+		if candidatePort > 65535 {
+			break
+		}
+		attempts++
+		candidateAddr := net.JoinHostPort(host, strconv.Itoa(candidatePort))
+		ln, err := net.Listen("tcp", candidateAddr)
+		if err == nil {
+			return ln, offset, nil
+		}
+		if !isAddressInUse(err) {
+			return nil, 0, fmt.Errorf("failed to listen on %s: %w", candidateAddr, err)
+		}
+		lastErr = err
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("no bind attempts were possible")
+	}
+	return nil, 0, fmt.Errorf("failed to bind web server starting at %s after %d attempt(s): %w", addr, attempts, lastErr)
+}
+
+func isAddressInUse(err error) bool {
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "address already in use") || strings.Contains(message, "only one usage of each socket address")
+}
+
+func formatWebURL(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "http://" + addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return (&url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort(host, port),
+	}).String()
 }
 
 func ensureMediaLayout(mediaDir string) error {

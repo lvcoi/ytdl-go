@@ -34,6 +34,7 @@ npm run dev
 The app will be available at `http://localhost:5173` (or similar).
 
 > **API proxy target:** Set `VITE_API_PROXY_TARGET` to point the frontend at any backend port.
+> If `ytdl-go -web` falls back from a busy port, use the backend URL printed at startup.
 >
 > ```sh
 > # Optional; default is http://127.0.0.1:8080

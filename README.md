@@ -100,6 +100,7 @@ What it does:
 - Builds frontend assets into `internal/web/assets/`
 - Prompts to launch the UI unless `--web` is passed
 - Uses `VITE_API_PROXY_TARGET` for frontend API proxy target (default `http://127.0.0.1:8080`)
+- `ytdl-go -web` auto-falls back to the next available port if the requested port is already in use, and logs the final URL
 
 Options:
 
@@ -248,6 +249,7 @@ ytdl-go -quiet URL
 - **403 Forbidden Errors:** The tool automatically retries with different methods. If persistent, check your IP reputation or try `-timeout 10m`.
 - **Restricted Content:** Private, age-gated, or member-only videos require authentication which is currently **not supported**.
 - **Playlists:** Empty videos or deleted entries in playlists are automatically skipped.
+- **Web Port Already in Use:** `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL and point Vite with `VITE_API_PROXY_TARGET=http://127.0.0.1:<port>`.
 
 </details>
 

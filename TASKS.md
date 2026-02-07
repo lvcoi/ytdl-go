@@ -16,8 +16,8 @@
 
 - Branch: `web-ui`
 - Last committed PR work: `PR10` (`921d5f3`)
-- Latest commit on branch: Add player window controls with minimize/restore, draggable positioning, and queue navigation (`921d5f3`)
-- Local in-progress changes: none
+- Latest commit on branch: Update TASKS.md to reflect PR10 completion and add feature implementation planning to PR12 scope (`3c66346`)
+- Local in-progress changes: PR11 backend + docs updates (uncommitted)
 
 ## Recent Non-PR Work
 
@@ -86,7 +86,7 @@
 12. **PR11: Port Bind Failure Handling**
     - Covers: `10`, final part of `9`
     - Scope: backend auto-tries alternate ports on bind failure, clear startup/error messaging, dev flow guidance.
-    - Status: ⏳ Pending
+    - Status: 🟡 Implemented locally (not committed)
 
 13. **PR12: Inactive Feature Feedback**
     - Covers: `12`

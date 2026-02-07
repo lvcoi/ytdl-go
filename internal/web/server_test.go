@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -191,6 +192,101 @@ func TestEnsureMediaLayoutCreatesRequiredSubdirs(t *testing.T) {
 		if !info.IsDir() {
 			t.Fatalf("expected %s to be a directory", path)
 		}
+	}
+}
+
+func TestListenWithPortFallbackUsesAlternatePortWhenBusy(t *testing.T) {
+	blocker, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen blocker: %v", err)
+	}
+	defer blocker.Close()
+
+	blockedAddr := blocker.Addr().String()
+	_, blockedPortText, err := net.SplitHostPort(blockedAddr)
+	if err != nil {
+		t.Fatalf("split blocked addr: %v", err)
+	}
+	blockedPort, err := strconv.Atoi(blockedPortText)
+	if err != nil {
+		t.Fatalf("parse blocked port: %v", err)
+	}
+
+	ln, fallbackCount, err := listenWithPortFallback(blockedAddr, 200)
+	if err != nil {
+		t.Fatalf("listenWithPortFallback: %v", err)
+	}
+	defer ln.Close()
+
+	if fallbackCount < 1 {
+		t.Fatalf("expected at least one fallback attempt, got %d", fallbackCount)
+	}
+
+	_, actualPortText, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatalf("split actual addr: %v", err)
+	}
+	actualPort, err := strconv.Atoi(actualPortText)
+	if err != nil {
+		t.Fatalf("parse actual port: %v", err)
+	}
+
+	expectedPort := blockedPort + fallbackCount
+	if actualPort != expectedPort {
+		t.Fatalf("expected fallback to bind port %d, got %d", expectedPort, actualPort)
+	}
+}
+
+func TestListenWithPortFallbackFailsWithoutRetries(t *testing.T) {
+	blocker, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen blocker: %v", err)
+	}
+	defer blocker.Close()
+
+	_, _, err = listenWithPortFallback(blocker.Addr().String(), 0)
+	if err == nil {
+		t.Fatalf("expected bind failure when fallback retries are disabled")
+	}
+}
+
+func TestListenWithPortFallbackStopsAtPortUpperBound(t *testing.T) {
+	const topPortAddr = "127.0.0.1:65535"
+
+	blocker, err := net.Listen("tcp", topPortAddr)
+	if err != nil {
+		t.Skipf("unable to reserve %s for overflow test: %v", topPortAddr, err)
+	}
+	defer blocker.Close()
+
+	_, _, err = listenWithPortFallback(topPortAddr, 10)
+	if err == nil {
+		t.Fatalf("expected bind failure at port upper bound")
+	}
+	if !strings.Contains(err.Error(), "after 1 attempt(s)") {
+		t.Fatalf("expected a single bind attempt at upper bound, got: %v", err)
+	}
+}
+
+func TestFormatWebURL(t *testing.T) {
+	tests := []struct {
+		name string
+		addr string
+		want string
+	}{
+		{name: "wildcard ipv4", addr: "0.0.0.0:8080", want: "http://127.0.0.1:8080"},
+		{name: "wildcard ipv6", addr: "[::]:8080", want: "http://127.0.0.1:8080"},
+		{name: "empty host", addr: ":8080", want: "http://127.0.0.1:8080"},
+		{name: "localhost", addr: "127.0.0.1:8080", want: "http://127.0.0.1:8080"},
+		{name: "ipv6 zone id", addr: "[fe80::1%en0]:8080", want: "http://[fe80::1%25en0]:8080"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := formatWebURL(tc.addr); got != tc.want {
+				t.Fatalf("formatWebURL(%q) = %q, want %q", tc.addr, got, tc.want)
+			}
+		})
 	}
 }
 
