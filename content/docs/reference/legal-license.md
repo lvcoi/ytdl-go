@@ -209,7 +209,7 @@ This legal notice may be updated. Always refer to the latest version in the offi
 
 - [Contributing](../developer-guide/contributing) - How to contribute to ytdl-go
 - [Security](../developer-guide/security) - Security policies and reporting
-- [README](https://github.com/ytdl-go/ytdl-go/blob/main/README.md) - Project overview
+- [README](https://github.com/lvcoi/ytdl-go/blob/main/README.md) - Project overview
 
 ## Frequently Asked Questions
 
