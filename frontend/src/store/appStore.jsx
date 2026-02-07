@@ -4,6 +4,17 @@ import { createStore } from 'solid-js/store';
 const APP_STATE_STORAGE_KEY = 'ytdl-go:app-state:v1';
 const VALID_TABS = new Set(['download', 'library', 'settings']);
 const VALID_DUPLICATE_POLICIES = new Set(['prompt', 'overwrite', 'skip', 'rename']);
+const VALID_LIBRARY_MEDIA_TYPES = new Set(['video', 'audio']);
+const VALID_LIBRARY_SORT_KEYS = new Set([
+  'newest',
+  'oldest',
+  'creator_asc',
+  'creator_desc',
+  'collection_asc',
+  'collection_desc',
+  'playlist_asc',
+  'playlist_desc',
+]);
 export const MAX_JOBS = 32;
 export const MAX_TIMEOUT_SECONDS = 24 * 60 * 60;
 
@@ -27,6 +38,13 @@ const createDefaultState = () => ({
   settings: { ...defaultSettings },
   library: {
     downloads: [],
+    activeMediaType: 'video',
+    filters: {
+      creator: '',
+      collection: '',
+      playlist: '',
+    },
+    sortKey: 'newest',
   },
   player: {
     active: false,
@@ -56,6 +74,15 @@ const getPersistedState = (state) => ({
   },
   settings: {
     ...state.settings,
+  },
+  library: {
+    activeMediaType: state.library.activeMediaType,
+    filters: {
+      creator: state.library.filters.creator,
+      collection: state.library.filters.collection,
+      playlist: state.library.filters.playlist,
+    },
+    sortKey: state.library.sortKey,
   },
   download: {
     urlInput: state.download.urlInput,
@@ -90,6 +117,27 @@ const sanitizeSettings = (rawSettings) => {
     onDuplicate: VALID_DUPLICATE_POLICIES.has(onDuplicate) ? onDuplicate : defaultSettings.onDuplicate,
     useCookies: toBoolean(raw.useCookies, defaultSettings.useCookies),
     poTokenExtension: toBoolean(raw.poTokenExtension, defaultSettings.poTokenExtension),
+  };
+};
+
+const sanitizeLibraryFilters = (rawFilters) => {
+  const raw = rawFilters && typeof rawFilters === 'object' ? rawFilters : {};
+  return {
+    creator: toString(raw.creator, ''),
+    collection: toString(raw.collection, ''),
+    playlist: toString(raw.playlist, ''),
+  };
+};
+
+const sanitizeLibrary = (rawLibrary) => {
+  const raw = rawLibrary && typeof rawLibrary === 'object' ? rawLibrary : {};
+
+  const activeMediaType = toString(raw.activeMediaType, 'video');
+  const sortKey = toString(raw.sortKey, 'newest');
+  return {
+    activeMediaType: VALID_LIBRARY_MEDIA_TYPES.has(activeMediaType) ? activeMediaType : 'video',
+    filters: sanitizeLibraryFilters(raw.filters),
+    sortKey: VALID_LIBRARY_SORT_KEYS.has(sortKey) ? sortKey : 'newest',
   };
 };
 
@@ -128,6 +176,7 @@ const getInitialState = () => {
     : baseState.ui.isAdvanced;
 
   const persistedSettings = sanitizeSettings(persisted.settings);
+  const persistedLibrary = sanitizeLibrary(persisted.library);
   const persistedUrlInput = typeof persisted?.download?.urlInput === 'string'
     ? persisted.download.urlInput
     : baseState.download.urlInput;
@@ -140,6 +189,12 @@ const getInitialState = () => {
     },
     settings: {
       ...persistedSettings,
+    },
+    library: {
+      ...baseState.library,
+      activeMediaType: persistedLibrary.activeMediaType,
+      filters: persistedLibrary.filters,
+      sortKey: persistedLibrary.sortKey,
     },
     download: {
       ...baseState.download,

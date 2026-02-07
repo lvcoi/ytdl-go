@@ -1,21 +1,25 @@
 # Task List
 
 ## Comments
+
 - Execute one PR at a time.
 - After each PR, stop for review before starting the next PR.
 - Keep this file as the source of truth for scope and status.
 
 ## Status Legend
+
 - ✅ Completed and committed
 - 🟡 Implemented locally (not committed)
 - ⏳ Pending
 
 ## Current Branch Snapshot
+
 - Branch: `web-ui`
-- Last committed PR work: `PR4` (`191b97b`)
-- Local in-progress changes: `PR5` (`internal/web/server.go`, `internal/web/server_test.go`)
+- Last committed PR work: `PR5` (`b8c2182`)
+- Local in-progress changes: `PR6` (`frontend/src/App.jsx`, `frontend/src/components/LibraryView.jsx`, `frontend/src/store/appStore.jsx`)
 
 ## PR Roadmap
+
 1. **PR0: Dev API Port Fix (Immediate blocker)**
    - Covers: `9` (dev config part)
    - Scope: make Vite proxy target configurable via env (`VITE_API_PROXY_TARGET`), default to `http://127.0.0.1:8080`, update docs/scripts.
@@ -44,12 +48,12 @@
 6. **PR5: Unified Metadata API + Media Folder Layout Prep**
    - Covers: `6`, groundwork for `5` and comment `#4`
    - Scope: backend reads sidecar metadata and returns consistent fields; establish/normalize `media/{audio,video,playlist,data}` usage.
-   - Status: 🟡 Implemented locally (not committed)
+   - Status: ✅ Completed and committed (`b8c2182`)
 
 7. **PR6: Library Tabs + Filtering/Sorting**
    - Covers: core of `5`
    - Scope: Video/Audio sub-tabs; filter/sort by Artist/Creator, Album/Channel, Playlist.
-   - Status: ⏳ Pending
+   - Status: 🟡 Implemented locally (not committed)
 
 8. **PR7: Saved Playlists (Fast Frontend Phase)**
    - Covers: `5` (phase A)

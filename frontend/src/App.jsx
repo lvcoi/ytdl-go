@@ -21,6 +21,13 @@ const shouldSyncLibraryForTerminalDownload = (status, stats) => {
   return toSucceededCount(stats) > 0;
 };
 
+const encodeMediaPath = (relativePath) => (
+  String(relativePath || '')
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+);
+
 function App() {
   const { state, setState } = useAppStore();
   let mediaListAbortController = null;
@@ -162,7 +169,7 @@ function App() {
     // Add the full media URL for the player
     const mediaItem = {
       ...item,
-      url: `/api/media/${item.filename}`
+      url: `/api/media/${encodeMediaPath(item.filename)}`
     };
     setState('player', 'selectedMedia', mediaItem);
     setState('player', 'active', true);
@@ -231,6 +238,17 @@ function App() {
               <div class="max-w-4xl mx-auto">
                   <LibraryView
                       downloads={() => state.library.downloads}
+                      activeMediaType={() => state.library.activeMediaType}
+                      filters={() => state.library.filters}
+                      sortKey={() => state.library.sortKey}
+                      onMediaTypeChange={(nextType) => setState('library', 'activeMediaType', nextType)}
+                      onFilterChange={(filterKey, value) => setState('library', 'filters', filterKey, value)}
+                      onClearFilters={() => setState('library', 'filters', {
+                        creator: '',
+                        collection: '',
+                        playlist: '',
+                      })}
+                      onSortKeyChange={(nextSortKey) => setState('library', 'sortKey', nextSortKey)}
                       openPlayer={openPlayer}
                   />
               </div>
