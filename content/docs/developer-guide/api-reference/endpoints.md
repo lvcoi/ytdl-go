@@ -91,8 +91,6 @@ POST /api/download
 | `{title}` | Video title | `Rick Astley - Never Gonna Give You Up` |
 | `{id}` | Video ID | `dQw4w9WgXcQ` |
 | `{ext}` | File extension | `mp4`, `m4a` |
-| `{uploader}` | Channel name | `RickAstleyVEVO` |
-| `{date}` | Upload date | `20091024` |
 
 ### Success Response
 
