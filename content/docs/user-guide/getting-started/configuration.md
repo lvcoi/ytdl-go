@@ -69,7 +69,7 @@ Understanding the defaults helps you use ytdl-go effectively:
 | **Quality** | `best` | Video quality selection |
 | **Format** | Auto | Container format (mp4, webm, etc.) |
 | **Jobs** | `1` | Concurrent downloads |
-| **Timeout** | `180` seconds | Network timeout |
+| **Timeout** | `3m` | Network timeout |
 | **Retries** | `3` | Download retry attempts |
 | **On Duplicate** | `prompt` | Behavior when file exists |
 
