@@ -283,10 +283,10 @@ Use index for proper sorting in file managers:
 ```bash
 # Good: Natural sorting
 ytdl-go -o "{playlist_title}/{index} - {title}.{ext}" [PLAYLIST_URL]
-# Results in: 01, 02, 03... (if count < 100)
+# Results in: 1, 2, 3... 10, 11, 12...
 
-# Consider manual padding for large playlists
-# Use metadata override: -meta index=001
+# Note: Index padding is automatic based on playlist size
+# For playlists > 99 items, indices are zero-padded appropriately
 ```
 
 ## Template Testing
