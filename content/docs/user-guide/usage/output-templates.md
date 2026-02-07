@@ -256,9 +256,6 @@ Documentaries/
     ├── Part 2 - Forests.mp4
     └── Part 3 - Mountains.mp4
 ```
-    ├── Part 02 - Forests.mp4
-    └── Part 03 - Deserts.mp4
-```
 
 ### DJ Sets Archive
 
