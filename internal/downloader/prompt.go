@@ -10,18 +10,6 @@ import (
 	"sync"
 )
 
-// duplicateAction represents the user's choice for handling existing files
-type duplicateAction int
-
-const (
-	duplicateAskEach duplicateAction = iota
-	duplicateOverwriteAll
-	duplicateSkipAll
-	duplicateRenameAll
-)
-
-var globalDuplicateAction = duplicateAskEach
-
 var promptMu sync.Mutex
 var promptCond = sync.NewCond(&promptMu)
 var promptActive bool
@@ -50,8 +38,76 @@ func waitForPromptClear() {
 	promptMu.Unlock()
 }
 
+func applyDuplicatePolicy(policy DuplicatePolicy, path, baseDir string) (string, bool, error) {
+	switch policy {
+	case DuplicatePolicyOverwrite:
+		return path, false, nil
+	case DuplicatePolicySkip:
+		return path, true, nil
+	case DuplicatePolicyRename:
+		newPath, err := nextAvailablePath(path, baseDir)
+		return newPath, false, err
+	default:
+		return "", false, errors.New("duplicate prompt failed")
+	}
+}
+
+func applyDuplicateDecision(decision DuplicateDecision, path, baseDir string, session *DuplicateSession) (string, bool, error) {
+	switch decision {
+	case DuplicateDecisionOverwrite:
+		return path, false, nil
+	case DuplicateDecisionOverwriteAll:
+		if session != nil {
+			session.SetApplyAllDecision(decision)
+		}
+		return path, false, nil
+	case DuplicateDecisionSkip:
+		return path, true, nil
+	case DuplicateDecisionSkipAll:
+		if session != nil {
+			session.SetApplyAllDecision(decision)
+		}
+		return path, true, nil
+	case DuplicateDecisionRename:
+		newPath, err := nextAvailablePath(path, baseDir)
+		return newPath, false, err
+	case DuplicateDecisionRenameAll:
+		if session != nil {
+			session.SetApplyAllDecision(decision)
+		}
+		newPath, err := nextAvailablePath(path, baseDir)
+		return newPath, false, err
+	case DuplicateDecisionCancel:
+		return "", false, errors.New("aborted by user")
+	default:
+		return "", false, errors.New("duplicate prompt failed")
+	}
+}
+
+func promptChoiceToDecision(choice promptChoice) DuplicateDecision {
+	switch choice {
+	case promptOverwrite:
+		return DuplicateDecisionOverwrite
+	case promptOverwriteAll:
+		return DuplicateDecisionOverwriteAll
+	case promptSkip:
+		return DuplicateDecisionSkip
+	case promptSkipAll:
+		return DuplicateDecisionSkipAll
+	case promptRename:
+		return DuplicateDecisionRename
+	case promptRenameAll:
+		return DuplicateDecisionRenameAll
+	case promptQuit:
+		return DuplicateDecisionCancel
+	default:
+		return ""
+	}
+}
+
 func handleExistingPath(path, baseDir string, opts Options, printer *Printer) (string, bool, error) {
-	if isTerminal(os.Stdin) {
+	stdinTTY := isTerminal(os.Stdin)
+	if stdinTTY {
 		waitForPromptClear()
 	}
 	base := baseDir
@@ -78,26 +134,25 @@ func handleExistingPath(path, baseDir string, opts Options, printer *Printer) (s
 		return "", false, wrapCategory(CategoryFilesystem, fmt.Errorf("output path is a directory: %s", path))
 	}
 
-	// Check if we have a global "apply to all" action
-	switch globalDuplicateAction {
-	case duplicateOverwriteAll:
-		return path, false, nil
-	case duplicateSkipAll:
-		return path, true, nil
-	case duplicateRenameAll:
-		newPath, err := nextAvailablePath(path, baseDir)
-		return newPath, false, err
+	if policy, ok := opts.DuplicateSession.ApplyAllPolicy(); ok {
+		return applyDuplicatePolicy(policy, path, baseDir)
 	}
 
-	if !isTerminal(os.Stdin) {
-		if !opts.Quiet {
-			fmt.Fprintf(os.Stderr, "warning: %s exists; overwriting (stdin not a TTY)\n", path)
+	policy := opts.OnDuplicate.OrDefault()
+	if policy != DuplicatePolicyPrompt {
+		return applyDuplicatePolicy(policy, path, baseDir)
+	}
+
+	if opts.DuplicatePrompter != nil {
+		decision, err := opts.DuplicatePrompter.PromptDuplicate(path)
+		if err != nil {
+			return "", false, wrapCategory(CategoryFilesystem, err)
 		}
-		return path, false, nil
+		return applyDuplicateDecision(decision, path, baseDir, opts.DuplicateSession)
 	}
 
 	// Use TUI-based prompt if available (either ProgressManager or SeamlessTUI)
-	if printer != nil && printer.progressEnabled {
+	if stdinTTY && printer != nil && printer.progressEnabled {
 		var choice promptChoice
 		var err error
 
@@ -113,29 +168,14 @@ func handleExistingPath(path, baseDir string, opts Options, printer *Printer) (s
 		if err != nil {
 			return "", false, wrapCategory(CategoryFilesystem, err)
 		}
-		switch choice {
-		case promptOverwrite:
-			return path, false, nil
-		case promptOverwriteAll:
-			globalDuplicateAction = duplicateOverwriteAll
-			return path, false, nil
-		case promptSkip:
-			return path, true, nil
-		case promptSkipAll:
-			globalDuplicateAction = duplicateSkipAll
-			return path, true, nil
-		case promptRename:
-			newPath, err := nextAvailablePath(path, baseDir)
-			return newPath, false, err
-		case promptRenameAll:
-			globalDuplicateAction = duplicateRenameAll
-			newPath, err := nextAvailablePath(path, baseDir)
-			return newPath, false, err
-		case promptQuit:
-			return "", false, errors.New("aborted by user")
-		default:
-			return "", false, errors.New("duplicate prompt failed")
+		return applyDuplicateDecision(promptChoiceToDecision(choice), path, baseDir, opts.DuplicateSession)
+	}
+
+	if !stdinTTY {
+		if !opts.Quiet {
+			fmt.Fprintf(os.Stderr, "warning: %s exists; overwriting (stdin not a TTY)\n", path)
 		}
+		return path, false, nil
 	}
 
 stdinPrompt:
@@ -153,24 +193,19 @@ stdinPrompt:
 		}
 		switch strings.TrimSpace(line) {
 		case "o", "overwrite":
-			return path, false, nil
+			return applyDuplicateDecision(DuplicateDecisionOverwrite, path, baseDir, opts.DuplicateSession)
 		case "O", "Overwrite":
-			globalDuplicateAction = duplicateOverwriteAll
-			return path, false, nil
+			return applyDuplicateDecision(DuplicateDecisionOverwriteAll, path, baseDir, opts.DuplicateSession)
 		case "s", "skip":
-			return path, true, nil
+			return applyDuplicateDecision(DuplicateDecisionSkip, path, baseDir, opts.DuplicateSession)
 		case "S", "Skip":
-			globalDuplicateAction = duplicateSkipAll
-			return path, true, nil
+			return applyDuplicateDecision(DuplicateDecisionSkipAll, path, baseDir, opts.DuplicateSession)
 		case "r", "rename":
-			newPath, err := nextAvailablePath(path, baseDir)
-			return newPath, false, err
+			return applyDuplicateDecision(DuplicateDecisionRename, path, baseDir, opts.DuplicateSession)
 		case "R", "Rename":
-			globalDuplicateAction = duplicateRenameAll
-			newPath, err := nextAvailablePath(path, baseDir)
-			return newPath, false, err
+			return applyDuplicateDecision(DuplicateDecisionRenameAll, path, baseDir, opts.DuplicateSession)
 		case "q", "quit":
-			return "", false, errors.New("aborted by user")
+			return applyDuplicateDecision(DuplicateDecisionCancel, path, baseDir, opts.DuplicateSession)
 		default:
 			fmt.Fprintln(os.Stderr, "please enter o, s, r, q (or uppercase for 'all')")
 		}
