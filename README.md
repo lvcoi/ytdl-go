@@ -127,6 +127,9 @@ Use `build.sh` for an integrated repository build (Go binary + frontend assets).
 # Build and automatically launch the UI
 ./build.sh --web
 
+# Build and launch UI against a backend running on a different port
+VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
+
 # Show script options
 ./build.sh --help
 ```
@@ -136,6 +139,7 @@ What it does:
 - Builds the Go binary to `./bin/yt`
 - Builds frontend assets into `internal/web/assets/`
 - Prompts to launch the UI unless `--web` is passed
+- Uses `VITE_API_PROXY_TARGET` for frontend API proxy target (default `http://127.0.0.1:8080`)
 
 Options:
 

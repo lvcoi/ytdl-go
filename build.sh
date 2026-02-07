@@ -130,9 +130,10 @@ fi
 
 # 5. Launch Logic
 launch_ui() {
-    echo -e "${GREEN}Launching UI...${NC}"
+    local proxy_target="${VITE_API_PROXY_TARGET:-http://127.0.0.1:8080}"
+    echo -e "${GREEN}Launching UI (API proxy: ${proxy_target})...${NC}"
     # Use exec so the npm process takes over the session for console output
-    exec npm run dev
+    VITE_API_PROXY_TARGET="$proxy_target" exec npm run dev
 }
 
 if [ "$AUTO_LAUNCH" = true ]; then

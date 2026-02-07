@@ -33,14 +33,17 @@ npm run dev
 
 The app will be available at `http://localhost:5173` (or similar).
 
-> **Note:** To enable API calls in development mode, configure the proxy in `vite.config.js`:
+> **API proxy target:** Set `VITE_API_PROXY_TARGET` to point the frontend at any backend port.
 >
-> ```js
-> server: {
->   proxy: {
->     '/api': 'http://localhost:8080'
->   }
-> }
+> ```sh
+> # Optional; default is http://127.0.0.1:8080
+> VITE_API_PROXY_TARGET=http://127.0.0.1:9090 npm run dev
+> ```
+>
+> You can also persist this in `frontend/.env.local`:
+>
+> ```sh
+> VITE_API_PROXY_TARGET=http://127.0.0.1:9090
 > ```
 
 ## 🏗️ Building for Production

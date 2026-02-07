@@ -9,6 +9,7 @@ We welcome contributions! Whether you're fixing a bug, improving the design, or 
 3. **Branch:** Create a feature branch: `git checkout -b feature/amazing-new-view`.
 4. **Code:** Make your changes.
    - **Hot Reloading:** Use `npm run dev` to see changes instantly.
+   - **Custom backend port:** Set `VITE_API_PROXY_TARGET` (for example, `VITE_API_PROXY_TARGET=http://127.0.0.1:9090 npm run dev`).
 5. **Test:** Ensure everything works in the browser console (no red errors!).
 6. **Build:** Run `npm run build` to ensure the build passes and files are generated correctly.
    - **Optional full-stack check:** From the repo root, run `./build.sh` to validate integrated backend + frontend build behavior.

@@ -40,7 +40,7 @@ SolidJS signals and props are used for all state management — no external stat
 
 ## Build & Integration Pipeline
 
-1. **Development:** `npm run dev` starts Vite dev server with hot reload. API calls proxy to the Go backend via `vite.config.js` proxy (`/api` → `http://127.0.0.1:8080`).
+1. **Development:** `npm run dev` starts Vite dev server with hot reload. API calls proxy to the Go backend via `vite.config.js` proxy (`/api` → `VITE_API_PROXY_TARGET`, default `http://127.0.0.1:8080`).
 2. **Production build:** `npm run build` compiles assets into `../internal/web/assets/`.
 3. **Go embed:** The Go server uses `//go:embed assets/*` to bundle the compiled frontend into the binary.
 4. **Runtime:** The Go server serves the SPA at `/` and API endpoints at `/api/*`.
