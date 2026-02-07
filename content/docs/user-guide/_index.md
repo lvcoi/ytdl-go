@@ -14,3 +14,7 @@ Learn the basics of installing and configuring ytdl-go.
 ## Usage
 
 Detailed guides for downloading videos, audio, playlists, and more.
+
+## Troubleshooting
+
+Solutions to common problems, error codes, and frequently asked questions.
