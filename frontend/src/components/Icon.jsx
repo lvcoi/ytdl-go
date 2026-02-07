@@ -36,5 +36,6 @@ const iconMap = {
 };
 
 export default function Icon(props) {
-  return <Dynamic component={iconMap[props.name]} class={props.class} />;
+  const component = iconMap[props.name] || iconMap['alert-circle'];
+  return <Dynamic component={component} class={props.class} />;
 }

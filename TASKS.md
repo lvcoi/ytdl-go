@@ -15,9 +15,9 @@
 ## Current Branch Snapshot
 
 - Branch: `web-ui`
-- Last committed PR work: `PR7` (`3e6bc51`)
-- Latest commit on branch: docs consistency pass (`33d6bb0`)
-- Local in-progress changes: PR8 backend playlist persistence + frontend migration wiring
+- Last committed PR work: `PR8` (`6d068fa`)
+- Latest commit on branch: PR8 backend playlist persistence + migration (`6d068fa`)
+- Local in-progress changes: PR9 player visual refresh (thumbnail-first now-playing layout + unified metadata presentation)
 
 ## Recent Non-PR Work
 
@@ -70,13 +70,13 @@
 
 9. **PR8: Saved Playlists Backend Persistence + Migration**
    - Covers: `5` (phase B)
-   - Scope: backend playlist storage in `media/data`, API endpoints, one-time migration from localStorage.
-   - Status: 🟡 Implemented locally (not committed)
+   - Scope: backend playlist storage in `media/data`, API endpoints, one-time migration from localStorage, and follow-up robustness fixes from review.
+   - Status: ✅ Completed and committed (`6d068fa`)
 
 10. **PR9: Player Visual Refresh**
     - Covers: `7`
     - Scope: replace generic icon with thumbnail on left, unify metadata presentation.
-    - Status: ⏳ Pending
+    - Status: 🟡 Implemented locally (not committed)
 
 11. **PR10: Player Window Controls + Minimized Mode**
     - Covers: `8`
