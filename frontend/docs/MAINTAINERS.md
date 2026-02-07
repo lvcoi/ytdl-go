@@ -1,20 +1,26 @@
-# Maintainers
+# Frontend Maintainers
 
-The frontend module of ytdl-go is maintained by the core project team.
+This document defines maintainer responsibilities for the web UI in `frontend/`.
+For project-wide maintainer ownership, see `docs/MAINTAINERS.md`.
 
-## Current Maintainers
+## Current Frontend Maintainer(s)
 
-@lvcoi - Project Lead & Backend Integration
+- `@lvcoi` - project lead and frontend/backend integration owner
 
-## Roles & Responsibilities
+## Responsibilities
 
-Maintainers are responsible for:
+Frontend maintainers are responsible for:
 
-- **Code Review**: Reviewing Pull Requests related to the frontend/ directory to ensure code quality and stability.
-- **Dependency Management**: Updating dependencies (SolidJS, Vite, Tailwind) to keep the build secure and fast.
-- **UI/UX Consistency**: Ensuring the design remains consistent with the "Simple by default, powerful when needed" philosophy.
-- **Integration**: Verifying that build artifacts correctly integrate with the Go binary via embed.
+- Reviewing pull requests that modify `frontend/`.
+- Keeping frontend dependencies current and secure.
+- Preserving UI behavior and interaction consistency.
+- Verifying frontend output integrates correctly with embedded web assets.
 
-## Becoming a Maintainer
+## Ownership Boundaries
 
-Active contributors who demonstrate a strong understanding of SolidJS and the project's architecture may be invited to become maintainers.
+- Frontend maintainers own `frontend/src/`, `frontend/docs/`, and build config in `frontend/`.
+- API contract changes are coordinated with backend maintainers before merge.
+
+## Becoming a Frontend Maintainer
+
+Active contributors with repeated high-quality frontend contributions may be invited to join maintenance responsibilities.
