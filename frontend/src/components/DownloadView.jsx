@@ -2,24 +2,19 @@ import { For, Show, onCleanup, onMount } from 'solid-js';
 import Icon from './Icon';
 import DuplicateModal from './DuplicateModal';
 import { MAX_JOBS, MAX_TIMEOUT_SECONDS, useAppStore } from '../store/appStore';
+import {
+  isActiveDownloadStreamStatus,
+  isTerminalDownloadStatus,
+  normalizeDownloadStatus,
+} from '../utils/downloadStatus';
 
 const reconnectDelaysMs = [1000, 2000, 4000, 8000, 10000];
 const maxReconnectAttempts = 5;
 const maxVisibleLogs = 80;
-
-const activeStreamStatuses = new Set(['queued', 'running', 'reconnecting']);
-const terminalStatuses = new Set(['complete', 'error']);
-const acceptedStatuses = new Set(['queued', 'running', 'reconnecting', 'complete', 'error']);
 const acceptedLogLevels = new Set(['debug', 'info', 'warn', 'error']);
-
-const normalizeStatus = (value) => {
-  if (typeof value !== 'string') return '';
-  const normalized = value.trim().toLowerCase();
-  return acceptedStatuses.has(normalized) ? normalized : '';
-};
-
-const isActiveStreamStatus = (status) => activeStreamStatuses.has(status);
-const isTerminalStatus = (status) => terminalStatuses.has(status);
+const normalizeStatus = normalizeDownloadStatus;
+const isActiveStreamStatus = isActiveDownloadStreamStatus;
+const isTerminalStatus = isTerminalDownloadStatus;
 
 const statusTitle = (status) => {
   switch (status) {
@@ -178,7 +173,7 @@ const resolveExitCode = (status, explicitExitCode, previousExitCode) => {
   return null;
 };
 
-export default function DownloadView() {
+export default function DownloadView(props = {}) {
   const { state, setState } = useAppStore();
 
   const urlInput = () => state.download.urlInput;
@@ -280,7 +275,22 @@ export default function DownloadView() {
   };
 
   const currentStats = () => normalizeStats(jobStatus()?.stats);
+  const currentStatus = () => normalizeStatus(jobStatus()?.status);
   const currentStatusTone = () => statusTone(normalizeStatus(jobStatus()?.status));
+  const hasDownloadedMedia = () => {
+    if (currentStatus() === 'complete') {
+      return true;
+    }
+    if (currentStatus() !== 'error') {
+      return false;
+    }
+    return toNonNegativeInteger(jobStatus()?.stats?.succeeded, 0) > 0;
+  };
+  const openLibrary = () => {
+    if (typeof props.onOpenLibrary === 'function') {
+      props.onOpenLibrary();
+    }
+  };
 
   const closeProgressStream = () => {
     if (eventSource) {
@@ -944,6 +954,18 @@ export default function DownloadView() {
               </div>
             </div>
           </div>
+
+          <Show when={hasDownloadedMedia() && typeof props.onOpenLibrary === 'function'}>
+            <div class="flex justify-end">
+              <button
+                onClick={openLibrary}
+                class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500"
+              >
+                <Icon name="layers" class="w-4 h-4" />
+                View in Library
+              </button>
+            </div>
+          </Show>
 
           <Show when={currentStats()}>
             <div class="grid grid-cols-3 gap-2">

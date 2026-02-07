@@ -5,14 +5,34 @@ import LibraryView from './components/LibraryView';
 import SettingsView from './components/SettingsView';
 import Player from './components/Player';
 import { useAppStore } from './store/appStore';
+import { normalizeDownloadStatus } from './utils/downloadStatus';
+
+const toSucceededCount = (stats) => {
+  if (!stats || typeof stats !== 'object') return 0;
+  const parsed = Number(stats.succeeded);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
+};
+
+const shouldSyncLibraryForTerminalDownload = (status, stats) => {
+  const normalized = normalizeDownloadStatus(status);
+  if (normalized === 'complete') return true;
+  if (normalized !== 'error') return false;
+  return toSucceededCount(stats) > 0;
+};
 
 function App() {
   const { state, setState } = useAppStore();
   let mediaListAbortController = null;
   let mediaListRequestToken = 0;
+  let lastSyncedLibraryJobId = '';
+  let pendingLibrarySyncJobId = '';
+  let librarySyncRetryTimer = null;
+  let isDisposed = false;
 
   const activeTab = () => state.ui.activeTab;
   const isAdvanced = () => state.ui.isAdvanced;
+  const downloadJobStatus = () => state.download.jobStatus;
 
   const setActiveTab = (tab) => {
     setState('ui', 'activeTab', tab);
@@ -22,8 +42,22 @@ function App() {
     setState('ui', 'isAdvanced', (prev) => !prev);
   };
 
+  const openLibrary = () => {
+    setActiveTab('library');
+  };
+
+  const clearLibrarySyncRetryTimer = () => {
+    if (librarySyncRetryTimer) {
+      clearTimeout(librarySyncRetryTimer);
+      librarySyncRetryTimer = null;
+    }
+  };
+
   // Fetch media files from the API
   const fetchMediaFiles = async () => {
+    if (isDisposed) {
+      return false;
+    }
     if (mediaListAbortController) {
       mediaListAbortController.abort();
     }
@@ -34,17 +68,20 @@ function App() {
       const response = await fetch('/api/media/', { signal: mediaListAbortController.signal });
       if (response.ok) {
         const payload = await response.json();
-        if (requestToken !== mediaListRequestToken) {
-          return;
+        if (isDisposed || requestToken !== mediaListRequestToken) {
+          return false;
         }
         const files = Array.isArray(payload) ? payload : (payload.items || []);
         setState('library', 'downloads', files);
+        return true;
       }
+      return false;
     } catch (error) {
       if (error && typeof error === 'object' && error.name === 'AbortError') {
-        return;
+        return false;
       }
       console.error('Failed to fetch media files:', error);
+      return false;
     } finally {
       if (requestToken === mediaListRequestToken) {
         mediaListAbortController = null;
@@ -52,19 +89,69 @@ function App() {
     }
   };
 
+  const syncLibraryForJob = async (jobId, attempt = 1) => {
+    if (!jobId || isDisposed) {
+      return;
+    }
+    pendingLibrarySyncJobId = jobId;
+    const synced = await fetchMediaFiles();
+
+    if (isDisposed || pendingLibrarySyncJobId !== jobId) {
+      return;
+    }
+
+    if (synced) {
+      lastSyncedLibraryJobId = jobId;
+      pendingLibrarySyncJobId = '';
+      clearLibrarySyncRetryTimer();
+      return;
+    }
+
+    if (attempt >= 3) {
+      pendingLibrarySyncJobId = '';
+      return;
+    }
+
+    clearLibrarySyncRetryTimer();
+    librarySyncRetryTimer = setTimeout(() => {
+      librarySyncRetryTimer = null;
+      void syncLibraryForJob(jobId, attempt + 1);
+    }, attempt * 1000);
+  };
+
   // Load media files when component mounts and when switching to library tab
   onMount(() => {
-    fetchMediaFiles();
+    void fetchMediaFiles();
   });
 
   // Refresh media files when switching to library tab
   createEffect(() => {
     if (activeTab() === 'library') {
-      fetchMediaFiles();
+      void fetchMediaFiles();
     }
   });
 
+  // Keep library data fresh after terminal download outcomes, even when
+  // the user stays on the download tab.
+  createEffect(() => {
+    const currentJobStatus = downloadJobStatus();
+    const jobId = currentJobStatus?.jobId;
+    if (typeof jobId !== 'string' || jobId === '') {
+      return;
+    }
+    if (jobId === lastSyncedLibraryJobId || jobId === pendingLibrarySyncJobId) {
+      return;
+    }
+
+    if (!shouldSyncLibraryForTerminalDownload(currentJobStatus?.status, currentJobStatus?.stats)) {
+      return;
+    }
+    void syncLibraryForJob(jobId, 1);
+  });
+
   onCleanup(() => {
+    isDisposed = true;
+    clearLibrarySyncRetryTimer();
     if (mediaListAbortController) {
       mediaListAbortController.abort();
       mediaListAbortController = null;
@@ -138,7 +225,7 @@ function App() {
 
         <div class="flex-1 overflow-y-auto p-10 custom-scrollbar">
             <div class={`max-w-4xl mx-auto ${activeTab() === 'download' ? '' : 'hidden'}`}>
-                <DownloadView />
+                <DownloadView onOpenLibrary={openLibrary} />
             </div>
             <Show when={activeTab() === 'library'}>
               <div class="max-w-4xl mx-auto">
