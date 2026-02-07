@@ -82,7 +82,7 @@ Do not use ytdl-go to:
 
 ### Age-Restricted and Private Content
 
-ytdl-go may support downloading age-restricted or private content if you provide authentication cookies. **You are responsible for:**
+ytdl-go does not currently support authentication for age-restricted or private content. For publicly available content, **you are responsible for:**
 
 - Having legitimate access to the content
 - Complying with the content's terms and restrictions

@@ -23,10 +23,6 @@ Solutions to the most frequently encountered problems with ytdl-go.
    ytdl-go -timeout 5m URL
    ```
 3. **Check IP reputation** - Your IP might be rate-limited by YouTube
-4. **Use cookies** - For age-restricted or members-only content:
-   ```bash
-   ytdl-go -cookies cookies.txt URL
-   ```
 
 ### Network Timeouts
 
@@ -94,25 +90,13 @@ ytdl-go -quality 720p URL
 
 **Symptom:** "Content is restricted" or exit code 4.
 
-**Solution:**
-
-> **Note:** Age-restricted content requires authentication cookies.
-
-```bash
-# Export cookies from browser (use extension)
-# Then use with ytdl-go
-ytdl-go -cookies cookies.txt URL
-```
+**Current Limitation:** ytdl-go does not currently support authentication for age-restricted content. Only publicly accessible videos can be downloaded.
 
 ### Private or Members-Only Videos
 
 **Symptom:** Cannot access private or members-only content.
 
-**Current Limitation:** Authentication is required. Use cookies:
-
-```bash
-ytdl-go -cookies cookies.txt URL
-```
+**Current Limitation:** ytdl-go does not support downloading private or members-only content. Only publicly accessible videos can be downloaded.
 
 ### Region-Locked Content
 
@@ -273,6 +257,7 @@ ytdl-go -o "{artist}/{title}.{ext}" URL # ✓
 # Wrong placeholders
 ytdl-go -o "{name}.{ext}" URL           # ✗ No {name} placeholder
 ytdl-go -o "{author}.{ext}" URL         # ✗ Use {artist} instead
+ytdl-go -o "{track}.{ext}" URL          # ✗ No {track} placeholder
 ```
 
 ---

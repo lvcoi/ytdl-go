@@ -462,13 +462,12 @@ ytdl-go -audio -quality 96k \
 
 ```bash
 ytdl-go -quality 1080p \
-        -o "Archive/{author}/{release_date} - {title} [{id}].{ext}" \
+        -o "Archive/{artist}/{title} [{id}].{ext}" \
         URL
 ```
 
 Each file gets:
-- Author/channel in directory
-- Release date in filename
+- Artist/channel in directory
 - Video ID for uniqueness
 - Sidecar JSON with full metadata
 
@@ -476,7 +475,7 @@ Each file gets:
 
 ```bash
 ytdl-go -quality 720p \
-        -o "Research/{category}/{author} - {title}.{ext}" \
+        -o "Research/{category}/{artist} - {title}.{ext}" \
         -meta category="Topic Area" \
         URL
 ```
@@ -501,7 +500,7 @@ ytdl-go -info URL | jq .
 ytdl-go -meta artist="Artist Name" URL
 
 # Use different placeholder in template
-ytdl-go -o "{author} - {title}.{ext}" URL  # Use author instead of artist
+ytdl-go -o "{artist} - {title}.{ext}" URL
 ```
 
 ### Incorrect Embedded Tags
@@ -639,4 +638,4 @@ done < urls.txt
 - [Output Templates Guide](output-templates)
 - [Audio-Only Downloads Guide](audio-only)
 - [Playlist Downloads Guide](playlists)
-- [Command-Line Flags Reference](../../reference/flags)
+- [Command-Line Flags Reference](../../reference/cli-options)

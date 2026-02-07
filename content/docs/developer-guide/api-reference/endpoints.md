@@ -89,8 +89,10 @@ POST /api/download
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `{title}` | Video title | `Rick Astley - Never Gonna Give You Up` |
+| `{artist}` | Video author/artist | `Rick Astley` |
 | `{id}` | Video ID | `dQw4w9WgXcQ` |
 | `{ext}` | File extension | `mp4`, `m4a` |
+| `{quality}` | Quality label | `1080p`, `128k` |
 
 ### Success Response
 

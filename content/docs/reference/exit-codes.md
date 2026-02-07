@@ -203,7 +203,7 @@ Content is restricted and cannot be accessed. May require authentication.
 
 **Solutions:**
 
-> **Note:** Restricted content may require authentication cookies. Export cookies from your browser and use the `-cookies` flag (when supported).
+> **Note:** ytdl-go does not currently support authentication for restricted content. Only publicly accessible videos can be downloaded.
 
 ### Exit Code 5: Network
 

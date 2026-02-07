@@ -136,7 +136,6 @@ Now that you know the basics, explore more features:
 | `-info` | Show video info without downloading |
 | `-json` | Output JSON for scripting |
 | `-quiet` | Suppress progress output |
-| `-cookies FILE` | Use cookies for authentication |
 
 See [CLI Options Reference](../../reference/cli-options) for the complete list.
 

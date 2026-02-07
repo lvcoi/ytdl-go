@@ -131,7 +131,7 @@ Organize downloads by artist and album:
 ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 
 # With track numbers
-ytdl-go -audio -o "Music/{artist}/{album}/{track} - {title}.{ext}" URL
+ytdl-go -audio -o "Music/{artist}/{album}/{index} - {title}.{ext}" URL
 
 # Artist - Title format
 ytdl-go -audio -o "Music/{artist} - {title}.{ext}" URL
@@ -478,4 +478,4 @@ cat "song-title.info.json"
 
 - [Basic Downloads Guide](basic-downloads)
 - [Metadata and Sidecars Guide](metadata-sidecars)
-- [Command-Line Flags Reference](../../reference/flags)
+- [Command-Line Flags Reference](../../reference/cli-options)

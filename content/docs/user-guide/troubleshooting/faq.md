@@ -222,39 +222,15 @@ ytdl-go -on-duplicate prompt URL
 
 ### Can I download age-restricted videos?
 
-Yes, but you need authentication cookies:
-
-```bash
-ytdl-go -cookies cookies.txt URL
-```
-
-Export cookies from your browser using an extension like "Get cookies.txt".
+ytdl-go does not currently support authentication for age-restricted content. Only publicly accessible videos can be downloaded.
 
 ### Can I download private videos?
 
-Only if you're logged in. Use cookies from an authenticated browser session:
-
-```bash
-ytdl-go -cookies cookies.txt PRIVATE_URL
-```
+No, ytdl-go does not support downloading private or members-only content. Only publicly accessible videos can be downloaded.
 
 ### Can I download members-only content?
 
-Yes, with cookies from a logged-in YouTube Premium or channel member account:
-
-```bash
-ytdl-go -cookies cookies.txt MEMBERS_URL
-```
-
-### How do I get cookies from my browser?
-
-1. Install a cookie export extension:
-   - **Chrome/Edge**: "Get cookies.txt"
-   - **Firefox**: "cookies.txt"
-2. Visit YouTube while logged in
-3. Export cookies in Netscape format
-4. Save as `cookies.txt`
-5. Use with `-cookies cookies.txt`
+No, ytdl-go does not currently support authentication for members-only content. Only publicly accessible videos can be downloaded.
 
 ---
 
@@ -437,9 +413,6 @@ This is usually temporary. ytdl-go automatically retries. If persistent:
 ```bash
 # Increase timeout
 ytdl-go -timeout 10m URL
-
-# Use cookies for authentication
-ytdl-go -cookies cookies.txt URL
 ```
 
 ### Downloads hang or freeze

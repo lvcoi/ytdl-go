@@ -558,4 +558,4 @@ ytdl-go -itag 135 URL  # 480p instead of 1080p
 
 - [Basic Downloads Guide](basic-downloads)
 - [Audio-Only Downloads Guide](audio-only)
-- [Command-Line Flags Reference](../../reference/flags)
+- [Command-Line Flags Reference](../../reference/cli-options)

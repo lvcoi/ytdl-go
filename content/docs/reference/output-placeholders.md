@@ -81,8 +81,8 @@ All placeholders containing text are automatically sanitized for filesystem comp
 If a placeholder's value is not available, it is replaced with a safe default:
 
 - Text placeholders → empty string (for optional metadata like `{album}`)
-- Numeric placeholders → `0`
-- ID placeholders → video ID (these are generally always available)
+- Numeric placeholders → empty string
+- Required placeholders like `{title}`, `{id}`, `{ext}` → always available
 
 **Example:**
 

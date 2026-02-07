@@ -400,4 +400,4 @@ Courses/
 
 - [Basic Downloads Guide](basic-downloads)
 - [Output Templates Reference](output-templates)
-- [Command-Line Flags Reference](../../reference/flags)
+- [Command-Line Flags Reference](../../reference/cli-options)

@@ -145,21 +145,7 @@ ytdl-go URL
 
 **Solutions:**
 
-> **Note:** Age-restricted and private content requires authentication cookies.
-
-```bash
-# Export cookies from browser (use browser extension)
-# Then use with ytdl-go
-ytdl-go -cookies cookies.txt URL
-```
-
-**Cookie Export:**
-1. Install browser extension:
-   - Chrome/Edge: "Get cookies.txt"
-   - Firefox: "cookies.txt"
-2. Export cookies for YouTube
-3. Save as `cookies.txt`
-4. Use with `-cookies` flag
+> **Note:** ytdl-go does not currently support authentication for age-restricted or private content. Only publicly accessible videos can be downloaded.
 
 ---
 

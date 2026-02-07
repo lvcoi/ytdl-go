@@ -38,7 +38,6 @@ ytdl-go -o "template-string" URL
 | Placeholder | Description | Example | Notes |
 |-------------|-------------|---------|-------|
 | `{artist}` | Video author/artist | `Artist Name` | Sanitized for filesystem |
-| `{author}` | Channel/uploader name | `Channel Name` | Alternative to artist |
 | `{album}` | Album name | `Album Name` | From YouTube Music metadata |
 
 ### Playlist Placeholders
@@ -55,16 +54,6 @@ ytdl-go -o "template-string" URL
 > **Playlist Context**
 >
 > Playlist placeholders are only available when downloading from a playlist URL. They remain empty for single video downloads.
-
-### Date Placeholders
-
-Date information from video metadata:
-
-| Placeholder | Description | Example |
-|-------------|-------------|---------|
-| `{upload_date}` | Upload date | `20240115` |
-| `{release_date}` | Release date | `2024-01-15` |
-| `{release_year}` | Release year | `2024` |
 
 ## Path Behavior
 
@@ -131,9 +120,6 @@ ytdl-go -o "Videos/{quality}/{title}.{ext}" URL
 
 # Organize by artist and album
 ytdl-go -o "Music/{artist}/{album}/{title}.{ext}" URL
-
-# Archive by date
-ytdl-go -o "Archive/{upload_date}/{title}.{ext}" URL
 
 # Complex organization
 ytdl-go -o "Content/{artist}/{quality}/{title}-{id}.{ext}" URL
@@ -261,7 +247,7 @@ Documentaries/
 
 ```bash
 ytdl-go -audio -quality best \
-        -o "DJ Sets/{artist}/{release_date} - {title}.{ext}" \
+        -o "DJ Sets/{artist}/{title}.{ext}" \
         URL
 ```
 
@@ -269,8 +255,8 @@ Result:
 ```
 DJ Sets/
 └── DJ Name/
-    ├── 20240115 - Live Set Volume 1.opus
-    └── 20240201 - Studio Mix.opus
+    ├── Live Set Volume 1.opus
+    └── Studio Mix.opus
 ```
 
 ### Video Quality Variants
@@ -292,15 +278,15 @@ Videos/
 ### Research Archive
 
 ```bash
-ytdl-go -o "Research/{artist}/{upload_date} - {title} [{id}].{ext}" URL
+ytdl-go -o "Research/{artist}/{title} [{id}].{ext}" URL
 ```
 
 Result:
 ```
 Research/
 └── Channel Name/
-    ├── 20240115 - Research Paper [abc123].mp4
-    └── 20240120 - Follow-up Study [xyz789].mp4
+    ├── Research Paper [abc123].mp4
+    └── Follow-up Study [xyz789].mp4
 ```
 
 ## Advanced Templates
@@ -339,9 +325,10 @@ Includes multiple metadata fields for maximum information.
 
 ## Working with Metadata Overrides
 
-Templates respect metadata overrides from `-meta`:
+The `-meta` flag allows overriding metadata that gets embedded in the output file (e.g., ID3 tags), but it does NOT affect template placeholders. Placeholders are always populated from the video's original metadata.
 
 ```bash
+# This overrides embedded metadata, but template uses original artist
 ytdl-go -audio \
         -o "Music/{artist}/{album}/{title}.{ext}" \
         -meta artist="Custom Artist" \
@@ -349,7 +336,7 @@ ytdl-go -audio \
         URL
 ```
 
-The custom metadata values are used in the template.
+The template will expand using the video's original artist/album, while the embedded ID3 tags will contain your custom values.
 
 ## Security Considerations
 
@@ -400,8 +387,8 @@ ls -la parent-directory/
 # Check available metadata
 ytdl-go -info URL | jq .
 
-# Use fallback values or different placeholders
-ytdl-go -o "{artist:-Unknown}/{title}.{ext}" URL
+# Use different placeholders or templates
+ytdl-go -o "{artist}/{title}.{ext}" URL
 ```
 
 ### Special Characters in Filenames
@@ -432,11 +419,10 @@ ytdl-go -o "{artist}/{id}.{ext}" URL
 1. **Keep templates readable**: Balance detail with simplicity
 2. **Use consistent structure**: Maintain same pattern across downloads
 3. **Include unique identifiers**: Add `{id}` to prevent overwrites
-4. **Use zero-padding**: Ensure correct sorting for playlists
-5. **Test templates**: Try on single video before batch downloads
-6. **Consider metadata**: Not all videos have all metadata fields
-7. **Plan for scale**: Use appropriate padding for large playlists
-8. **Document your templates**: Keep notes on organizational schemes
+4. **Test templates**: Try on single video before batch downloads
+5. **Consider metadata**: Not all videos have all metadata fields
+6. **Plan for scale**: Design templates that work for large playlists
+7. **Document your templates**: Keep notes on organizational schemes
 
 ## Template Cheat Sheet
 
@@ -509,7 +495,7 @@ ytdl-go -quality 1080p -o "Reference/{artist}/{title} [{id}].{ext}" URL
 
 ### Archivist
 ```bash
-ytdl-go -o "Archive/{release_year}/{release_date} - {artist} - {title} [{quality}].{ext}" URL
+ytdl-go -o "Archive/{artist} - {title} [{quality}].{ext}" URL
 ```
 
 ## Next Steps
@@ -524,4 +510,4 @@ ytdl-go -o "Archive/{release_year}/{release_date} - {artist} - {title} [{quality
 - [Basic Downloads Guide](basic-downloads)
 - [Playlist Downloads Guide](playlists)
 - [Metadata and Sidecars Guide](metadata-sidecars)
-- [Command-Line Flags Reference](../../reference/flags)
+- [Command-Line Flags Reference](../../reference/cli-options)
