@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,12 +29,15 @@ func withTempCWD(t *testing.T, fn func(tmpDir string)) {
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
 	}
+	origTracker := tracker
 
 	tmpDir := t.TempDir()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("chdir temp dir: %v", err)
 	}
+	tracker = &jobTracker{}
 	defer func() {
+		tracker = origTracker
 		_ = os.Chdir(origWD)
 	}()
 
@@ -167,6 +171,216 @@ func TestMediaListPaginationEndpoint(t *testing.T) {
 		defer badResp.Body.Close()
 		if badResp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("expected 400 for invalid offset, got %d", badResp.StatusCode)
+		}
+	})
+}
+
+func TestEnsureMediaLayoutCreatesRequiredSubdirs(t *testing.T) {
+	mediaDir := filepath.Join(t.TempDir(), "media")
+	if err := ensureMediaLayout(mediaDir); err != nil {
+		t.Fatalf("ensureMediaLayout: %v", err)
+	}
+
+	required := []string{mediaFolderAudio, mediaFolderVideo, mediaFolderPlaylist, mediaFolderData}
+	for _, folder := range required {
+		path := filepath.Join(mediaDir, folder)
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+		if !info.IsDir() {
+			t.Fatalf("expected %s to be a directory", path)
+		}
+	}
+}
+
+func TestParseDownloadRequestNormalizesOutputTemplateForMediaLayout(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantOutput string
+	}{
+		{
+			name:       "default video template when empty output",
+			body:       `{"urls":["https://example.com/watch?v=abc"],"options":{"audio":false}}`,
+			wantOutput: "video/{title}.{ext}",
+		},
+		{
+			name:       "default audio template when empty output",
+			body:       `{"urls":["https://example.com/watch?v=abc"],"options":{"audio":true}}`,
+			wantOutput: "audio/{title}.{ext}",
+		},
+		{
+			name:       "prefix plain template with media root",
+			body:       `{"urls":["https://example.com/watch?v=abc"],"options":{"audio":false,"output":"{artist}/{title}.{ext}"}}`,
+			wantOutput: "video/{artist}/{title}.{ext}",
+		},
+		{
+			name:       "keep known media root prefix",
+			body:       `{"urls":["https://example.com/watch?v=abc"],"options":{"audio":false,"output":"audio/{title}.{ext}"}}`,
+			wantOutput: "audio/{title}.{ext}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/download", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			_, opts, _, reqErr := parseDownloadRequest(rec, req)
+			if reqErr != nil {
+				t.Fatalf("parseDownloadRequest returned error: %v", reqErr)
+			}
+			if opts.OutputTemplate != tt.wantOutput {
+				t.Fatalf("expected output template %q, got %q", tt.wantOutput, opts.OutputTemplate)
+			}
+		})
+	}
+}
+
+func TestMediaListIncludesSidecarMetadataAndNestedPaths(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		mediaDir := filepath.Join(tmpDir, "media")
+		nestedDir := filepath.Join(mediaDir, "Playlists", "Road Trip")
+		if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+			t.Fatalf("mkdir nested media dir: %v", err)
+		}
+
+		nestedMediaPath := filepath.Join(nestedDir, "01 - Song.mp3")
+		if err := os.WriteFile(nestedMediaPath, []byte("audio"), 0o644); err != nil {
+			t.Fatalf("write nested media: %v", err)
+		}
+		nestedModTime := time.Now().Add(-30 * time.Minute)
+		if err := os.Chtimes(nestedMediaPath, nestedModTime, nestedModTime); err != nil {
+			t.Fatalf("chtimes nested media: %v", err)
+		}
+
+		nestedSidecar := `{
+			"id": "vid123",
+			"title": "Road Song",
+			"artist": "The Drivers",
+			"album": "Night Miles",
+			"duration_seconds": 245,
+			"release_date": "2024-01-15",
+			"source_url": "https://www.youtube.com/watch?v=vid123",
+			"extractor": "kkdai/youtube",
+			"output": "/absolute/path/should/not/leak.mp3",
+			"format": "mp3",
+			"status": "ok",
+			"playlist": {
+				"id": "PLROAD",
+				"title": "Road Trip",
+				"url": "https://www.youtube.com/playlist?list=PLROAD",
+				"index": 1,
+				"count": 10
+			}
+		}`
+		if err := os.WriteFile(nestedMediaPath+".json", []byte(nestedSidecar), 0o644); err != nil {
+			t.Fatalf("write nested sidecar: %v", err)
+		}
+
+		rootMediaPath := filepath.Join(mediaDir, "single.mp4")
+		if err := os.WriteFile(rootMediaPath, []byte("video"), 0o644); err != nil {
+			t.Fatalf("write root media: %v", err)
+		}
+		rootModTime := time.Now().Add(-2 * time.Hour)
+		if err := os.Chtimes(rootMediaPath, rootModTime, rootModTime); err != nil {
+			t.Fatalf("chtimes root media: %v", err)
+		}
+
+		// Should be ignored by media listing.
+		if err := os.WriteFile(filepath.Join(mediaDir, "playlist.json"), []byte(`{"id":"demo"}`), 0o644); err != nil {
+			t.Fatalf("write playlist metadata artifact: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get(baseURL + "/api/media/?limit=10")
+		if err != nil {
+			t.Fatalf("request media list: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for media list, got %d", resp.StatusCode)
+		}
+
+		var payload mediaListResponse
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode media list: %v", err)
+		}
+
+		if len(payload.Items) != 2 {
+			t.Fatalf("expected 2 media items (excluding json artifacts), got %d", len(payload.Items))
+		}
+		if payload.NextOffset != nil {
+			t.Fatalf("expected no next_offset for complete page, got %v", *payload.NextOffset)
+		}
+
+		nestedRelPath := filepath.ToSlash(filepath.Join("Playlists", "Road Trip", "01 - Song.mp3"))
+		itemsByFilename := make(map[string]mediaItem, len(payload.Items))
+		for _, item := range payload.Items {
+			itemsByFilename[item.Filename] = item
+		}
+
+		nestedItem, ok := itemsByFilename[nestedRelPath]
+		if !ok {
+			t.Fatalf("expected nested media item %q in response", nestedRelPath)
+		}
+		if !nestedItem.HasSidecar {
+			t.Fatalf("expected nested item to report sidecar metadata")
+		}
+		if nestedItem.Title != "Road Song" {
+			t.Fatalf("expected sidecar title, got %q", nestedItem.Title)
+		}
+		if nestedItem.Artist != "The Drivers" {
+			t.Fatalf("expected sidecar artist, got %q", nestedItem.Artist)
+		}
+		if nestedItem.Album != "Night Miles" {
+			t.Fatalf("expected sidecar album, got %q", nestedItem.Album)
+		}
+		if nestedItem.DurationSeconds != 245 {
+			t.Fatalf("expected sidecar duration, got %d", nestedItem.DurationSeconds)
+		}
+		if nestedItem.Date != "2024-01-15" {
+			t.Fatalf("expected release date from sidecar, got %q", nestedItem.Date)
+		}
+		if nestedItem.Type != "audio" {
+			t.Fatalf("expected audio type for mp3, got %q", nestedItem.Type)
+		}
+		if nestedItem.RelativePath != nestedRelPath {
+			t.Fatalf("expected relative path %q, got %q", nestedRelPath, nestedItem.RelativePath)
+		}
+		if nestedItem.Folder != filepath.ToSlash(filepath.Join("Playlists", "Road Trip")) {
+			t.Fatalf("expected folder path to be preserved, got %q", nestedItem.Folder)
+		}
+		if nestedItem.Metadata.Output != nestedRelPath {
+			t.Fatalf("expected metadata output to be normalized to relative path, got %q", nestedItem.Metadata.Output)
+		}
+		if nestedItem.Playlist == nil || nestedItem.Playlist.ID != "PLROAD" {
+			t.Fatalf("expected playlist metadata from sidecar, got %+v", nestedItem.Playlist)
+		}
+
+		rootItem, ok := itemsByFilename["single.mp4"]
+		if !ok {
+			t.Fatalf("expected root media item in response")
+		}
+		if rootItem.HasSidecar {
+			t.Fatalf("expected root item without sidecar to report has_sidecar=false")
+		}
+		if rootItem.Artist != "Unknown Artist" {
+			t.Fatalf("expected fallback artist for root item, got %q", rootItem.Artist)
+		}
+		if rootItem.Metadata.Extractor != "library" {
+			t.Fatalf("expected fallback extractor for root item, got %q", rootItem.Metadata.Extractor)
 		}
 	})
 }

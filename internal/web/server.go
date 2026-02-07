@@ -33,6 +33,10 @@ const (
 	jobCompletedTTL       = 15 * time.Minute
 	jobErroredTTL         = 30 * time.Minute
 	jobCleanupInterval    = time.Minute
+	mediaFolderAudio      = "audio"
+	mediaFolderVideo      = "video"
+	mediaFolderPlaylist   = "playlist"
+	mediaFolderData       = "data"
 )
 
 var audioMediaExtensions = map[string]struct{}{
@@ -61,6 +65,13 @@ var videoMediaExtensions = map[string]struct{}{
 	".ts":   {},
 	".webm": {},
 	".wmv":  {},
+}
+
+var mediaRootFolders = map[string]struct{}{
+	mediaFolderAudio:    {},
+	mediaFolderVideo:    {},
+	mediaFolderPlaylist: {},
+	mediaFolderData:     {},
 }
 
 type DownloadRequest struct {
@@ -95,13 +106,24 @@ type DuplicateResponseRequest struct {
 }
 
 type mediaItem struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Artist   string `json:"artist"`
-	Size     string `json:"size"`
-	Date     string `json:"date"`
-	Type     string `json:"type"`
-	Filename string `json:"filename"`
+	ID              string                  `json:"id"`
+	Title           string                  `json:"title"`
+	Artist          string                  `json:"artist"`
+	Album           string                  `json:"album,omitempty"`
+	Size            string                  `json:"size"`
+	SizeBytes       int64                   `json:"size_bytes"`
+	Date            string                  `json:"date"`
+	ModifiedAt      string                  `json:"modified_at"`
+	Type            string                  `json:"type"`
+	Filename        string                  `json:"filename"`
+	RelativePath    string                  `json:"relative_path,omitempty"`
+	Folder          string                  `json:"folder,omitempty"`
+	DurationSeconds int                     `json:"duration_seconds,omitempty"`
+	SourceURL       string                  `json:"source_url,omitempty"`
+	ThumbnailURL    string                  `json:"thumbnail_url,omitempty"`
+	Playlist        *downloader.PlaylistRef `json:"playlist,omitempty"`
+	HasSidecar      bool                    `json:"has_sidecar"`
+	Metadata        downloader.ItemMetadata `json:"metadata"`
 }
 
 type mediaListResponse struct {
@@ -161,11 +183,24 @@ func validateWebOutputTemplate(tmpl string) error {
 		prefixEnd = len(tmpl)
 	}
 	literalPrefix := tmpl[:prefixEnd]
-	if strings.Contains(literalPrefix, "/") || strings.Contains(literalPrefix, `\`) {
+	if (strings.Contains(literalPrefix, "/") || strings.Contains(literalPrefix, `\`)) && !isAllowedWebOutputLiteralPrefix(literalPrefix) {
 		return fmt.Errorf("invalid output template: directory components are not allowed in the literal prefix")
 	}
 
 	return nil
+}
+
+func isAllowedWebOutputLiteralPrefix(prefix string) bool {
+	normalized := strings.TrimSpace(strings.ReplaceAll(prefix, `\`, "/"))
+	normalized = strings.TrimSuffix(normalized, "/")
+	if normalized == "" {
+		return false
+	}
+	if strings.Contains(normalized, "/") {
+		return false
+	}
+	_, ok := mediaRootFolders[normalized]
+	return ok
 }
 
 type requestError struct {
@@ -231,14 +266,41 @@ func parseDownloadRequest(w http.ResponseWriter, r *http.Request) (*DownloadRequ
 	if err := validateWebOutputTemplate(opts.OutputTemplate); err != nil {
 		return nil, downloader.Options{}, 0, &requestError{http.StatusBadRequest, err.Error()}
 	}
-	if opts.OutputTemplate == "" {
-		opts.OutputTemplate = "{title}.{ext}"
-	}
+	opts.OutputTemplate = normalizeWebOutputTemplate(opts.OutputTemplate, opts.AudioOnly)
 	if opts.Timeout == 0 {
 		opts.Timeout = 3 * time.Minute
 	}
 
 	return &req, opts, req.Options.Jobs, nil
+}
+
+func normalizeWebOutputTemplate(template string, audioOnly bool) string {
+	baseFolder := mediaFolderVideo
+	if audioOnly {
+		baseFolder = mediaFolderAudio
+	}
+
+	normalized := strings.TrimSpace(strings.ReplaceAll(template, `\`, "/"))
+	if normalized == "" {
+		return baseFolder + "/{title}.{ext}"
+	}
+	normalized = strings.TrimPrefix(normalized, "./")
+	if hasKnownMediaRootPrefix(normalized) {
+		return normalized
+	}
+	return baseFolder + "/" + normalized
+}
+
+func hasKnownMediaRootPrefix(template string) bool {
+	if template == "" {
+		return false
+	}
+	first := template
+	if idx := strings.Index(first, "/"); idx >= 0 {
+		first = first[:idx]
+	}
+	_, ok := mediaRootFolders[first]
+	return ok
 }
 
 func ListenAndServe(ctx context.Context, addr string) error {
@@ -251,6 +313,9 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	}
 	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
 		return fmt.Errorf("creating media directory: %w", err)
+	}
+	if err := ensureMediaLayout(mediaDir); err != nil {
+		return err
 	}
 	log.Printf("Media directory: %s", mediaDir)
 	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
@@ -510,6 +575,17 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	}
 }
 
+func ensureMediaLayout(mediaDir string) error {
+	requiredFolders := []string{mediaFolderAudio, mediaFolderVideo, mediaFolderPlaylist, mediaFolderData}
+	for _, folder := range requiredFolders {
+		path := filepath.Join(mediaDir, folder)
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			return fmt.Errorf("creating media subdirectory %q: %w", folder, err)
+		}
+	}
+	return nil
+}
+
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -598,44 +674,81 @@ func parseMediaListPagination(r *http.Request) (offset int, limit int, err error
 }
 
 func listMediaFiles(mediaDir string) ([]mediaItem, error) {
-	entries, err := os.ReadDir(mediaDir)
-	if err != nil {
-		return nil, err
-	}
-
 	type enrichedMediaItem struct {
 		item    mediaItem
 		modTime time.Time
 	}
 
-	items := make([]enrichedMediaItem, 0, len(entries))
-	for _, entry := range entries {
+	items := make([]enrichedMediaItem, 0, 128)
+
+	err := filepath.WalkDir(mediaDir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			log.Printf("skipping media entry %q: %v", path, walkErr)
+			return nil
+		}
 		if entry.IsDir() {
-			continue
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		// Media sidecars/manifests are metadata artifacts and should not be listed as playable media.
+		if ext == ".json" {
+			return nil
 		}
 
 		info, infoErr := entry.Info()
 		if infoErr != nil {
-			log.Printf("skipping media entry %q: %v", entry.Name(), infoErr)
-			continue
+			log.Printf("skipping media entry %q: %v", path, infoErr)
+			return nil
 		}
 
-		ext := strings.ToLower(filepath.Ext(info.Name()))
-		mediaType := mediaTypeForExtension(ext)
+		relPath, relErr := filepath.Rel(mediaDir, path)
+		if relErr != nil {
+			log.Printf("skipping media entry %q: %v", path, relErr)
+			return nil
+		}
+		relPath = filepath.ToSlash(relPath)
 
-		title := strings.TrimSuffix(info.Name(), filepath.Ext(info.Name()))
+		metadata, hasSidecar := loadMediaMetadata(path, relPath, info)
+		title := firstNonEmpty(strings.TrimSpace(metadata.Title), strings.TrimSuffix(info.Name(), filepath.Ext(info.Name())))
+		artist := firstNonEmpty(strings.TrimSpace(metadata.Artist), strings.TrimSpace(metadata.Author), "Unknown Artist")
+		date := firstNonEmpty(strings.TrimSpace(metadata.ReleaseDate), info.ModTime().Format("2006-01-02"))
+		folder := filepath.ToSlash(filepath.Dir(relPath))
+		if folder == "." {
+			folder = ""
+		}
+
+		itemID := firstNonEmpty(strings.TrimSpace(metadata.ID), relPath)
 		items = append(items, enrichedMediaItem{
 			item: mediaItem{
-				ID:       info.Name(),
-				Title:    title,
-				Artist:   "Unknown Artist",
-				Size:     formatBytes(info.Size()),
-				Date:     info.ModTime().Format("2006-01-02"),
-				Type:     mediaType,
-				Filename: info.Name(),
+				ID:              itemID,
+				Title:           title,
+				Artist:          artist,
+				Album:           strings.TrimSpace(metadata.Album),
+				Size:            formatBytes(info.Size()),
+				SizeBytes:       info.Size(),
+				Date:            date,
+				ModifiedAt:      info.ModTime().UTC().Format(time.RFC3339),
+				Type:            mediaTypeForExtension(ext),
+				Filename:        relPath,
+				RelativePath:    relPath,
+				Folder:          folder,
+				DurationSeconds: metadata.DurationSeconds,
+				SourceURL:       strings.TrimSpace(metadata.SourceURL),
+				ThumbnailURL:    strings.TrimSpace(metadata.ThumbnailURL),
+				Playlist:        metadata.Playlist,
+				HasSidecar:      hasSidecar,
+				Metadata:        metadata,
 			},
 			modTime: info.ModTime(),
 		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	sort.Slice(items, func(i, j int) bool {
@@ -650,6 +763,79 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		out = append(out, item.item)
 	}
 	return out, nil
+}
+
+func loadMediaMetadata(mediaPath, relativePath string, info fs.FileInfo) (downloader.ItemMetadata, bool) {
+	fallback := defaultMediaMetadata(relativePath, info)
+	sidecarPath := mediaPath + ".json"
+	data, err := os.ReadFile(sidecarPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("failed reading sidecar %q: %v", sidecarPath, err)
+		}
+		return fallback, false
+	}
+
+	var metadata downloader.ItemMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		log.Printf("failed parsing sidecar %q: %v", sidecarPath, err)
+		return fallback, false
+	}
+
+	normalized := normalizeMediaMetadata(metadata, relativePath, info)
+	return normalized, true
+}
+
+func normalizeMediaMetadata(metadata downloader.ItemMetadata, relativePath string, info fs.FileInfo) downloader.ItemMetadata {
+	fallback := defaultMediaMetadata(relativePath, info)
+	if strings.TrimSpace(metadata.ID) == "" {
+		metadata.ID = fallback.ID
+	}
+	if strings.TrimSpace(metadata.Title) == "" {
+		metadata.Title = fallback.Title
+	}
+	if strings.TrimSpace(metadata.Artist) == "" {
+		metadata.Artist = firstNonEmpty(strings.TrimSpace(metadata.Author), fallback.Artist)
+	}
+	if strings.TrimSpace(metadata.Extractor) == "" {
+		metadata.Extractor = fallback.Extractor
+	}
+	if strings.TrimSpace(metadata.Status) == "" {
+		metadata.Status = fallback.Status
+	}
+	if strings.TrimSpace(metadata.Format) == "" {
+		metadata.Format = fallback.Format
+	}
+	// Keep API responses portable and avoid leaking absolute filesystem paths.
+	metadata.Output = relativePath
+	return metadata
+}
+
+func defaultMediaMetadata(relativePath string, info fs.FileInfo) downloader.ItemMetadata {
+	title := strings.TrimSpace(strings.TrimSuffix(filepath.Base(relativePath), filepath.Ext(relativePath)))
+	if title == "" {
+		title = relativePath
+	}
+	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(info.Name())), ".")
+	return downloader.ItemMetadata{
+		ID:        relativePath,
+		Title:     title,
+		Artist:    "Unknown Artist",
+		SourceURL: "",
+		Extractor: "library",
+		Output:    relativePath,
+		Format:    format,
+		Status:    "ok",
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func mediaTypeForExtension(ext string) string {
