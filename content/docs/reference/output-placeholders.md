@@ -78,17 +78,17 @@ ytdl-go -o "{artist} - {title}.{ext}" [URL]
 
 ### Sanitization
 
-All placeholders containing text are automatically sanitized for filesystem compatibility:
+All placeholders containing text are automatically sanitized for filesystem compatibility. Invalid filename characters are replaced with a dash (`-`) to ensure the resulting path is safe on common filesystems.
 
 **Characters Removed/Replaced:**
 - `/` → `-` (path separator)
 - `\` → `-` (Windows path separator)
 - `:` → `-` (Windows drive separator)
-- `*` → `_` (wildcard)
-- `?` → `_` (wildcard)
-- `"` → `'` (quotes)
-- `<` → `(` (redirects)
-- `>` → `)` (redirects)
+- `*` → `-` (wildcard)
+- `?` → `-` (wildcard)
+- `"` → `-` (quotes)
+- `<` → `-` (redirects)
+- `>` → `-` (redirects)
 - `|` → `-` (pipe)
 
 **Example:**
