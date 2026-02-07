@@ -56,6 +56,7 @@ This command compiles the source code and outputs optimized static files (`index
 `../internal/web/assets/`
 
 The Go server is configured to serve these files automatically.
+For the integrated root-level build flow (backend + frontend + optional UI launch), see the [`build.sh` section in the root README](../README.md#-one-command-build-script-buildsh).
 
 ## 📂 Project Structure
 

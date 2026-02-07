@@ -11,7 +11,13 @@ export default function DownloadView({ settings, setSettings, isAdvanced }) {
   const [duplicateQueue, setDuplicateQueue] = createSignal([]);
   const [duplicateError, setDuplicateError] = createSignal('');
 
+  const reconnectDelaysMs = [1000, 2000, 4000, 8000, 10000];
+  const maxReconnectAttempts = 5;
+
   let eventSource = null;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  let activeJobId = '';
 
   const activeDuplicate = () => duplicateQueue()[0];
 
@@ -88,106 +94,224 @@ export default function DownloadView({ settings, setSettings, isAdvanced }) {
     window.addEventListener('keydown', handleDuplicateShortcut);
   }
 
+  const closeProgressStream = () => {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  };
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  };
+
+  const resetProgressStreamState = () => {
+    clearReconnectTimer();
+    closeProgressStream();
+    reconnectAttempts = 0;
+    activeJobId = '';
+  };
+
+  const parseInputUrls = (rawInput) => {
+    const lines = rawInput
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const validUrls = [];
+    const invalidUrls = [];
+
+    for (const value of lines) {
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          validUrls.push(value);
+          continue;
+        }
+      } catch (_) {}
+      invalidUrls.push(value);
+    }
+
+    return { validUrls, invalidUrls };
+  };
+
+  const markStreamConnected = () => {
+    reconnectAttempts = 0;
+    clearReconnectTimer();
+    setJobStatus((prev) => {
+      if (!prev || prev.status !== 'reconnecting') return prev;
+      return {
+        ...prev,
+        status: 'running',
+        message: 'Download in progress...',
+        error: '',
+      };
+    });
+  };
+
   onCleanup(() => {
-    if (eventSource) eventSource.close();
+    resetProgressStreamState();
     if (typeof window !== 'undefined') {
       window.removeEventListener('keydown', handleDuplicateShortcut);
     }
   });
 
   const handleDownload = async () => {
-     if (!urlInput().trim()) return;
-     setIsDownloading(true);
-     setJobStatus(null);
-     setProgressTasks({});
-     setLogMessages([]);
-     setDuplicateQueue([]);
-     setDuplicateError('');
-     
-     const urls = urlInput().split('\n').filter(u => u.trim());
-     const s = settings();
-     const payload = {
-         urls,
-         options: {
-             output: s.output,
-             audio: s.audioOnly,
-             quality: s.quality,
-             format: s.format,
-             jobs: parseInt(s.jobs, 10) || 1,
-             timeout: parseInt(s.timeout, 10) || 180,
-             'on-duplicate': s.onDuplicate || 'prompt',
-         }
-     };
+    if (!urlInput().trim()) return;
+    resetProgressStreamState();
+    setIsDownloading(true);
+    setJobStatus(null);
+    setProgressTasks({});
+    setLogMessages([]);
+    setDuplicateQueue([]);
+    setDuplicateError('');
 
-     try {
-         const res = await fetch('/api/download', {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify(payload)
-         });
-         const data = await res.json();
-         if (data.error) {
-             setJobStatus({ status: 'error', error: data.error });
-             setIsDownloading(false);
-             return;
-         }
-         setJobStatus({ status: 'running', jobId: data.jobId, message: data.message });
-         listenForProgress(data.jobId);
-     } catch (e) {
-         setJobStatus({ status: 'error', error: e.message });
-         setIsDownloading(false);
-     }
+    const { validUrls: urls, invalidUrls } = parseInputUrls(urlInput());
+    if (invalidUrls.length > 0) {
+      const preview = invalidUrls.slice(0, 3).join(', ');
+      const suffix = invalidUrls.length > 3 ? ', ...' : '';
+      const label = invalidUrls.length === 1 ? 'Invalid URL' : `Invalid URLs (${invalidUrls.length})`;
+      setJobStatus({ status: 'error', error: `${label}: ${preview}${suffix}` });
+      setIsDownloading(false);
+      return;
+    }
+    if (urls.length === 0) {
+      setJobStatus({ status: 'error', error: 'No valid URLs provided.' });
+      setIsDownloading(false);
+      return;
+    }
+
+    const s = settings();
+    const payload = {
+      urls,
+      options: {
+        output: s.output,
+        audio: s.audioOnly,
+        quality: s.quality,
+        format: s.format,
+        jobs: parseInt(s.jobs, 10) || 1,
+        timeout: parseInt(s.timeout, 10) || 180,
+        'on-duplicate': s.onDuplicate || 'prompt',
+      }
+    };
+
+    try {
+      const res = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) {
+        setJobStatus({ status: 'error', error: data.error });
+        setIsDownloading(false);
+        return;
+      }
+      setJobStatus({ status: 'running', jobId: data.jobId, message: data.message });
+      listenForProgress(data.jobId);
+    } catch (e) {
+      setJobStatus({ status: 'error', error: e.message });
+      setIsDownloading(false);
+    }
   };
 
   const listenForProgress = (jobId) => {
-    if (eventSource) eventSource.close();
-    eventSource = new EventSource(`/api/download/progress?id=${jobId}`);
+    resetProgressStreamState();
+    activeJobId = jobId;
 
-    eventSource.onmessage = (e) => {
-      try {
-        const evt = JSON.parse(e.data);
-        switch (evt.type) {
-          case 'register':
-            setProgressTasks(prev => ({...prev, [evt.id]: { label: evt.label, total: evt.total, current: 0, percent: 0 }}));
-            break;
-          case 'progress':
-            setProgressTasks(prev => ({...prev, [evt.id]: { ...prev[evt.id], current: evt.current, total: evt.total, percent: evt.percent }}));
-            break;
-          case 'finish':
-            setProgressTasks(prev => ({...prev, [evt.id]: { ...prev[evt.id], percent: 100, done: true }}));
-            break;
-          case 'log':
-            setLogMessages(prev => [...prev, { level: evt.level, message: evt.message }].slice(-50));
-            break;
-          case 'duplicate':
-            setDuplicateQueue(prev => [...prev, {
-              jobId,
-              promptId: evt.promptId,
-              path: evt.path,
-              filename: evt.filename,
-            }]);
-            setDuplicateError('');
-            break;
-          case 'done':
-            eventSource.close();
-            eventSource = null;
-            setJobStatus(prev => ({ ...prev, status: evt.message === 'complete' ? 'complete' : 'error' }));
-            setIsDownloading(false);
-            setDuplicateQueue([]);
-            setDuplicateError('');
-            break;
+    const connect = () => {
+      if (activeJobId !== jobId) return;
+      closeProgressStream();
+      eventSource = new EventSource(`/api/download/progress?id=${encodeURIComponent(jobId)}`);
+
+      eventSource.onmessage = (e) => {
+        if (activeJobId !== jobId) return;
+        try {
+          const evt = JSON.parse(e.data);
+          markStreamConnected();
+          switch (evt.type) {
+            case 'register':
+              setProgressTasks((prev) => ({ ...prev, [evt.id]: { label: evt.label, total: evt.total, current: 0, percent: 0 } }));
+              break;
+            case 'progress':
+              setProgressTasks((prev) => ({ ...prev, [evt.id]: { ...prev[evt.id], current: evt.current, total: evt.total, percent: evt.percent } }));
+              break;
+            case 'finish':
+              setProgressTasks((prev) => ({ ...prev, [evt.id]: { ...prev[evt.id], percent: 100, done: true } }));
+              break;
+            case 'log':
+              setLogMessages((prev) => [...prev, { level: evt.level, message: evt.message }].slice(-50));
+              break;
+            case 'duplicate':
+              setDuplicateQueue((prev) => [...prev, {
+                jobId,
+                promptId: evt.promptId,
+                path: evt.path,
+                filename: evt.filename,
+              }]);
+              setDuplicateError('');
+              break;
+            case 'done':
+              resetProgressStreamState();
+              setJobStatus((prev) => ({
+                ...(prev || {}),
+                status: evt.message === 'complete' ? 'complete' : 'error',
+                error: evt.message === 'complete' ? '' : (prev?.error || 'Download failed'),
+              }));
+              setIsDownloading(false);
+              setDuplicateQueue([]);
+              setDuplicateError('');
+              break;
+          }
+        } catch (_) {}
+      };
+
+      eventSource.onerror = () => {
+        if (activeJobId !== jobId) return;
+        closeProgressStream();
+        clearReconnectTimer();
+
+        const state = jobStatus()?.status;
+        if (state !== 'running' && state !== 'reconnecting') {
+          return;
         }
-      } catch (_) {}
+
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          activeJobId = '';
+          reconnectAttempts = 0;
+          setJobStatus((prev) => ({
+            ...(prev || {}),
+            status: 'error',
+            error: 'Connection lost. Progress updates stopped.',
+          }));
+          setIsDownloading(false);
+          setDuplicateQueue([]);
+          setDuplicateError('');
+          return;
+        }
+
+        reconnectAttempts += 1;
+        const delay = reconnectDelaysMs[Math.min(reconnectAttempts - 1, reconnectDelaysMs.length - 1)];
+        setJobStatus((prev) => ({
+          ...(prev || { jobId }),
+          jobId,
+          status: 'reconnecting',
+          message: `Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`,
+        }));
+
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          if (activeJobId === jobId) {
+            connect();
+          }
+        }, delay);
+      };
     };
 
-    eventSource.onerror = () => {
-      eventSource.close();
-      eventSource = null;
-      setJobStatus(prev => prev?.status === 'running' ? { ...prev, status: 'error', error: 'Connection lost' } : prev);
-      setIsDownloading(false);
-      setDuplicateQueue([]);
-      setDuplicateError('');
-    };
+    connect();
   };
 
   const humanBytes = (bytes) => {
@@ -257,13 +381,15 @@ export default function DownloadView({ settings, setSettings, isAdvanced }) {
       <Show when={jobStatus()}>
         <div class={`p-6 rounded-3xl border-2 space-y-4 animate-in fade-in duration-300 ${
           jobStatus()?.status === 'error' ? 'bg-red-500/5 border-red-500/20'
-            : (jobStatus()?.status === 'complete' || jobStatus()?.status === 'error') ? 'bg-green-500/5 border-green-500/20'
+            : jobStatus()?.status === 'complete' ? 'bg-green-500/5 border-green-500/20'
+            : jobStatus()?.status === 'reconnecting' ? 'bg-amber-500/5 border-amber-500/20'
             : 'bg-blue-500/5 border-blue-500/20'
         }`}>
           <div class="flex items-center gap-3">
             <div class={`p-2 rounded-xl ${
               jobStatus()?.status === 'error' ? 'bg-red-500/10 text-red-400'
                 : (jobStatus()?.status === 'complete') ? 'bg-green-500/10 text-green-400'
+                : (jobStatus()?.status === 'reconnecting') ? 'bg-amber-500/10 text-amber-400'
                 : 'bg-blue-500/10 text-blue-400'
             }`}>
               <Icon
@@ -275,6 +401,7 @@ export default function DownloadView({ settings, setSettings, isAdvanced }) {
               <div class="font-bold text-white">
                 {jobStatus()?.status === 'error' ? 'Download Failed'
                   : jobStatus()?.status === 'complete' ? 'Download Complete'
+                  : jobStatus()?.status === 'reconnecting' ? 'Reconnecting...'
                   : 'Downloading...'}
               </div>
               <Show when={jobStatus()?.message}>

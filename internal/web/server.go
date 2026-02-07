@@ -35,6 +35,34 @@ const (
 	jobCleanupInterval    = time.Minute
 )
 
+var audioMediaExtensions = map[string]struct{}{
+	".aac":  {},
+	".alac": {},
+	".flac": {},
+	".m4a":  {},
+	".mp3":  {},
+	".oga":  {},
+	".ogg":  {},
+	".opus": {},
+	".wav":  {},
+	".wma":  {},
+}
+
+var videoMediaExtensions = map[string]struct{}{
+	".3gp":  {},
+	".avi":  {},
+	".m4v":  {},
+	".mkv":  {},
+	".mov":  {},
+	".mp4":  {},
+	".mpeg": {},
+	".mpg":  {},
+	".ogv":  {},
+	".ts":   {},
+	".webm": {},
+	".wmv":  {},
+}
+
 type DownloadRequest struct {
 	URLs    []string  `json:"urls"`
 	Options WebOption `json:"options"`
@@ -147,13 +175,13 @@ type requestError struct {
 
 func (e *requestError) Error() string { return e.message }
 
-func decodeJSONBody(r *http.Request, dst any) *requestError {
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) *requestError {
 	ct := r.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(ct)
 	if err != nil || mediaType != "application/json" {
 		return &requestError{http.StatusUnsupportedMediaType, "content type must be application/json"}
 	}
-	r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
@@ -169,9 +197,9 @@ func decodeJSONBody(r *http.Request, dst any) *requestError {
 	return nil
 }
 
-func parseDownloadRequest(r *http.Request) (*DownloadRequest, downloader.Options, int, *requestError) {
+func parseDownloadRequest(w http.ResponseWriter, r *http.Request) (*DownloadRequest, downloader.Options, int, *requestError) {
 	var req DownloadRequest
-	if err := decodeJSONBody(r, &req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		return nil, downloader.Options{}, 0, err
 	}
 	if len(req.URLs) == 0 {
@@ -239,7 +267,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		req, opts, jobs, err := parseDownloadRequest(r)
+		req, opts, jobs, err := parseDownloadRequest(w, r)
 		if err != nil {
 			writeJSONError(w, err.status, err.message)
 			return
@@ -280,7 +308,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 		var req DuplicateResponseRequest
-		if err := decodeJSONBody(r, &req); err != nil {
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			writeJSONError(w, err.status, err.message)
 			return
 		}
@@ -434,7 +462,7 @@ func ListenAndServe(ctx context.Context, addr string) error {
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           withSecurityHeaders(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      10 * time.Minute,
@@ -500,6 +528,18 @@ func fileExists(assets fs.FS, name string) bool {
 	return true
 }
 
+func withSecurityHeaders(next http.Handler) http.Handler {
+	const cspValue = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; media-src 'self'"
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Content-Security-Policy", cspValue)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func parseMediaListPagination(r *http.Request) (offset int, limit int, err error) {
 	offset = 0
 	limit = defaultMediaListLimit
@@ -549,10 +589,7 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		}
 
 		ext := strings.ToLower(filepath.Ext(info.Name()))
-		mediaType := "video"
-		if ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac" || ext == ".ogg" || ext == ".m4a" {
-			mediaType = "audio"
-		}
+		mediaType := mediaTypeForExtension(ext)
 
 		title := strings.TrimSuffix(info.Name(), filepath.Ext(info.Name()))
 		items = append(items, enrichedMediaItem{
@@ -581,6 +618,17 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		out = append(out, item.item)
 	}
 	return out, nil
+}
+
+func mediaTypeForExtension(ext string) string {
+	ext = strings.ToLower(ext)
+	if _, ok := audioMediaExtensions[ext]; ok {
+		return "audio"
+	}
+	if _, ok := videoMediaExtensions[ext]; ok {
+		return "video"
+	}
+	return "video"
 }
 
 func paginateMediaItems(items []mediaItem, offset int, limit int) ([]mediaItem, *int) {

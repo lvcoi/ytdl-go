@@ -57,15 +57,21 @@ done
 # Spinner/Progress Function
 run_with_feedback() {
     local task_name=$1
-    local cmd=$2
+    shift
+    if [ "$#" -eq 0 ]; then
+        echo -e "${RED}Error: No command provided for task '${task_name}'.${NC}"
+        exit 1
+    fi
+
     local pid
     local dots=""
     local spinner_chars="/-\|"
     local i=0
     local start_time=$SECONDS
+    local tmp_err
 
     tmp_err=$(mktemp)
-    eval "$cmd" 2>"$tmp_err" &
+    "$@" 2>"$tmp_err" &
     pid=$!
 
     tput civis # Hide cursor
@@ -101,9 +107,13 @@ run_with_feedback() {
     fi
 }
 
+run_frontend_build() {
+    npm install && npm run build
+}
+
 # 2. Build Go Backend
 mkdir -p "$BIN_DIR"
-run_with_feedback "Building Go Backend" "go build -o ./bin/$BINARY_NAME"
+run_with_feedback "Building Go Backend" go build -o "./bin/$BINARY_NAME"
 
 # 3. Transient Alias
 # Active only for the duration of this script's process/subshell
@@ -113,7 +123,7 @@ alias yt="$BIN_DIR/$BINARY_NAME"
 # 4. Build Frontend
 if [ -d "$FRONTEND_DIR" ]; then
     cd "$FRONTEND_DIR" || exit
-    run_with_feedback "Building NPM Frontend" "npm install && npm run build"
+    run_with_feedback "Building NPM Frontend" run_frontend_build
 else
     echo -e "${RED}Warning: Frontend directory not found.${NC}"
 fi

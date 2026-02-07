@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -266,6 +268,122 @@ func TestResolveMediaPathRejectsInvalidAndSymlinkEscape(t *testing.T) {
 	if err := os.Symlink(outsidePath, symlinkPath); err == nil {
 		if _, status, err := resolveMediaPath(mediaDir, "escape.txt"); err == nil || status != http.StatusForbidden {
 			t.Fatalf("expected forbidden for symlink escape")
+		}
+	}
+}
+
+func TestDecodeJSONBodyRejectsOversizedPayload(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		oversizedField := strings.Repeat("a", maxRequestBodyBytes+1)
+
+		downloadPayload := []byte(fmt.Sprintf(`{"urls":["%s"],"options":{"output":"{title}.{ext}"}}`, oversizedField))
+		reqDownload, err := http.NewRequest(http.MethodPost, baseURL+"/api/download", bytes.NewReader(downloadPayload))
+		if err != nil {
+			t.Fatalf("new request for /api/download: %v", err)
+		}
+		reqDownload.Header.Set("Content-Type", "application/json")
+
+		respDownload, err := client.Do(reqDownload)
+		if err != nil {
+			t.Fatalf("request /api/download: %v", err)
+		}
+		defer respDownload.Body.Close()
+		if respDownload.StatusCode != http.StatusRequestEntityTooLarge {
+			t.Fatalf("expected 413 for /api/download, got %d", respDownload.StatusCode)
+		}
+
+		dupPayload := []byte(fmt.Sprintf(`{"jobId":"job_1","promptId":"dup_1","choice":"%s"}`, oversizedField))
+		reqDuplicate, err := http.NewRequest(http.MethodPost, baseURL+"/api/download/duplicate-response", bytes.NewReader(dupPayload))
+		if err != nil {
+			t.Fatalf("new request for /api/download/duplicate-response: %v", err)
+		}
+		reqDuplicate.Header.Set("Content-Type", "application/json")
+
+		respDuplicate, err := client.Do(reqDuplicate)
+		if err != nil {
+			t.Fatalf("request /api/download/duplicate-response: %v", err)
+		}
+		defer respDuplicate.Body.Close()
+		if respDuplicate.StatusCode != http.StatusRequestEntityTooLarge {
+			t.Fatalf("expected 413 for /api/download/duplicate-response, got %d", respDuplicate.StatusCode)
+		}
+	})
+}
+
+func TestSecurityHeadersPresentOnResponses(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		mediaDir := filepath.Join(tmpDir, "media")
+		if err := os.MkdirAll(mediaDir, 0o755); err != nil {
+			t.Fatalf("mkdir media: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(mediaDir, "sample.mp4"), []byte("ok"), 0o644); err != nil {
+			t.Fatalf("write media file: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		paths := []string{"/api/status", "/api/media/sample.mp4", "/"}
+		for _, path := range paths {
+			resp, err := client.Get(baseURL + path)
+			if err != nil {
+				t.Fatalf("request %s: %v", path, err)
+			}
+			resp.Body.Close()
+
+			if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+				t.Fatalf("%s: expected X-Content-Type-Options=nosniff, got %q", path, got)
+			}
+			if got := resp.Header.Get("X-Frame-Options"); got != "DENY" {
+				t.Fatalf("%s: expected X-Frame-Options=DENY, got %q", path, got)
+			}
+			if got := resp.Header.Get("Referrer-Policy"); got != "no-referrer" {
+				t.Fatalf("%s: expected Referrer-Policy=no-referrer, got %q", path, got)
+			}
+			csp := resp.Header.Get("Content-Security-Policy")
+			if !strings.Contains(csp, "default-src 'self'") || !strings.Contains(csp, "media-src 'self'") {
+				t.Fatalf("%s: expected strict CSP, got %q", path, csp)
+			}
+		}
+	})
+}
+
+func TestMediaTypeForExtension(t *testing.T) {
+	tests := []struct {
+		ext  string
+		want string
+	}{
+		{ext: ".mp3", want: "audio"},
+		{ext: ".opus", want: "audio"},
+		{ext: ".wma", want: "audio"},
+		{ext: ".m4a", want: "audio"},
+		{ext: ".mp4", want: "video"},
+		{ext: ".m4v", want: "video"},
+		{ext: ".ts", want: "video"},
+		{ext: ".ogv", want: "video"},
+		{ext: ".unknown", want: "video"},
+	}
+
+	for _, tt := range tests {
+		if got := mediaTypeForExtension(tt.ext); got != tt.want {
+			t.Fatalf("mediaTypeForExtension(%q): expected %q, got %q", tt.ext, tt.want, got)
 		}
 	}
 }

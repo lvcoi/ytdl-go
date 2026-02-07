@@ -17,6 +17,7 @@
 
 - [✨ Features](#-features)
 - [🚀 Installation](#-installation)
+  - [🧰 One-command build script (build.sh)](#-one-command-build-script-buildsh)
 - [📖 Usage](#-usage)
   - [🎯 Basic usage](#-basic-usage)
   - [🎨 Output customization](#-output-customization)
@@ -114,6 +115,40 @@ go build .
 ```
 
 ![Custom cache build](screenshots/04-custom-cache.svg)
+
+### 🧰 One-command build script (build.sh)
+
+Use `build.sh` for an integrated repository build (Go binary + frontend assets).
+
+```bash
+# Build backend + frontend, then prompt to launch the UI
+./build.sh
+
+# Build and automatically launch the UI
+./build.sh --web
+
+# Show script options
+./build.sh --help
+```
+
+What it does:
+
+- Builds the Go binary to `./bin/yt`
+- Builds frontend assets into `internal/web/assets/`
+- Prompts to launch the UI unless `--web` is passed
+
+Options:
+
+| Option | Description |
+| --- | --- |
+| `-w`, `--web` | Automatically launch the UI after building |
+| `-h`, `--help` | Show help message |
+
+Automation example (non-interactive "do not launch UI" path):
+
+```bash
+printf 'n\n' | ./build.sh
+```
 
 ## 📖 Usage
 

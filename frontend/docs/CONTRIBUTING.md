@@ -11,6 +11,7 @@ We welcome contributions! Whether you're fixing a bug, improving the design, or 
    - **Hot Reloading:** Use `npm run dev` to see changes instantly.
 5. **Test:** Ensure everything works in the browser console (no red errors!).
 6. **Build:** Run `npm run build` to ensure the build passes and files are generated correctly.
+   - **Optional full-stack check:** From the repo root, run `./build.sh` to validate integrated backend + frontend build behavior.
 7. **Push & PR:** Push your branch and open a Pull Request.
 
 ## Code Style Guidelines
