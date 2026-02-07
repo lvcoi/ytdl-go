@@ -281,12 +281,11 @@ ytdl-go -o "{album}/{ext}/{artist}/{title}.{ext}" [URL]
 Use index for proper sorting in file managers:
 
 ```bash
-# Good: Natural sorting
+# Index values generated: 1, 2, 3... 10, 11, 12...
 ytdl-go -o "{playlist_title}/{index} - {title}.{ext}" [PLAYLIST_URL]
-# Results in: 1, 2, 3... 10, 11, 12...
 
 # Note: Index is not zero-padded automatically
-# Without padding, files sort as: 1, 10, 11, 2, 20, 3...
+# Without padding, files sort lexicographically as: 1, 10, 11, 2, 20, 3...
 # Most file managers use "natural sort" which handles this correctly
 # However, tools like `ls` may sort incorrectly without additional flags
 ```
