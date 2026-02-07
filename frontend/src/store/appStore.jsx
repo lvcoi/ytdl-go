@@ -15,6 +15,7 @@ const VALID_LIBRARY_SORT_KEYS = new Set([
   'playlist_asc',
   'playlist_desc',
 ]);
+const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
 export const MAX_JOBS = 32;
 export const MAX_TIMEOUT_SECONDS = 24 * 60 * 60;
 
@@ -43,8 +44,11 @@ const createDefaultState = () => ({
       creator: '',
       collection: '',
       playlist: '',
+      savedPlaylistId: '',
     },
     sortKey: 'newest',
+    savedPlaylists: [],
+    playlistAssignments: {},
   },
   player: {
     active: false,
@@ -81,8 +85,11 @@ const getPersistedState = (state) => ({
       creator: state.library.filters.creator,
       collection: state.library.filters.collection,
       playlist: state.library.filters.playlist,
+      savedPlaylistId: state.library.filters.savedPlaylistId,
     },
     sortKey: state.library.sortKey,
+    savedPlaylists: state.library.savedPlaylists,
+    playlistAssignments: state.library.playlistAssignments,
   },
   download: {
     urlInput: state.download.urlInput,
@@ -91,6 +98,12 @@ const getPersistedState = (state) => ({
 
 const toString = (value, fallback) => (typeof value === 'string' ? value : fallback);
 const toBoolean = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
+const normalizeSavedPlaylistName = (value) => (
+  toString(value, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_SAVED_PLAYLIST_NAME_LENGTH)
+);
 const toBoundedPositiveInteger = (value, fallback, max) => {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(parsed)) {
@@ -120,13 +133,53 @@ const sanitizeSettings = (rawSettings) => {
   };
 };
 
-const sanitizeLibraryFilters = (rawFilters) => {
+const sanitizeLibraryFilters = (rawFilters, validSavedPlaylistIds = new Set()) => {
   const raw = rawFilters && typeof rawFilters === 'object' ? rawFilters : {};
+  const savedPlaylistId = toString(raw.savedPlaylistId, '').trim();
   return {
     creator: toString(raw.creator, ''),
     collection: toString(raw.collection, ''),
     playlist: toString(raw.playlist, ''),
+    savedPlaylistId: validSavedPlaylistIds.has(savedPlaylistId) ? savedPlaylistId : '',
   };
+};
+
+const sanitizeSavedPlaylists = (rawPlaylists) => {
+  if (!Array.isArray(rawPlaylists)) {
+    return [];
+  }
+  const seenIds = new Set();
+  const out = [];
+  for (const entry of rawPlaylists) {
+    const value = entry && typeof entry === 'object' ? entry : {};
+    const id = toString(value.id, '').trim();
+    const name = normalizeSavedPlaylistName(value.name);
+    if (id === '' || name === '' || seenIds.has(id)) {
+      continue;
+    }
+    seenIds.add(id);
+    out.push({
+      id,
+      name,
+      createdAt: toString(value.createdAt, ''),
+      updatedAt: toString(value.updatedAt, ''),
+    });
+  }
+  return out;
+};
+
+const sanitizePlaylistAssignments = (rawAssignments, validSavedPlaylistIds) => {
+  const raw = rawAssignments && typeof rawAssignments === 'object' ? rawAssignments : {};
+  const out = {};
+  for (const [mediaKey, value] of Object.entries(raw)) {
+    const normalizedMediaKey = String(mediaKey || '').trim();
+    const savedPlaylistId = toString(value, '').trim();
+    if (normalizedMediaKey === '' || savedPlaylistId === '' || !validSavedPlaylistIds.has(savedPlaylistId)) {
+      continue;
+    }
+    out[normalizedMediaKey] = savedPlaylistId;
+  }
+  return out;
 };
 
 const sanitizeLibrary = (rawLibrary) => {
@@ -134,10 +187,14 @@ const sanitizeLibrary = (rawLibrary) => {
 
   const activeMediaType = toString(raw.activeMediaType, 'video');
   const sortKey = toString(raw.sortKey, 'newest');
+  const savedPlaylists = sanitizeSavedPlaylists(raw.savedPlaylists);
+  const validSavedPlaylistIds = new Set(savedPlaylists.map((playlist) => playlist.id));
   return {
     activeMediaType: VALID_LIBRARY_MEDIA_TYPES.has(activeMediaType) ? activeMediaType : 'video',
-    filters: sanitizeLibraryFilters(raw.filters),
+    filters: sanitizeLibraryFilters(raw.filters, validSavedPlaylistIds),
     sortKey: VALID_LIBRARY_SORT_KEYS.has(sortKey) ? sortKey : 'newest',
+    savedPlaylists,
+    playlistAssignments: sanitizePlaylistAssignments(raw.playlistAssignments, validSavedPlaylistIds),
   };
 };
 
@@ -195,6 +252,8 @@ const getInitialState = () => {
       activeMediaType: persistedLibrary.activeMediaType,
       filters: persistedLibrary.filters,
       sortKey: persistedLibrary.sortKey,
+      savedPlaylists: persistedLibrary.savedPlaylists,
+      playlistAssignments: persistedLibrary.playlistAssignments,
     },
     download: {
       ...baseState.download,

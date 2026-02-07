@@ -28,6 +28,28 @@ const encodeMediaPath = (relativePath) => (
     .join('/')
 );
 
+const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
+const normalizeSavedPlaylistName = (value) => (
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_SAVED_PLAYLIST_NAME_LENGTH)
+);
+const normalizeSavedPlaylistId = (value) => String(value || '').trim();
+const normalizeMediaKey = (value) => String(value || '').trim();
+const hasSavedPlaylistNameConflict = (playlists, playlistName, excludedId = '') => (
+  playlists.some((playlist) => (
+    playlist.id !== excludedId &&
+    playlist.name.localeCompare(playlistName, undefined, { sensitivity: 'base' }) === 0
+  ))
+);
+const createSavedPlaylistId = () => {
+  if (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `saved-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 function App() {
   const { state, setState } = useAppStore();
   let mediaListAbortController = null;
@@ -175,6 +197,147 @@ function App() {
     setState('player', 'active', true);
   };
 
+  const createSavedPlaylist = (rawName) => {
+    const normalizedName = normalizeSavedPlaylistName(rawName);
+    if (normalizedName === '') {
+      return { ok: false, error: 'Playlist name is required.' };
+    }
+
+    const timestamp = new Date().toISOString();
+    let createdPlaylist = null;
+    setState('library', 'savedPlaylists', (previous) => {
+      const playlists = Array.isArray(previous) ? previous : [];
+      if (hasSavedPlaylistNameConflict(playlists, normalizedName)) {
+        return playlists;
+      }
+      createdPlaylist = {
+        id: createSavedPlaylistId(),
+        name: normalizedName,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      return [...playlists, createdPlaylist];
+    });
+
+    if (!createdPlaylist) {
+      return { ok: false, error: 'A playlist with that name already exists.' };
+    }
+    return { ok: true, playlist: createdPlaylist };
+  };
+
+  const renameSavedPlaylist = (playlistId, rawName) => {
+    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
+    const normalizedName = normalizeSavedPlaylistName(rawName);
+    if (normalizedPlaylistId === '') {
+      return { ok: false, error: 'Playlist not found.' };
+    }
+    if (normalizedName === '') {
+      return { ok: false, error: 'Playlist name is required.' };
+    }
+
+    let resultCode = 'missing';
+    const updatedAt = new Date().toISOString();
+    setState('library', 'savedPlaylists', (previous) => {
+      const playlists = Array.isArray(previous) ? previous : [];
+      const exists = playlists.some((playlist) => playlist.id === normalizedPlaylistId);
+      if (!exists) {
+        resultCode = 'missing';
+        return playlists;
+      }
+      if (hasSavedPlaylistNameConflict(playlists, normalizedName, normalizedPlaylistId)) {
+        resultCode = 'duplicate';
+        return playlists;
+      }
+      resultCode = 'ok';
+      return playlists.map((playlist) => (
+        playlist.id === normalizedPlaylistId
+          ? { ...playlist, name: normalizedName, updatedAt }
+          : playlist
+      ));
+    });
+
+    if (resultCode === 'ok') {
+      return { ok: true };
+    }
+    if (resultCode === 'duplicate') {
+      return { ok: false, error: 'A playlist with that name already exists.' };
+    }
+    return { ok: false, error: 'Playlist not found.' };
+  };
+
+  const deleteSavedPlaylist = (playlistId) => {
+    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
+    if (normalizedPlaylistId === '') {
+      return { ok: false, error: 'Playlist not found.' };
+    }
+
+    let removed = false;
+    setState('library', 'savedPlaylists', (previous) => {
+      const playlists = Array.isArray(previous) ? previous : [];
+      const nextPlaylists = playlists.filter((playlist) => playlist.id !== normalizedPlaylistId);
+      removed = nextPlaylists.length !== playlists.length;
+      return nextPlaylists;
+    });
+
+    if (!removed) {
+      return { ok: false, error: 'Playlist not found.' };
+    }
+
+    setState('library', 'playlistAssignments', (previous) => {
+      const assignments = previous && typeof previous === 'object' ? previous : {};
+      let changed = false;
+      const nextAssignments = {};
+      for (const [mediaKey, assignedPlaylistId] of Object.entries(assignments)) {
+        if (assignedPlaylistId === normalizedPlaylistId) {
+          changed = true;
+          continue;
+        }
+        nextAssignments[mediaKey] = assignedPlaylistId;
+      }
+      return changed ? nextAssignments : assignments;
+    });
+
+    setState('library', 'filters', 'savedPlaylistId', (current) => (
+      current === normalizedPlaylistId ? '' : current
+    ));
+
+    return { ok: true };
+  };
+
+  const assignSavedPlaylist = (mediaKey, playlistId) => {
+    const normalizedMediaKey = normalizeMediaKey(mediaKey);
+    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
+    if (normalizedMediaKey === '') {
+      return;
+    }
+
+    const playlistExists = normalizedPlaylistId === '' || state.library.savedPlaylists.some(
+      (playlist) => playlist.id === normalizedPlaylistId,
+    );
+    if (!playlistExists) {
+      return;
+    }
+
+    setState('library', 'playlistAssignments', (previous) => {
+      const assignments = previous && typeof previous === 'object' ? previous : {};
+      if (normalizedPlaylistId === '') {
+        if (!(normalizedMediaKey in assignments)) {
+          return assignments;
+        }
+        const nextAssignments = { ...assignments };
+        delete nextAssignments[normalizedMediaKey];
+        return nextAssignments;
+      }
+      if (assignments[normalizedMediaKey] === normalizedPlaylistId) {
+        return assignments;
+      }
+      return {
+        ...assignments,
+        [normalizedMediaKey]: normalizedPlaylistId,
+      };
+    });
+  };
+
   return (
     <div class="flex h-screen bg-[#05070a] text-gray-200 overflow-hidden font-sans select-none">
       {/* Sidebar */}
@@ -241,14 +404,21 @@ function App() {
                       activeMediaType={() => state.library.activeMediaType}
                       filters={() => state.library.filters}
                       sortKey={() => state.library.sortKey}
+                      savedPlaylists={() => state.library.savedPlaylists}
+                      playlistAssignments={() => state.library.playlistAssignments}
                       onMediaTypeChange={(nextType) => setState('library', 'activeMediaType', nextType)}
                       onFilterChange={(filterKey, value) => setState('library', 'filters', filterKey, value)}
                       onClearFilters={() => setState('library', 'filters', {
                         creator: '',
                         collection: '',
                         playlist: '',
+                        savedPlaylistId: '',
                       })}
                       onSortKeyChange={(nextSortKey) => setState('library', 'sortKey', nextSortKey)}
+                      onCreateSavedPlaylist={createSavedPlaylist}
+                      onRenameSavedPlaylist={renameSavedPlaylist}
+                      onDeleteSavedPlaylist={deleteSavedPlaylist}
+                      onAssignSavedPlaylist={assignSavedPlaylist}
                       openPlayer={openPlayer}
                   />
               </div>

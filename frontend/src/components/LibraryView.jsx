@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createMemo } from 'solid-js';
+import { For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import Icon from './Icon';
 
 const MEDIA_TYPE_OPTIONS = [
@@ -17,6 +17,7 @@ const SORT_OPTIONS = [
   { value: 'playlist_desc', label: 'Playlist (Z-A)' },
 ];
 
+const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
 const VALID_SORT_KEYS = new Set(SORT_OPTIONS.map((option) => option.value));
 
 const firstNonEmpty = (...values) => {
@@ -32,6 +33,15 @@ const firstNonEmpty = (...values) => {
 };
 
 const normalizeMediaType = (value) => (String(value || '').toLowerCase() === 'audio' ? 'audio' : 'video');
+const normalizeSavedPlaylistName = (value) => (
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_SAVED_PLAYLIST_NAME_LENGTH)
+);
+const mediaKeyForItem = (item) => (
+  firstNonEmpty(item?.relative_path, item?.filename, item?.id)
+);
 const metadataFor = (item) => (item?.metadata && typeof item.metadata === 'object' ? item.metadata : {});
 const creatorLabel = (item) => {
   const metadata = metadataFor(item);
@@ -41,7 +51,7 @@ const albumOrChannelLabel = (item) => {
   const metadata = metadataFor(item);
   return firstNonEmpty(item?.album, metadata.album, creatorLabel(item), 'Unknown Collection');
 };
-const playlistLabel = (item) => {
+const sourcePlaylistLabel = (item) => {
   const metadata = metadataFor(item);
   return firstNonEmpty(item?.playlist?.title, metadata?.playlist?.title, 'Standalone');
 };
@@ -72,6 +82,43 @@ const toUniqueSortedValues = (values) => (
     .sort(compareText)
 );
 
+const normalizeSavedPlaylists = (rawSavedPlaylists) => {
+  if (!Array.isArray(rawSavedPlaylists)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const playlists = [];
+  for (const entry of rawSavedPlaylists) {
+    const value = entry && typeof entry === 'object' ? entry : {};
+    const id = String(value.id || '').trim();
+    const name = normalizeSavedPlaylistName(value.name);
+    if (id === '' || name === '' || seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    playlists.push({
+      id,
+      name,
+    });
+  }
+  return playlists;
+};
+
+const normalizePlaylistAssignments = (rawAssignments) => {
+  const value = rawAssignments && typeof rawAssignments === 'object' ? rawAssignments : {};
+  const assignments = {};
+  for (const [mediaKey, playlistId] of Object.entries(value)) {
+    const normalizedMediaKey = String(mediaKey || '').trim();
+    const normalizedPlaylistId = String(playlistId || '').trim();
+    if (normalizedMediaKey === '' || normalizedPlaylistId === '') {
+      continue;
+    }
+    assignments[normalizedMediaKey] = normalizedPlaylistId;
+  }
+  return assignments;
+};
+
 const sortMediaItems = (items, sortKey) => {
   const nextItems = [...items];
   nextItems.sort((left, right) => {
@@ -87,9 +134,9 @@ const sortMediaItems = (items, sortKey) => {
       case 'collection_desc':
         return compareText(albumOrChannelLabel(right), albumOrChannelLabel(left)) || compareText(left.title, right.title);
       case 'playlist_asc':
-        return compareText(playlistLabel(left), playlistLabel(right)) || compareText(left.title, right.title);
+        return compareText(sourcePlaylistLabel(left), sourcePlaylistLabel(right)) || compareText(left.title, right.title);
       case 'playlist_desc':
-        return compareText(playlistLabel(right), playlistLabel(left)) || compareText(left.title, right.title);
+        return compareText(sourcePlaylistLabel(right), sourcePlaylistLabel(left)) || compareText(left.title, right.title);
       case 'newest':
       default:
         return toTimestamp(right) - toTimestamp(left) || compareText(left.filename, right.filename);
@@ -99,6 +146,10 @@ const sortMediaItems = (items, sortKey) => {
 };
 
 export default function LibraryView(props) {
+  const [newSavedPlaylistName, setNewSavedPlaylistName] = createSignal('');
+  const [playlistMessage, setPlaylistMessage] = createSignal('');
+  const [playlistMessageTone, setPlaylistMessageTone] = createSignal('neutral');
+
   const downloads = createMemo(() => {
     const source = typeof props.downloads === 'function' ? props.downloads() : props.downloads;
     return Array.isArray(source) ? source : [];
@@ -116,6 +167,7 @@ export default function LibraryView(props) {
       creator: typeof value.creator === 'string' ? value.creator : '',
       collection: typeof value.collection === 'string' ? value.collection : '',
       playlist: typeof value.playlist === 'string' ? value.playlist : '',
+      savedPlaylistId: typeof value.savedPlaylistId === 'string' ? value.savedPlaylistId : '',
     };
   });
 
@@ -123,6 +175,33 @@ export default function LibraryView(props) {
     const source = typeof props.sortKey === 'function' ? props.sortKey() : props.sortKey;
     return VALID_SORT_KEYS.has(source) ? source : 'newest';
   });
+
+  const savedPlaylists = createMemo(() => {
+    const source = typeof props.savedPlaylists === 'function' ? props.savedPlaylists() : props.savedPlaylists;
+    return normalizeSavedPlaylists(source);
+  });
+
+  const playlistAssignments = createMemo(() => {
+    const source = typeof props.playlistAssignments === 'function' ? props.playlistAssignments() : props.playlistAssignments;
+    return normalizePlaylistAssignments(source);
+  });
+
+  const savedPlaylistById = createMemo(() => new Map(savedPlaylists().map((playlist) => [playlist.id, playlist])));
+  const savedPlaylistOptions = createMemo(() => savedPlaylists());
+
+  const savedPlaylistIdForItem = (item) => {
+    const mediaKey = mediaKeyForItem(item);
+    if (mediaKey === '') {
+      return '';
+    }
+    const assignedPlaylistId = playlistAssignments()[mediaKey] || '';
+    return savedPlaylistById().has(assignedPlaylistId) ? assignedPlaylistId : '';
+  };
+
+  const savedPlaylistLabelForItem = (item) => {
+    const playlist = savedPlaylistById().get(savedPlaylistIdForItem(item));
+    return playlist ? playlist.name : 'Unassigned';
+  };
 
   const mediaCounts = createMemo(() => {
     const counts = { video: 0, audio: 0 };
@@ -135,14 +214,15 @@ export default function LibraryView(props) {
   const typedItems = createMemo(() => downloads().filter((item) => normalizeMediaType(item?.type) === activeMediaType()));
   const creatorOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => creatorLabel(item))));
   const collectionOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => albumOrChannelLabel(item))));
-  const playlistOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => playlistLabel(item))));
+  const sourcePlaylistOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => sourcePlaylistLabel(item))));
 
   const filteredItems = createMemo(() => {
     const activeFilters = filters();
     return typedItems().filter((item) => (
       (activeFilters.creator === '' || creatorLabel(item) === activeFilters.creator) &&
       (activeFilters.collection === '' || albumOrChannelLabel(item) === activeFilters.collection) &&
-      (activeFilters.playlist === '' || playlistLabel(item) === activeFilters.playlist)
+      (activeFilters.playlist === '' || sourcePlaylistLabel(item) === activeFilters.playlist) &&
+      (activeFilters.savedPlaylistId === '' || savedPlaylistIdForItem(item) === activeFilters.savedPlaylistId)
     ));
   });
 
@@ -150,7 +230,7 @@ export default function LibraryView(props) {
 
   const hasActiveFilters = createMemo(() => {
     const value = filters();
-    return value.creator !== '' || value.collection !== '' || value.playlist !== '';
+    return value.creator !== '' || value.collection !== '' || value.playlist !== '' || value.savedPlaylistId !== '';
   });
 
   const handleMediaTypeChange = (nextType) => {
@@ -174,6 +254,7 @@ export default function LibraryView(props) {
       props.onFilterChange('creator', '');
       props.onFilterChange('collection', '');
       props.onFilterChange('playlist', '');
+      props.onFilterChange('savedPlaylistId', '');
     }
   };
 
@@ -183,6 +264,74 @@ export default function LibraryView(props) {
     }
   };
 
+  const setPlaylistFeedback = (tone, text) => {
+    setPlaylistMessageTone(tone);
+    setPlaylistMessage(text);
+  };
+
+  const handleCreateSavedPlaylist = () => {
+    const nextName = normalizeSavedPlaylistName(newSavedPlaylistName());
+    if (nextName === '') {
+      setPlaylistFeedback('error', 'Enter a playlist name.');
+      return;
+    }
+    if (typeof props.onCreateSavedPlaylist !== 'function') {
+      return;
+    }
+
+    const result = props.onCreateSavedPlaylist(nextName);
+    if (!result || result.ok === false) {
+      setPlaylistFeedback('error', result?.error || 'Unable to create saved playlist.');
+      return;
+    }
+    setNewSavedPlaylistName('');
+    setPlaylistFeedback('success', `Saved playlist "${nextName}" created.`);
+  };
+
+  const handleRenameSavedPlaylist = (playlist) => {
+    if (typeof window === 'undefined' || typeof props.onRenameSavedPlaylist !== 'function') {
+      return;
+    }
+    const proposedName = window.prompt('Rename saved playlist', playlist.name);
+    if (proposedName === null) {
+      return;
+    }
+    const result = props.onRenameSavedPlaylist(playlist.id, proposedName);
+    if (!result || result.ok === false) {
+      setPlaylistFeedback('error', result?.error || 'Unable to rename saved playlist.');
+      return;
+    }
+    const normalizedName = normalizeSavedPlaylistName(proposedName);
+    setPlaylistFeedback('success', `Saved playlist renamed to "${normalizedName || playlist.name}".`);
+  };
+
+  const handleDeleteSavedPlaylist = (playlist) => {
+    if (typeof window === 'undefined' || typeof props.onDeleteSavedPlaylist !== 'function') {
+      return;
+    }
+    const confirmed = window.confirm(`Delete "${playlist.name}" and remove its assignments?`);
+    if (!confirmed) {
+      return;
+    }
+    const result = props.onDeleteSavedPlaylist(playlist.id);
+    if (!result || result.ok === false) {
+      setPlaylistFeedback('error', result?.error || 'Unable to delete saved playlist.');
+      return;
+    }
+    setPlaylistFeedback('success', `Saved playlist "${playlist.name}" deleted.`);
+  };
+
+  const handleAssignSavedPlaylist = (item, nextSavedPlaylistId) => {
+    if (typeof props.onAssignSavedPlaylist !== 'function') {
+      return;
+    }
+    const mediaKey = mediaKeyForItem(item);
+    if (mediaKey === '') {
+      return;
+    }
+    props.onAssignSavedPlaylist(mediaKey, nextSavedPlaylistId);
+  };
+
   const activeMediaLabel = createMemo(() => (activeMediaType() === 'audio' ? 'audio' : 'video'));
   const hasMediaForTab = createMemo(() => typedItems().length > 0);
 
@@ -190,7 +339,8 @@ export default function LibraryView(props) {
     const activeFilters = filters();
     const creators = new Set(creatorOptions());
     const collections = new Set(collectionOptions());
-    const playlists = new Set(playlistOptions());
+    const sourcePlaylists = new Set(sourcePlaylistOptions());
+    const savedPlaylistIds = new Set(savedPlaylistOptions().map((playlist) => playlist.id));
 
     if (activeFilters.creator !== '' && !creators.has(activeFilters.creator)) {
       handleFilterChange('creator', '');
@@ -198,8 +348,11 @@ export default function LibraryView(props) {
     if (activeFilters.collection !== '' && !collections.has(activeFilters.collection)) {
       handleFilterChange('collection', '');
     }
-    if (activeFilters.playlist !== '' && !playlists.has(activeFilters.playlist)) {
+    if (activeFilters.playlist !== '' && !sourcePlaylists.has(activeFilters.playlist)) {
       handleFilterChange('playlist', '');
+    }
+    if (activeFilters.savedPlaylistId !== '' && !savedPlaylistIds.has(activeFilters.savedPlaylistId)) {
+      handleFilterChange('savedPlaylistId', '');
     }
   });
 
@@ -236,7 +389,97 @@ export default function LibraryView(props) {
           </For>
         </div>
 
-        <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4 p-4 bg-[#0a0c14] border border-white/5 rounded-2xl">
+        <div class="p-4 bg-[#0a0c14] border border-white/5 rounded-2xl space-y-3">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div class="text-xs font-semibold tracking-wide text-gray-400 uppercase">Saved Playlists</div>
+              <div class="text-xs text-gray-500">Create custom collections and assign items instantly.</div>
+            </div>
+            <div class="text-xs text-gray-500">
+              {savedPlaylistOptions().length} saved {savedPlaylistOptions().length === 1 ? 'playlist' : 'playlists'}
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              value={newSavedPlaylistName()}
+              onInput={(event) => setNewSavedPlaylistName(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleCreateSavedPlaylist();
+                }
+              }}
+              placeholder="New saved playlist name"
+              class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            />
+            <button
+              type="button"
+              onClick={handleCreateSavedPlaylist}
+              class="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-500 transition-colors"
+            >
+              Create
+            </button>
+          </div>
+
+          <Show when={playlistMessage() !== ''}>
+            <div class={`text-xs ${
+              playlistMessageTone() === 'error'
+                ? 'text-red-400'
+                : playlistMessageTone() === 'success'
+                  ? 'text-green-400'
+                  : 'text-gray-400'
+            }`}
+            >
+              {playlistMessage()}
+            </div>
+          </Show>
+
+          <Show
+            when={savedPlaylistOptions().length > 0}
+            fallback={<div class="text-xs text-gray-500">No saved playlists yet.</div>}
+          >
+            <div class="flex flex-wrap gap-2">
+              <For each={savedPlaylistOptions()}>
+                {(playlist) => (
+                  <div class={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
+                    filters().savedPlaylistId === playlist.id
+                      ? 'border-blue-500/40 bg-blue-600/10 text-blue-200'
+                      : 'border-white/10 bg-white/5 text-gray-300'
+                  }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleFilterChange('savedPlaylistId', filters().savedPlaylistId === playlist.id ? '' : playlist.id)}
+                      class="font-semibold hover:text-white transition-colors"
+                    >
+                      {playlist.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRenameSavedPlaylist(playlist)}
+                      class="px-1 text-gray-400 hover:text-gray-200 transition-colors"
+                      title={`Rename ${playlist.name}`}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSavedPlaylist(playlist)}
+                      class="px-1 text-red-400/80 hover:text-red-300 transition-colors"
+                      title={`Delete ${playlist.name}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 bg-[#0a0c14] border border-white/5 rounded-2xl">
           <label class="space-y-2 text-xs font-semibold tracking-wide text-gray-400 uppercase">
             Artist / Creator
             <select
@@ -266,15 +509,29 @@ export default function LibraryView(props) {
           </label>
 
           <label class="space-y-2 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-            Playlist
+            Source Playlist
             <select
               value={filters().playlist}
               onChange={(event) => handleFilterChange('playlist', event.currentTarget.value)}
               class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             >
-              <option value="">All Playlists</option>
-              <For each={playlistOptions()}>
+              <option value="">All Source Playlists</option>
+              <For each={sourcePlaylistOptions()}>
                 {(value) => <option value={value}>{value}</option>}
+              </For>
+            </select>
+          </label>
+
+          <label class="space-y-2 text-xs font-semibold tracking-wide text-gray-400 uppercase">
+            Saved Playlist
+            <select
+              value={filters().savedPlaylistId}
+              onChange={(event) => handleFilterChange('savedPlaylistId', event.currentTarget.value)}
+              class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            >
+              <option value="">All Saved Playlists</option>
+              <For each={savedPlaylistOptions()}>
+                {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
               </For>
             </select>
           </label>
@@ -342,9 +599,30 @@ export default function LibraryView(props) {
                         {albumOrChannelLabel(item)}
                       </span>
                       <span class="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">
-                        {playlistLabel(item)}
+                        {sourcePlaylistLabel(item)}
+                      </span>
+                      <span class={`px-2 py-1 rounded-full border ${
+                        savedPlaylistIdForItem(item) === ''
+                          ? 'bg-white/5 border-white/10 text-gray-500'
+                          : 'bg-blue-600/10 border-blue-500/30 text-blue-200'
+                      }`}
+                      >
+                        Saved: {savedPlaylistLabelForItem(item)}
                       </span>
                     </div>
+                    <label class="mt-3 block text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      Saved playlist
+                      <select
+                        value={savedPlaylistIdForItem(item)}
+                        onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
+                        class="mt-1 w-full max-w-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 normal-case tracking-normal"
+                      >
+                        <option value="">Unassigned</option>
+                        <For each={savedPlaylistOptions()}>
+                          {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
+                        </For>
+                      </select>
+                    </label>
                   </div>
                 </div>
                 <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all shrink-0">

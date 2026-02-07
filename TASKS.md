@@ -15,8 +15,8 @@
 ## Current Branch Snapshot
 
 - Branch: `web-ui`
-- Last committed PR work: `PR5` (`b8c2182`)
-- Local in-progress changes: `PR6` (`frontend/src/App.jsx`, `frontend/src/components/LibraryView.jsx`, `frontend/src/store/appStore.jsx`)
+- Last committed PR work: `PR7`
+- Local in-progress changes: none
 
 ## PR Roadmap
 
@@ -53,12 +53,12 @@
 7. **PR6: Library Tabs + Filtering/Sorting**
    - Covers: core of `5`
    - Scope: Video/Audio sub-tabs; filter/sort by Artist/Creator, Album/Channel, Playlist.
-   - Status: 🟡 Implemented locally (not committed)
+   - Status: ✅ Completed and committed (`f048529`)
 
 8. **PR7: Saved Playlists (Fast Frontend Phase)**
    - Covers: `5` (phase A)
    - Scope: localStorage playlist CRUD and assignment in Library.
-   - Status: ⏳ Pending
+   - Status: ✅ Completed and committed
 
 9. **PR8: Saved Playlists Backend Persistence + Migration**
    - Covers: `5` (phase B)
