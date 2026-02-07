@@ -1,36 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="290" viewBox="0 0 900 290">
   <defs>
     <style>
-      .terminal-bg { fill: #1e1e1e; }
-      .terminal-text { fill: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-prompt { fill: #4ec9b0; font-weight: bold; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-success { fill: #6a9955; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-info { fill: #569cd6; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-error { fill: #f48771; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-warning { fill: #ce9178; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-header { fill: #808080; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .terminal-bg { fill: #0d1117; }
+      .terminal-text { fill: #e6edf3; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-prompt { fill: #7ee787; font-weight: bold; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-success { fill: #3fb950; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-info { fill: #58a6ff; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-error { fill: #f85149; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-warning { fill: #d29922; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-header { fill: #8b949e; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .terminal-dim { fill: #6e7681; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .progress-bg { fill: #21262d; }
+      .progress-fill { fill: #238636; }
     </style>
   </defs>
   
   <!-- Background -->
-  <rect class="terminal-bg" width="900" height="240" rx="5"/>
+  <rect class="terminal-bg" width="900" height="290" rx="8"/>
   
   <!-- Window controls (macOS style) -->
-  <circle cx="20" cy="20" r="6" fill="#ff5f56"/>
-  <circle cx="40" cy="20" r="6" fill="#ffbd2e"/>
-  <circle cx="60" cy="20" r="6" fill="#27c93f"/>
+  <circle cx="20" cy="20" r="6" fill="#ff5f57" opacity="0.9"/>
+  <circle cx="40" cy="20" r="6" fill="#febc2e" opacity="0.9"/>
+  <circle cx="60" cy="20" r="6" fill="#28c840" opacity="0.9"/>
   
   <!-- Title -->
-  <text class="terminal-header" x="450" y="25" text-anchor="middle">Audio Playlist with Folders</text>
+  <text class="terminal-header" x="450" y="25" text-anchor="middle">Audio Library Organization</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --audio -o &quot;music/{artist}/{playlist_title}/{index:02d} - {title}.{ext}&quot; \</text>
-  <text class="terminal-text" x="20" y="68">  &quot;https://www.youtube.com/playlist?list=PL59FEE129ADFF2B12&quot;</text>
-  <text class="terminal-text" x="20" y="86"></text>
-  <text class="terminal-success" x="20" y="104">✓ music/Various Artists/Best Collection/01 - Song One.m4a</text>
-  <text class="terminal-success" x="20" y="122">✓ music/Various Artists/Best Collection/02 - Song Two.m4a</text>
-  <text class="terminal-success" x="20" y="140">✓ music/Rick Astley/Best Collection/03 - Never Gonna Give You Up.m4a</text>
-  <text class="terminal-text" x="20" y="158"></text>
-  <text class="terminal-error" x="20" y="176">Summary: 3 downloaded, 0 failed, 0 skipped (12.5 MB total)</text>
+  <text class="terminal-prompt" x="20" y="55">$ ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL</text>
+  <text class="terminal-text" x="20" y="78"></text>
+  <text class="terminal-text" x="20" y="96">📺 Fetching video info...</text>
+  <text class="terminal-text" x="20" y="114"></text>
+  <text class="terminal-text" x="20" y="132">Title: Summer Nights</text>
+  <text class="terminal-text" x="20" y="150">Artist: The Jazz Collective</text>
+  <text class="terminal-text" x="20" y="168">Album: Evening Moods</text>
+  <text class="terminal-text" x="20" y="186">Audio: m4a (128k)</text>
+  <text class="terminal-text" x="20" y="204"></text>
+  <text class="terminal-text" x="20" y="222">⬇ Downloading audio...</text>
+  <text class="terminal-info" x="20" y="240">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% │ 4.8 MB │ 6.2 MB/s │ 00:01</text>
+  <text class="terminal-text" x="20" y="258"></text>
+  <text class="terminal-success" x="20" y="276">✓ Download complete: Summer Nights.m4a (4.8 MB)</text>
+  <text class="terminal-dim" x="20" y="294">  Saved to: Music/The Jazz Collective/Evening Moods/Summer Nights.m4a</text>
 </svg>

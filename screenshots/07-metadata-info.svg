@@ -1,39 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300" viewBox="0 0 900 300">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280">
   <defs>
     <style>
-      .terminal-bg { fill: #1e1e1e; }
-      .terminal-text { fill: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-prompt { fill: #4ec9b0; font-weight: bold; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-success { fill: #6a9955; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-info { fill: #569cd6; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-error { fill: #f48771; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-warning { fill: #ce9178; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
-      .terminal-header { fill: #808080; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .terminal-bg { fill: #0d1117; }
+      .terminal-text { fill: #e6edf3; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-prompt { fill: #7ee787; font-weight: bold; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-success { fill: #3fb950; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-info { fill: #58a6ff; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-error { fill: #f85149; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-warning { fill: #d29922; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .terminal-header { fill: #8b949e; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      .terminal-dim { fill: #6e7681; font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace; font-size: 13px; }
+      .progress-bg { fill: #21262d; }
+      .progress-fill { fill: #238636; }
     </style>
   </defs>
   
   <!-- Background -->
-  <rect class="terminal-bg" width="900" height="300" rx="5"/>
+  <rect class="terminal-bg" width="900" height="280" rx="8"/>
   
   <!-- Window controls (macOS style) -->
-  <circle cx="20" cy="20" r="6" fill="#ff5f56"/>
-  <circle cx="40" cy="20" r="6" fill="#ffbd2e"/>
-  <circle cx="60" cy="20" r="6" fill="#27c93f"/>
+  <circle cx="20" cy="20" r="6" fill="#ff5f57" opacity="0.9"/>
+  <circle cx="40" cy="20" r="6" fill="#febc2e" opacity="0.9"/>
+  <circle cx="60" cy="20" r="6" fill="#28c840" opacity="0.9"/>
   
   <!-- Title -->
-  <text class="terminal-header" x="450" y="25" text-anchor="middle">Video Metadata</text>
+  <text class="terminal-header" x="450" y="25" text-anchor="middle">Metadata Info</text>
   
   <!-- Content -->
-  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --info https://www.youtube.com/watch?v=dQw4w9WgXcQ</text>
-  <text class="terminal-text" x="20" y="68">{</text>
-  <text class="terminal-text" x="20" y="86">  &quot;id&quot;: &quot;dQw4w9WgXcQ&quot;,</text>
-  <text class="terminal-text" x="20" y="104">  &quot;title&quot;: &quot;Rick Astley - Never Gonna Give You Up&quot;,</text>
-  <text class="terminal-text" x="20" y="122">  &quot;author&quot;: &quot;Rick Astley&quot;,</text>
-  <text class="terminal-text" x="20" y="140">  &quot;duration&quot;: 213,</text>
-  <text class="terminal-text" x="20" y="158">  &quot;formats&quot;: [</text>
-  <text class="terminal-text" x="20" y="176">    { &quot;quality&quot;: &quot;720p&quot;, &quot;mimeType&quot;: &quot;video/mp4&quot;, &quot;bitrate&quot;: 2500000 },</text>
-  <text class="terminal-text" x="20" y="194">    { &quot;quality&quot;: &quot;480p&quot;, &quot;mimeType&quot;: &quot;video/mp4&quot;, &quot;bitrate&quot;: 1000000 }</text>
-  <text class="terminal-text" x="20" y="212">  ]</text>
-  <text class="terminal-text" x="20" y="230">}</text>
+  <text class="terminal-prompt" x="20" y="55">$ ytdl-go -info "https://youtube.com/watch?v=BaW_jenozKc"</text>
+  <text class="terminal-text" x="20" y="78"></text>
+  <text class="terminal-text" x="20" y="96">📺 Fetching video info...</text>
+  <text class="terminal-text" x="20" y="114"></text>
+  <text class="terminal-text" x="20" y="132">{</text>
+  <text class="terminal-dim" x="20" y="150">  "id": "BaW_jenozKc",</text>
+  <text class="terminal-dim" x="20" y="168">  "title": "Big Buck Bunny",</text>
+  <text class="terminal-dim" x="20" y="186">  "author": "Blender Foundation",</text>
+  <text class="terminal-dim" x="20" y="204">  "duration_seconds": 596,</text>
+  <text class="terminal-dim" x="20" y="222">  "quality": "1080p",</text>
+  <text class="terminal-dim" x="20" y="240">  "format": "mp4",</text>
+  <text class="terminal-dim" x="20" y="258">  "thumbnail_url": "https://i.ytimg.com/vi/BaW_jenozKc/maxresdefault.jpg"</text>
+  <text class="terminal-text" x="20" y="276">}</text>
 </svg>
