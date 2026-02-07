@@ -15,9 +15,9 @@
 ## Current Branch Snapshot
 
 - Branch: `web-ui`
-- Last committed PR work: `PR9` (`e7d0009`)
-- Latest commit on branch: PR9 player visual refresh (`e7d0009`)
-- Local in-progress changes: `PR10` player window controls + minimized mode, including post-review fixes (uncommitted)
+- Last committed PR work: `PR10` (`921d5f3`)
+- Latest commit on branch: Add player window controls with minimize/restore, draggable positioning, and queue navigation (`921d5f3`)
+- Local in-progress changes: none
 
 ## Recent Non-PR Work
 
@@ -81,7 +81,7 @@
 11. **PR10: Player Window Controls + Minimized Mode**
     - Covers: `8`
     - Scope: close/minimize buttons, docked mini bar with Play/Next/Queue, draggable full player (disabled when minimized).
-    - Status: 🟡 Implemented locally (not committed; review feedback integrated)
+    - Status: ✅ Completed and committed (`921d5f3`)
 
 12. **PR11: Port Bind Failure Handling**
     - Covers: `10`, final part of `9`
@@ -90,5 +90,5 @@
 
 13. **PR12: Inactive Feature Feedback**
     - Covers: `12`
-    - Scope: disabled visual states + "Coming Soon" tooltip for non-wired controls.
+    - Scope: disabled visual states + "Coming Soon" tooltip for non-wired controls. Make a plan for implementing the disconnected features in the same task list format as this TASKS.md document.
     - Status: ⏳ Pending
