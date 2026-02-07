@@ -1,3 +1,8 @@
+---
+title: "Audio-Only Downloads"
+weight: 50
+---
+
 # Audio-Only Downloads
 
 This guide covers downloading audio-only content from YouTube, perfect for music, podcasts, and other audio-focused content.
@@ -12,8 +17,9 @@ ytdl-go -audio https://www.youtube.com/watch?v=VIDEO_ID
 
 This downloads the highest quality audio-only stream available.
 
-!!! tip "Automatic Best Quality"
-    The `-audio` flag automatically selects the highest bitrate audio format available.
+> **Automatic Best Quality**
+>
+> The `-audio` flag automatically selects the highest bitrate audio format available.
 
 ## How Audio Selection Works
 
@@ -30,8 +36,9 @@ If direct audio download fails (403 error):
 1. Retry with single request method
 2. Use FFmpeg fallback (extracts from video)
 
-!!! info "No External Dependencies"
-    ytdl-go handles audio extraction internally without requiring FFmpeg to be installed.
+> **No External Dependencies**
+>
+> ytdl-go handles audio extraction internally without requiring FFmpeg to be installed.
 
 ## Audio Quality Selection
 
@@ -66,8 +73,9 @@ ytdl-go -audio -quality 96k https://www.youtube.com/watch?v=VIDEO_ID
 | `64k` | ~64 kbps | Low quality | Minimal | Limited storage/bandwidth |
 | `worst` | Variable | Lowest available | Smallest | Extreme space constraints |
 
-!!! info "Actual Bitrates"
-    Actual bitrates may vary based on what's available. ytdl-go selects the closest match.
+> **Actual Bitrates**
+>
+> Actual bitrates may vary based on what's available. ytdl-go selects the closest match.
 
 ## Audio Format Selection
 
@@ -95,8 +103,9 @@ ytdl-go -audio -format mp3 https://www.youtube.com/watch?v=VIDEO_ID
 | `mp3` | MP3 | Good | Excellent | Maximum compatibility |
 | `webm` | Vorbis/Opus | Good | Good | Web-based use |
 
-!!! tip "Format Availability"
-    If your preferred format isn't available, use the [interactive format selector](format-selection.md) to see all options.
+> **Format Availability**
+>
+> If your preferred format isn't available, use the [interactive format selector](format-selection) to see all options.
 
 ### Combining Quality and Format
 
@@ -175,8 +184,9 @@ ytdl-go -audio \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
-!!! tip "Music Playlists"
-    For more on playlist organization, see the [Playlist Downloads](playlists.md) guide.
+> **Music Playlists**
+>
+> For more on playlist organization, see the [Playlist Downloads](playlists) guide.
 
 ## Audio Metadata
 
@@ -223,8 +233,9 @@ ytdl-go -audio \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
-!!! info "Metadata Details"
-    For complete metadata options, see [Metadata and Sidecars](metadata-sidecars.md).
+> **Metadata Details**
+>
+> For complete metadata options, see [Metadata and Sidecars](metadata-sidecars).
 
 ## YouTube Music Downloads
 
@@ -346,8 +357,9 @@ Common audio itags:
 | 140 | m4a | AAC | 128kbps | Standard |
 | 141 | m4a | AAC | 256kbps | High |
 
-!!! tip "Find Itags"
-    Use `-list-formats` to see all available itags for a specific video.
+> **Find Itags**
+>
+> Use `-list-formats` to see all available itags for a specific video.
 
 ### Resume Interrupted Audio Downloads
 
@@ -457,13 +469,13 @@ cat "song-title.info.json"
 
 ## Next Steps
 
-- **Playlists**: Download music playlists with [playlist guides](playlists.md)
-- **Metadata**: Learn about [metadata and sidecars](metadata-sidecars.md)
-- **Templates**: Master [output templates](output-templates.md)
-- **Format Selection**: Fine-tune with [interactive format selector](format-selection.md)
+- **Playlists**: Download music playlists with [playlist guides](playlists)
+- **Metadata**: Learn about [metadata and sidecars](metadata-sidecars)
+- **Templates**: Master [output templates](output-templates)
+- **Format Selection**: Fine-tune with [interactive format selector](format-selection)
 
 ## Related References
 
-- [Basic Downloads Guide](basic-downloads.md)
-- [Metadata and Sidecars Guide](metadata-sidecars.md)
-- [Command-Line Flags Reference](../../reference/flags.md)
+- [Basic Downloads Guide](basic-downloads)
+- [Metadata and Sidecars Guide](metadata-sidecars)
+- [Command-Line Flags Reference](../../reference/flags)

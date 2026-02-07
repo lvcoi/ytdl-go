@@ -1,3 +1,8 @@
+---
+title: "ytdl-go Documentation"
+type: docs
+---
+
 # Welcome to ytdl-go Documentation
 
 <div align="center">
@@ -10,9 +15,7 @@ _Feature-rich, interactive, and dependency-free._
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
 [![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
 
-[Quick Start](user-guide/getting-started/quick-start.md){ .md-button .md-button--primary }
-[Installation Guide](user-guide/getting-started/installation.md){ .md-button }
-[View on GitHub](https://github.com/lvcoi/ytdl-go){ .md-button }
+[Quick Start](docs/user-guide/getting-started/quick-start) | [Installation Guide](docs/user-guide/getting-started/installation) | [View on GitHub](https://github.com/lvcoi/ytdl-go)
 
 </div>
 
@@ -38,25 +41,25 @@ This documentation is organized to help both users and developers:
 
 Perfect for end-users who want to download media:
 
-- **[Getting Started](user-guide/getting-started/installation.md)** - Installation and setup
-- **[Usage](user-guide/usage/basic-downloads.md)** - How to use ytdl-go effectively
-- **[Troubleshooting](user-guide/troubleshooting/common-issues.md)** - Solutions to common problems
+- **[Getting Started](docs/user-guide/getting-started/installation)** - Installation and setup
+- **[Usage](docs/user-guide/usage/basic-downloads)** - How to use ytdl-go effectively
+- **[Troubleshooting](docs/user-guide/troubleshooting/common-issues)** - Solutions to common problems
 
 ### 💻 Developer Guide
 
 For contributors and those interested in the internals:
 
-- **[Architecture](developer-guide/architecture/overview.md)** - System design and structure
-- **[API Reference](developer-guide/api-reference/endpoints.md)** - Backend API documentation
-- **[Contributing](developer-guide/contributing/getting-started.md)** - How to contribute to ytdl-go
+- **[Architecture](docs/developer-guide/architecture/overview)** - System design and structure
+- **[API Reference](docs/developer-guide/api-reference/endpoints)** - Backend API documentation
+- **[Contributing](docs/developer-guide/contributing/getting-started)** - How to contribute to ytdl-go
 
 ### 📖 Reference
 
 Quick reference materials:
 
-- **[CLI Options](reference/cli-options.md)** - Complete flag reference
-- **[Output Placeholders](reference/output-placeholders.md)** - Template variables
-- **[Exit Codes](reference/exit-codes.md)** - Error codes and meanings
+- **[CLI Options](docs/reference/cli-options)** - Complete flag reference
+- **[Output Placeholders](docs/reference/output-placeholders)** - Template variables
+- **[Exit Codes](docs/reference/exit-codes)** - Error codes and meanings
 
 ---
 
@@ -97,48 +100,48 @@ ytdl-go -list-formats https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
 Choose your preferred installation method:
 
-=== "Pre-built Binary"
+**Pre-built Binary:**
 
-    Download from [GitHub Releases](https://github.com/lvcoi/ytdl-go/releases):
+Download from [GitHub Releases](https://github.com/lvcoi/ytdl-go/releases):
 
-    ```bash
-    # Linux/macOS
-    curl -L https://github.com/lvcoi/ytdl-go/releases/latest/download/ytdl-go-linux-amd64 -o ytdl-go
-    chmod +x ytdl-go
-    sudo mv ytdl-go /usr/local/bin/
-    ```
+```bash
+# Linux/macOS
+curl -L https://github.com/lvcoi/ytdl-go/releases/latest/download/ytdl-go-linux-amd64 -o ytdl-go
+chmod +x ytdl-go
+sudo mv ytdl-go /usr/local/bin/
+```
 
-=== "From Source"
+**From Source:**
 
-    Requires Go 1.24+:
+Requires Go 1.24+:
 
-    ```bash
-    git clone https://github.com/lvcoi/ytdl-go.git
-    cd ytdl-go
-    ./build.sh
-    ```
+```bash
+git clone https://github.com/lvcoi/ytdl-go.git
+cd ytdl-go
+./build.sh
+```
 
-=== "Build Script"
+**Build Script:**
 
-    Use the one-command build script:
+Use the one-command build script:
 
-    ```bash
-    curl -sSL https://raw.githubusercontent.com/lvcoi/ytdl-go/main/build.sh | bash
-    ```
+```bash
+curl -sSL https://raw.githubusercontent.com/lvcoi/ytdl-go/main/build.sh | bash
+```
 
-See the [Installation Guide](user-guide/getting-started/installation.md) for detailed instructions.
+See the [Installation Guide](docs/user-guide/getting-started/installation) for detailed instructions.
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! See our [Contributing Guide](developer-guide/contributing/getting-started.md) to get started.
+We welcome contributions! See our [Contributing Guide](docs/developer-guide/contributing/getting-started) to get started.
 
 ---
 
 ## 📜 License
 
-ytdl-go is released under the [MIT License](reference/legal-license.md).
+ytdl-go is released under the [MIT License](docs/reference/legal-license).
 
 ---
 

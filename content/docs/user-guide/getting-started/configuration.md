@@ -1,3 +1,8 @@
+---
+title: "Configuration"
+weight: 30
+---
+
 # Configuration
 
 Learn how to configure ytdl-go for your specific needs.
@@ -14,11 +19,12 @@ Use cookie files to access age-restricted, private, or members-only content.
 
 ### Exporting Cookies
 
-!!! warning "Browser Extensions"
-    Use a browser extension to export cookies in Netscape format:
-    
-    - **Chrome/Edge**: [Get cookies.txt](https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid)
-    - **Firefox**: [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)
+> **Warning: Browser Extensions**
+>
+> Use a browser extension to export cookies in Netscape format:
+>
+> - **Chrome/Edge**: [Get cookies.txt](https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid)
+> - **Firefox**: [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)
 
 ### Using Cookies
 
@@ -30,8 +36,7 @@ ytdl-go -cookies cookies.txt https://www.youtube.com/watch?v=VIDEO_ID
 ytdl-go -cookies cookies.txt https://www.youtube.com/watch?v=MEMBER_VIDEO_ID
 ```
 
-!!! tip
-    Store your cookie file in a secure location and never commit it to version control.
+> **Tip:** Store your cookie file in a secure location and never commit it to version control.
 
 ---
 
@@ -63,8 +68,9 @@ ytdl-go URL
 
 Currently, ytdl-go does not use configuration files. All settings are passed via command-line flags or environment variables.
 
-!!! note "Future Enhancement"
-    Configuration file support (e.g., `~/.config/ytdl-go/config.yaml`) may be added in future releases.
+> **Note: Future Enhancement**
+>
+> Configuration file support (e.g., `~/.config/ytdl-go/config.yaml`) may be added in future releases.
 
 ---
 
@@ -177,8 +183,7 @@ Download multiple videos simultaneously:
 ytdl-go -jobs 4 PLAYLIST_URL
 ```
 
-!!! warning
-    Higher job counts increase bandwidth usage and may trigger rate limits.
+> **Warning:** Higher job counts increase bandwidth usage and may trigger rate limits.
 
 ### Network Timeouts
 
@@ -211,8 +216,7 @@ Restrict output to a specific directory:
 ytdl-go -output-dir /safe/path -o "{title}.{ext}" URL
 ```
 
-!!! info
-    This prevents path traversal attacks when using user-provided templates.
+> **Info:** This prevents path traversal attacks when using user-provided templates.
 
 ### Metadata Embedding
 
@@ -236,6 +240,6 @@ ytdl-go -write-info-json -write-description -write-thumbnail URL
 
 ## Next Steps
 
-- [Basic Downloads](../usage/basic-downloads.md) - Start downloading
-- [Output Templates](../usage/output-templates.md) - Master template syntax
-- [CLI Options Reference](../../reference/cli-options.md) - Complete flag list
+- [Basic Downloads](../usage/basic-downloads) - Start downloading
+- [Output Templates](../usage/output-templates) - Master template syntax
+- [CLI Options Reference](../../reference/cli-options) - Complete flag list

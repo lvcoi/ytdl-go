@@ -1,3 +1,8 @@
+---
+title: "Playlist Downloads"
+weight: 60
+---
+
 # Playlist Downloads
 
 This guide covers downloading entire YouTube playlists, including organization, indexing, and batch processing.
@@ -12,8 +17,9 @@ ytdl-go https://www.youtube.com/playlist?list=PLxxxxxxxxxxxxxxxxxx
 
 This downloads all videos in the playlist sequentially with default quality settings.
 
-!!! tip "Playlist Detection"
-    ytdl-go automatically detects playlist URLs and processes all videos in the list.
+> **Playlist Detection**
+>
+> ytdl-go automatically detects playlist URLs and processes all videos in the list.
 
 ## Playlist Organization
 
@@ -41,8 +47,9 @@ ytdl-go -o "{playlist-title}/{index:03d} - {title} [{quality}].{ext}" https://ww
 | `{index}` | Video position in playlist (1-based) | `1`, `2`, `3`, ... |
 | `{count}` | Total videos in playlist | `25` |
 
-!!! info "Index Formatting"
-    You can format the index with zero-padding: `{index:03d}` produces `001`, `002`, etc.
+> **Index Formatting**
+>
+> You can format the index with zero-padding: `{index:03d}` produces `001`, `002`, etc.
 
 ### Example Directory Structures
 
@@ -112,8 +119,9 @@ ytdl-go -audio -o "Music/{playlist-title}/{index:02d} - {title}.{ext}" \
         https://www.youtube.com/playlist?list=PLxxxxx
 ```
 
-!!! tip "Music Playlists"
-    For music-focused organization, see the [Audio-Only Downloads](audio-only.md) guide.
+> **Music Playlists**
+>
+> For music-focused organization, see the [Audio-Only Downloads](audio-only) guide.
 
 ## Playlist Progress Tracking
 
@@ -139,8 +147,9 @@ ytdl-go automatically skips:
 
 The download continues with the next available video.
 
-!!! info "Error Handling"
-    Failed downloads don't stop the entire playlist. ytdl-go continues processing remaining videos.
+> **Error Handling**
+>
+> Failed downloads don't stop the entire playlist. ytdl-go continues processing remaining videos.
 
 ### Resume Interrupted Playlists
 
@@ -157,8 +166,9 @@ ytdl-go skips already downloaded files and resumes partial downloads.
 
 Currently, playlist videos are downloaded sequentially (one at a time).
 
-!!! note "Future Feature"
-    The `-playlist-concurrency` flag is reserved for future versions that will support parallel playlist downloads. It currently has no effect.
+> **Future Feature**
+>
+> The `-playlist-concurrency` flag is reserved for future versions that will support parallel playlist downloads. It currently has no effect.
 
 ```bash
 # This flag is accepted but doesn't change behavior (sequential download)
@@ -332,8 +342,9 @@ ytdl-go -log-level debug -o "{playlist-title}/{index} - {title}.{ext}" PLAYLIST_
 
 **Behavior**: ytdl-go automatically skips unavailable videos and continues with the rest.
 
-!!! warning "Authentication Not Supported"
-    Private, age-gated, or member-only videos cannot be downloaded as authentication is currently not supported.
+> **Authentication Not Supported**
+>
+> Private, age-gated, or member-only videos cannot be downloaded as authentication is currently not supported.
 
 ### Slow Playlist Processing
 
@@ -386,13 +397,13 @@ Courses/
 
 ## Next Steps
 
-- **Audio-Only**: Download music playlists with [audio-only mode](audio-only.md)
-- **Templates**: Learn more about [output templates](output-templates.md)
-- **Metadata**: Add custom metadata with [metadata sidecars](metadata-sidecars.md)
-- **Format Selection**: Fine-tune quality with [format selection](format-selection.md)
+- **Audio-Only**: Download music playlists with [audio-only mode](audio-only)
+- **Templates**: Learn more about [output templates](output-templates)
+- **Metadata**: Add custom metadata with [metadata sidecars](metadata-sidecars)
+- **Format Selection**: Fine-tune quality with [format selection](format-selection)
 
 ## Related References
 
-- [Basic Downloads Guide](basic-downloads.md)
-- [Output Templates Reference](output-templates.md)
-- [Command-Line Flags Reference](../../reference/flags.md)
+- [Basic Downloads Guide](basic-downloads)
+- [Output Templates Reference](output-templates)
+- [Command-Line Flags Reference](../../reference/flags)

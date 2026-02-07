@@ -1,3 +1,8 @@
+---
+title: "Basic Downloads"
+weight: 40
+---
+
 # Basic Downloads
 
 This guide covers the fundamentals of downloading videos with ytdl-go, including quality selection and format options.
@@ -12,8 +17,9 @@ ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
 
 This downloads the video in the best available quality with the default filename pattern: `{title}.{ext}`
 
-!!! tip "Default Behavior"
-    By default, ytdl-go automatically selects the highest quality video format available and saves it with the video's title as the filename.
+> **Default Behavior**
+>
+> By default, ytdl-go automatically selects the highest quality video format available and saves it with the video's title as the filename.
 
 ## Quality Selection
 
@@ -45,8 +51,9 @@ ytdl-go -quality 480p https://www.youtube.com/watch?v=VIDEO_ID
 | `144p` | Lowest resolution | Extremely limited bandwidth |
 | `worst` | Lowest available quality | Smallest possible file |
 
-!!! info "Quality Matching"
-    If the exact quality you specify isn't available, ytdl-go automatically selects the closest match.
+> **Quality Matching**
+>
+> If the exact quality you specify isn't available, ytdl-go automatically selects the closest match.
 
 ### Example Quality Commands
 
@@ -82,8 +89,9 @@ ytdl-go -format webm https://www.youtube.com/watch?v=VIDEO_ID
 | `mp4` | MPEG-4 container | Excellent - plays on nearly all devices |
 | `webm` | WebM container | Good - modern browsers and players |
 
-!!! warning "Format Availability"
-    If your requested format isn't available, the download may fail. Consider using the [interactive format selector](format-selection.md) to see available options.
+> **Format Availability**
+>
+> If your requested format isn't available, the download may fail. Consider using the [interactive format selector](format-selection) to see available options.
 
 ### Combining Quality and Format
 
@@ -117,8 +125,9 @@ ytdl-go -o "video-{quality}.{ext}" https://www.youtube.com/watch?v=VIDEO_ID
 ytdl-go -o "{title}-{id}.{ext}" https://www.youtube.com/watch?v=VIDEO_ID
 ```
 
-!!! tip "Output Templates"
-    For advanced filename customization, see the [Output Templates](output-templates.md) guide.
+> **Output Templates**
+>
+> For advanced filename customization, see the [Output Templates](output-templates) guide.
 
 ### Download to Specific Directory
 
@@ -132,8 +141,9 @@ ytdl-go -o "Downloads/{title}.{ext}" https://www.youtube.com/watch?v=VIDEO_ID
 ytdl-go -o "Videos/{quality}/{title}.{ext}" https://www.youtube.com/watch?v=VIDEO_ID
 ```
 
-!!! warning "Relative Paths Only"
-    Output paths must be relative. Absolute paths are rejected for security reasons.
+> **Relative Paths Only**
+>
+> Output paths must be relative. Absolute paths are rejected for security reasons.
 
 ## Resume Capability
 
@@ -170,8 +180,9 @@ ytdl-go -jobs 4 \
         https://www.youtube.com/watch?v=VIDEO_ID4
 ```
 
-!!! info "Concurrency Recommendations"
-    - Network-bound: 4-8 jobs
+> **Concurrency Recommendations**
+>
+> - Network-bound: 4-8 jobs
     - Disk I/O-bound: 1-2 jobs
     - Large files: Keep low (1-2) to avoid memory pressure
 
@@ -256,7 +267,7 @@ ytdl-go -timeout 10m https://www.youtube.com/watch?v=VIDEO_ID
 
 If a specific quality isn't available:
 
-1. Use the [interactive format selector](format-selection.md) to see all options
+1. Use the [interactive format selector](format-selection) to see all options
 2. Try a different quality level
 3. Check if the video has that quality available on YouTube
 
@@ -275,14 +286,14 @@ ytdl-go -timeout 30m https://www.youtube.com/watch?v=VIDEO_ID
 
 ## Next Steps
 
-- **Audio Downloads**: Learn about [audio-only downloads](audio-only.md)
-- **Playlists**: Download [entire playlists](playlists.md)
-- **Format Selection**: Use the [interactive format selector](format-selection.md)
-- **Templates**: Master [output templates](output-templates.md) for file organization
-- **Metadata**: Explore [metadata and sidecars](metadata-sidecars.md)
+- **Audio Downloads**: Learn about [audio-only downloads](audio-only)
+- **Playlists**: Download [entire playlists](playlists)
+- **Format Selection**: Use the [interactive format selector](format-selection)
+- **Templates**: Master [output templates](output-templates) for file organization
+- **Metadata**: Explore [metadata and sidecars](metadata-sidecars)
 
 ## Related References
 
-- [Command-Line Flags Reference](../../reference/flags.md)
-- [Format Selection Guide](format-selection.md)
-- [Troubleshooting Guide](../troubleshooting/common-issues.md)
+- [Command-Line Flags Reference](../../reference/flags)
+- [Format Selection Guide](format-selection)
+- [Troubleshooting Guide](../troubleshooting/common-issues)

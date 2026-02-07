@@ -1,3 +1,8 @@
+---
+title: "Format Selection"
+weight: 10
+---
+
 # Format Selection
 
 This guide covers ytdl-go's format selection capabilities, including the interactive format selector, quality options, and direct itag selection.
@@ -87,7 +92,7 @@ ytdl-go -audio -quality 256k -format m4a URL
 ytdl-go -quality best -format webm URL
 ```
 
-!!! info "Closest Match"
+> **Info: Closest Match**
     If exact preferences aren't available, ytdl-go selects the closest available match.
 
 ## Interactive Format Selector
@@ -141,7 +146,7 @@ Type: 251  → Jumps to format 251 (if it exists)
 
 Press the same digits again to cycle through matching formats.
 
-!!! tip "Fast Navigation"
+> **Tip: Fast Navigation**
     If you know the itag number, type it directly instead of scrolling through all formats.
 
 ### Format Categories
@@ -222,7 +227,7 @@ ytdl-go -list-formats URL
 | 141 | 256kbps | M4A | AAC | High |
 | 139 | 48kbps | M4A | AAC | Low |
 
-!!! warning "Itag Availability"
+> **Warning: Itag Availability**
     Not all itags are available for every video. Use `-list-formats` to see what's available for your specific video.
 
 ### Itag Examples
@@ -286,7 +291,7 @@ Disadvantages:
 ytdl-go -itag 137 URL  # 1080p video + best audio
 ```
 
-!!! info "Automatic Merging"
+> **Info: Automatic Merging**
     ytdl-go automatically handles merging when necessary. You don't need to worry about combining audio and video manually.
 
 ## Format Selection Strategies
@@ -544,13 +549,13 @@ ytdl-go -itag 135 URL  # 480p instead of 1080p
 
 ## Next Steps
 
-- **Basic Downloads**: Start with [basic downloads](basic-downloads.md)
-- **Audio-Only**: Learn about [audio downloads](audio-only.md)
-- **Playlists**: Apply format selection to [playlists](playlists.md)
-- **Templates**: Organize with [output templates](output-templates.md)
+- **Basic Downloads**: Start with [basic downloads](basic-downloads)
+- **Audio-Only**: Learn about [audio downloads](audio-only)
+- **Playlists**: Apply format selection to [playlists](playlists)
+- **Templates**: Organize with [output templates](output-templates)
 
 ## Related References
 
-- [Basic Downloads Guide](basic-downloads.md)
-- [Audio-Only Downloads Guide](audio-only.md)
-- [Command-Line Flags Reference](../../reference/flags.md)
+- [Basic Downloads Guide](basic-downloads)
+- [Audio-Only Downloads Guide](audio-only)
+- [Command-Line Flags Reference](../../reference/flags)

@@ -1,3 +1,8 @@
+---
+title: "Output Templates"
+weight: 20
+---
+
 # Output Templates
 
 This guide covers ytdl-go's powerful output template system for customizing file names and directory structures.
@@ -13,8 +18,9 @@ The `-o` flag accepts a template string with placeholders that are dynamically r
 ytdl-go -o "template-string" URL
 ```
 
-!!! warning "Relative Paths Only"
-    Output paths must be relative for security reasons. Absolute paths are rejected.
+> **Relative Paths Only**
+>
+> Output paths must be relative for security reasons. Absolute paths are rejected.
 
 ## Available Placeholders
 
@@ -46,8 +52,9 @@ ytdl-go -o "template-string" URL
 | `{index}` | Video position (1-based) | `1`, `2`, `3` | Position in playlist |
 | `{count}` | Total videos in playlist | `25` | Total number of videos |
 
-!!! info "Playlist Context"
-    Playlist placeholders are only available when downloading from a playlist URL. They remain empty for single video downloads.
+> **Playlist Context**
+>
+> Playlist placeholders are only available when downloading from a playlist URL. They remain empty for single video downloads.
 
 ### Date Placeholders
 
@@ -184,8 +191,9 @@ ytdl-go -o "{playlist-title}/{index:03d} - {title}.{ext}" URL
 ytdl-go -o "{playlist-title}/{index:04d} - {title}.{ext}" URL
 ```
 
-!!! tip "When to Use Padding"
-    Use zero-padding for playlists with more than 9 videos to ensure correct alphabetical sorting.
+> **When to Use Padding**
+>
+> Use zero-padding for playlists with more than 9 videos to ensure correct alphabetical sorting.
 
 ### Format Specifiers
 
@@ -530,14 +538,14 @@ ytdl-go -o "Archive/{release_year}/{release_date} - {artist} - {title} [{quality
 
 ## Next Steps
 
-- **Metadata**: Learn about [metadata and sidecars](metadata-sidecars.md)
-- **Playlists**: Apply templates to [playlist downloads](playlists.md)
-- **Audio**: Organize [audio downloads](audio-only.md)
-- **Format Selection**: Choose formats with [format selection](format-selection.md)
+- **Metadata**: Learn about [metadata and sidecars](metadata-sidecars)
+- **Playlists**: Apply templates to [playlist downloads](playlists)
+- **Audio**: Organize [audio downloads](audio-only)
+- **Format Selection**: Choose formats with [format selection](format-selection)
 
 ## Related References
 
-- [Basic Downloads Guide](basic-downloads.md)
-- [Playlist Downloads Guide](playlists.md)
-- [Metadata and Sidecars Guide](metadata-sidecars.md)
-- [Command-Line Flags Reference](../../reference/flags.md)
+- [Basic Downloads Guide](basic-downloads)
+- [Playlist Downloads Guide](playlists)
+- [Metadata and Sidecars Guide](metadata-sidecars)
+- [Command-Line Flags Reference](../../reference/flags)

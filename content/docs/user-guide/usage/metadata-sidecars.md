@@ -1,3 +1,8 @@
+---
+title: "Metadata and Sidecars"
+weight: 30
+---
+
 # Metadata and Sidecars
 
 This guide covers ytdl-go's metadata handling, including automatic embedding, sidecar files, JSON output, and metadata customization.
@@ -68,8 +73,9 @@ Audio files include:
 - **Date** (`TYER`) - Release/upload year
 - **URL** (`WXXX`) - Source URL
 
-!!! info "Audio Formats Only"
-    ID3 tags are embedded in audio formats (M4A, MP3, Opus). Video files use sidecar JSON files instead.
+> **Audio Formats Only**
+>
+> ID3 tags are embedded in audio formats (M4A, MP3, Opus). Video files use sidecar JSON files instead.
 
 ### Verifying Embedded Metadata
 
@@ -307,8 +313,9 @@ ytdl-go -o "{artist}/{album}/{track:02d} - {title}.{ext}" URL
 ytdl-go -o "{artist}/{release_year} - {album}/{title}.{ext}" URL
 ```
 
-!!! tip "Template Placeholders"
-    For complete template documentation, see [Output Templates](output-templates.md).
+> **Template Placeholders**
+>
+> For complete template documentation, see [Output Templates](output-templates).
 
 ## Playlist Metadata Workflows
 
@@ -622,14 +629,14 @@ done < urls.txt
 
 ## Next Steps
 
-- **Templates**: Use metadata in [output templates](output-templates.md)
-- **Audio**: Apply metadata to [audio downloads](audio-only.md)
-- **Playlists**: Manage [playlist metadata](playlists.md)
-- **Basics**: Start with [basic downloads](basic-downloads.md)
+- **Templates**: Use metadata in [output templates](output-templates)
+- **Audio**: Apply metadata to [audio downloads](audio-only)
+- **Playlists**: Manage [playlist metadata](playlists)
+- **Basics**: Start with [basic downloads](basic-downloads)
 
 ## Related References
 
-- [Output Templates Guide](output-templates.md)
-- [Audio-Only Downloads Guide](audio-only.md)
-- [Playlist Downloads Guide](playlists.md)
-- [Command-Line Flags Reference](../../reference/flags.md)
+- [Output Templates Guide](output-templates)
+- [Audio-Only Downloads Guide](audio-only)
+- [Playlist Downloads Guide](playlists)
+- [Command-Line Flags Reference](../../reference/flags)

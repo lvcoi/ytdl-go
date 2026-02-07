@@ -1,3 +1,8 @@
+---
+title: "Quick Start"
+weight: 20
+---
+
 # Quick Start
 
 Get up and running with ytdl-go in minutes!
@@ -105,7 +110,7 @@ ytdl-go -o "{upload-date}_{title}.{ext}" URL
 ytdl-go -o "{playlist-title}/{title}.{ext}" PLAYLIST_URL
 ```
 
-See [Output Templates](../usage/output-templates.md) for complete documentation.
+See [Output Templates](../usage/output-templates) for complete documentation.
 
 ---
 
@@ -113,11 +118,11 @@ See [Output Templates](../usage/output-templates.md) for complete documentation.
 
 Now that you know the basics, explore more features:
 
-- **[Basic Downloads](../usage/basic-downloads.md)** - Detailed download options
-- **[Playlists](../usage/playlists.md)** - Advanced playlist handling
-- **[Audio-Only Mode](../usage/audio-only.md)** - Music and podcast downloads
-- **[Format Selection](../usage/format-selection.md)** - Advanced format control
-- **[Metadata & Sidecars](../usage/metadata-sidecars.md)** - Rich metadata handling
+- **[Basic Downloads](../usage/basic-downloads)** - Detailed download options
+- **[Playlists](../usage/playlists)** - Advanced playlist handling
+- **[Audio-Only Mode](../usage/audio-only)** - Music and podcast downloads
+- **[Format Selection](../usage/format-selection)** - Advanced format control
+- **[Metadata & Sidecars](../usage/metadata-sidecars)** - Rich metadata handling
 
 ---
 
@@ -134,7 +139,7 @@ Now that you know the basics, explore more features:
 | `-quiet` | Suppress progress output |
 | `-cookies FILE` | Use cookies for authentication |
 
-See [CLI Options Reference](../../reference/cli-options.md) for the complete list.
+See [CLI Options Reference](../../reference/cli-options) for the complete list.
 
 ---
 
@@ -142,8 +147,8 @@ See [CLI Options Reference](../../reference/cli-options.md) for the complete lis
 
 If you encounter issues:
 
-- Check [Troubleshooting](../troubleshooting/common-issues.md)
-- Review [FAQ](../troubleshooting/faq.md)
+- Check [Troubleshooting](../troubleshooting/common-issues)
+- Review [FAQ](../troubleshooting/faq)
 - Search [GitHub Issues](https://github.com/lvcoi/ytdl-go/issues)
 - Open a [new issue](https://github.com/lvcoi/ytdl-go/issues/new)
 

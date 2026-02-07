@@ -1,3 +1,8 @@
+---
+title: "Installation"
+weight: 10
+---
+
 # Installation
 
 This guide covers different ways to install ytdl-go on your system.
@@ -7,26 +12,27 @@ This guide covers different ways to install ytdl-go on your system.
 - **Go 1.24+** (for building from source)
 - **FFmpeg** (optional, recommended for audio extraction fallback)
 
-!!! tip "FFmpeg Installation"
-    While FFmpeg is optional, it's recommended for the best experience with audio extraction:
-    
-    === "macOS"
-        ```bash
-        brew install ffmpeg
-        ```
-    
-    === "Linux (Debian/Ubuntu)"
-        ```bash
-        sudo apt-get install ffmpeg
-        ```
-    
-    === "Linux (Fedora)"
-        ```bash
-        sudo dnf install ffmpeg
-        ```
-    
-    === "Windows"
-        Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH.
+> **Tip: FFmpeg Installation**
+>
+> While FFmpeg is optional, it's recommended for the best experience with audio extraction:
+>
+> **macOS:**
+> ```bash
+> brew install ffmpeg
+> ```
+>
+> **Linux (Debian/Ubuntu):**
+> ```bash
+> sudo apt-get install ffmpeg
+> ```
+>
+> **Linux (Fedora):**
+> ```bash
+> sudo dnf install ffmpeg
+> ```
+>
+> **Windows:**
+> Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH.
 
 ---
 
@@ -36,44 +42,44 @@ This guide covers different ways to install ytdl-go on your system.
 
 Download pre-compiled binaries from the [GitHub Releases](https://github.com/lvcoi/ytdl-go/releases) page.
 
-=== "Linux"
+**Linux:**
 
-    ```bash
-    # Download latest release
-    curl -L https://github.com/lvcoi/ytdl-go/releases/latest/download/ytdl-go-linux-amd64 -o ytdl-go
-    
-    # Make executable
-    chmod +x ytdl-go
-    
-    # Move to system path (optional)
-    sudo mv ytdl-go /usr/local/bin/
-    
-    # Verify installation
-    ytdl-go -version
-    ```
+```bash
+# Download latest release
+curl -L https://github.com/lvcoi/ytdl-go/releases/latest/download/ytdl-go-linux-amd64 -o ytdl-go
 
-=== "macOS"
+# Make executable
+chmod +x ytdl-go
 
-    ```bash
-    # Download latest release
-    curl -L https://github.com/lvcoi/ytdl-go/releases/latest/download/ytdl-go-darwin-amd64 -o ytdl-go
-    
-    # Make executable
-    chmod +x ytdl-go
-    
-    # Move to system path (optional)
-    sudo mv ytdl-go /usr/local/bin/
-    
-    # Verify installation
-    ytdl-go -version
-    ```
+# Move to system path (optional)
+sudo mv ytdl-go /usr/local/bin/
 
-=== "Windows"
+# Verify installation
+ytdl-go -version
+```
 
-    1. Download `ytdl-go-windows-amd64.exe` from [releases](https://github.com/lvcoi/ytdl-go/releases/latest)
-    2. Rename to `ytdl-go.exe`
-    3. Add to your system PATH
-    4. Verify: `ytdl-go -version`
+**macOS:**
+
+```bash
+# Download latest release
+curl -L https://github.com/lvcoi/ytdl-go/releases/latest/download/ytdl-go-darwin-amd64 -o ytdl-go
+
+# Make executable
+chmod +x ytdl-go
+
+# Move to system path (optional)
+sudo mv ytdl-go /usr/local/bin/
+
+# Verify installation
+ytdl-go -version
+```
+
+**Windows:**
+
+1. Download `ytdl-go-windows-amd64.exe` from [releases](https://github.com/lvcoi/ytdl-go/releases/latest)
+2. Rename to `ytdl-go.exe`
+3. Add to your system PATH
+4. Verify: `ytdl-go -version`
 
 ### Using `go install`
 
@@ -83,8 +89,7 @@ If you have Go 1.24+ installed:
 go install github.com/lvcoi/ytdl-go@latest
 ```
 
-!!! note
-    Ensure your `$GOPATH/bin` is in your system `$PATH`.
+> **Note:** Ensure your `$GOPATH/bin` is in your system `$PATH`.
 
 ### Build from Source
 
@@ -192,6 +197,6 @@ rm $(go env GOPATH)/bin/ytdl-go
 
 ## Next Steps
 
-- [Quick Start Guide](quick-start.md) - Learn the basics
-- [Configuration](configuration.md) - Configure ytdl-go for your needs
-- [Basic Downloads](../usage/basic-downloads.md) - Start downloading videos
+- [Quick Start Guide](quick-start) - Learn the basics
+- [Configuration](configuration) - Configure ytdl-go for your needs
+- [Basic Downloads](../usage/basic-downloads) - Start downloading videos
