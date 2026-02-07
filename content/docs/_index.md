@@ -18,3 +18,7 @@ Comprehensive guides covering all features and use cases of ytdl-go.
 ## Developer Guide
 
 Technical documentation for contributors and those interested in ytdl-go's internals.
+
+## Reference
+
+Quick reference materials for CLI options, placeholders, exit codes, and legal information.
