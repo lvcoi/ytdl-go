@@ -156,21 +156,6 @@ ytdl-go -o "Playlists/{playlist_title}/{title}.{ext}" [PLAYLIST_URL]
 # Output: "Playlists/My Playlist/Video Title.mp4"
 ```
 
-### Date-Based Organization
-
-```bash
-# By year
-ytdl-go -o "Videos/{release_year}/{title}.{ext}" [URL]
-# Output: "Videos/2023/Video Title.mp4"
-
-# By full date
-ytdl-go -o "Videos/{release_date}/{title}.{ext}" [URL]
-# Output: "Videos/2023-01-15/Video Title.mp4"
-
-# Year/Month folders (requires manual extraction)
-ytdl-go -o "Videos/{release_year}/{title}.{ext}" [URL]
-```
-
 ### Quality-Based Organization
 
 ```bash
