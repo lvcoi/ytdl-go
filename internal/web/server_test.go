@@ -64,13 +64,24 @@ func startWebServerForTest(t *testing.T, ctx context.Context) (baseURL string, w
 	statusURL := fmt.Sprintf("http://%s/api/status", addr)
 	deadline := time.Now().Add(5 * time.Second)
 	for {
+		select {
+		case serveErr := <-errCh:
+			if serveErr != nil && !errors.Is(serveErr, context.Canceled) {
+				t.Fatalf("server failed before readiness: %v", serveErr)
+			}
+			t.Fatalf("server exited before readiness")
+		default:
+		}
+
 		if time.Now().After(deadline) {
 			t.Fatalf("server did not become ready in time")
 		}
 		resp, err := client.Get(statusURL)
 		if err == nil {
 			_ = resp.Body.Close()
-			break
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -193,6 +204,68 @@ func TestEnsureMediaLayoutCreatesRequiredSubdirs(t *testing.T) {
 			t.Fatalf("expected %s to be a directory", path)
 		}
 	}
+}
+
+func TestResolveWebMediaDirDefaultsToMediaFolder(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		resolved, err := resolveWebMediaDir()
+		if err != nil {
+			t.Fatalf("resolveWebMediaDir: %v", err)
+		}
+		want, err := filepath.Abs(defaultMediaDirName)
+		if err != nil {
+			t.Fatalf("abs default media dir: %v", err)
+		}
+		if resolved != want {
+			t.Fatalf("expected default media directory %q, got %q", want, resolved)
+		}
+	})
+}
+
+func TestResolveWebMediaDirPrefersFolderWithExistingMedia(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		defaultMediaDir := filepath.Join(tmpDir, defaultMediaDirName)
+		legacyMediaDir := filepath.Join(tmpDir, legacyMediaDirName)
+		if err := os.MkdirAll(defaultMediaDir, 0o755); err != nil {
+			t.Fatalf("mkdir default media dir: %v", err)
+		}
+		if err := os.MkdirAll(legacyMediaDir, 0o755); err != nil {
+			t.Fatalf("mkdir legacy media dir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(defaultMediaDir, "saved-playlists.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatalf("write default metadata file: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(legacyMediaDir, "existing-track.mp3"), []byte("audio"), 0o644); err != nil {
+			t.Fatalf("write legacy media file: %v", err)
+		}
+
+		resolved, err := resolveWebMediaDir()
+		if err != nil {
+			t.Fatalf("resolveWebMediaDir: %v", err)
+		}
+		expectedLegacyDir, err := filepath.Abs(legacyMediaDirName)
+		if err != nil {
+			t.Fatalf("abs legacy media dir: %v", err)
+		}
+		if resolved != expectedLegacyDir {
+			t.Fatalf("expected legacy media directory %q, got %q", expectedLegacyDir, resolved)
+		}
+	})
+}
+
+func TestResolveWebMediaDirRespectsEnvironmentOverride(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		overrideDir := filepath.Join(tmpDir, "custom-media")
+		t.Setenv(mediaDirEnvVar, overrideDir)
+
+		resolved, err := resolveWebMediaDir()
+		if err != nil {
+			t.Fatalf("resolveWebMediaDir: %v", err)
+		}
+		if resolved != overrideDir {
+			t.Fatalf("expected override media directory %q, got %q", overrideDir, resolved)
+		}
+	})
 }
 
 func TestListenWithPortFallbackUsesAlternatePortWhenBusy(t *testing.T) {

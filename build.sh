@@ -5,6 +5,7 @@ REPO_ROOT="$(pwd)"
 BIN_DIR="$REPO_ROOT/bin"
 BINARY_NAME="yt"
 FRONTEND_DIR="$REPO_ROOT/frontend"
+DEFAULT_WEB_ADDR="127.0.0.1:8080"
 
 # Colors and Formatting
 GREEN='\033[1;32m'
@@ -130,19 +131,60 @@ fi
 
 # 5. Launch Logic
 launch_ui() {
-    local proxy_target="${VITE_API_PROXY_TARGET:-http://127.0.0.1:8080}"
-    echo -e "${GREEN}Launching UI (API proxy: ${proxy_target})...${NC}"
-    # Use exec so the npm process takes over the session for console output
-    VITE_API_PROXY_TARGET="$proxy_target" exec npm run dev
+    local requested_web_addr="${YTDL_WEB_ADDR:-$DEFAULT_WEB_ADDR}"
+    local backend_pid=""
+    local ui_exit_code=0
+
+    cleanup_backend() {
+        if [ -n "$backend_pid" ] && kill -0 "$backend_pid" 2>/dev/null; then
+            kill "$backend_pid" 2>/dev/null || true
+            wait "$backend_pid" 2>/dev/null || true
+        fi
+    }
+
+    echo -e "${GREEN}Launching backend (requested address: ${requested_web_addr})...${NC}"
+    (
+        cd "$REPO_ROOT" || exit 1
+        "$BIN_DIR/$BINARY_NAME" -web --web-addr "$requested_web_addr"
+    ) &
+    backend_pid=$!
+
+    trap cleanup_backend EXIT INT TERM
+
+    sleep 0.5
+    if ! kill -0 "$backend_pid" 2>/dev/null; then
+        echo -e "${RED}Error: Backend failed to start. Check logs above.${NC}"
+        wait "$backend_pid" 2>/dev/null || true
+        trap - EXIT INT TERM
+        return 1
+    fi
+
+    # Respect explicit override when provided; otherwise let Vite auto-detect
+    # backend fallback ports from the default base target.
+    if [ -n "${VITE_API_PROXY_TARGET:-}" ]; then
+        echo -e "${GREEN}Launching UI (API proxy override: ${VITE_API_PROXY_TARGET})...${NC}"
+        env VITE_API_PROXY_TARGET="$VITE_API_PROXY_TARGET" npm run dev
+        ui_exit_code=$?
+    else
+        echo -e "${GREEN}Launching UI (API proxy: auto-detect from ${DEFAULT_WEB_ADDR} + fallback ports)...${NC}"
+        npm run dev
+        ui_exit_code=$?
+    fi
+
+    cleanup_backend
+    trap - EXIT INT TERM
+    return "$ui_exit_code"
 }
 
 if [ "$AUTO_LAUNCH" = true ]; then
     launch_ui
+    exit $?
 else
     echo -n "Do you want to launch the UI? (y/n): "
     read -r confirm
     if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]; then
         launch_ui
+        exit $?
     else
         echo "Exiting. 'yt' binary is located at ./bin/$BINARY_NAME"
         exit 0

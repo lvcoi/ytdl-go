@@ -117,7 +117,7 @@ Submits a duplicate-file decision for a pending prompt.
 - **URL:** `/status`
 - **Method:** `GET`
 
-### Success Response
+### Success Response - (server status)
 
 ```json
 {
@@ -136,7 +136,7 @@ Lists downloaded media with pagination.
   - `offset` (default `0`)
   - `limit` (default `200`, max `500`)
 
-### Success Response
+### Success Response - (media listing)
 
 ```json
 {
@@ -174,7 +174,7 @@ Reads or replaces the saved-playlist state used by the Library tab.
 - **Methods:** `GET`, `PUT`
 - **Content-Type (`PUT`):** `application/json`
 
-### Payload Shape
+### Payload Shape - (saved playlists)
 
 ```json
 {
@@ -207,7 +207,7 @@ One-time migration endpoint for moving legacy localStorage playlists into backen
 - **Content-Type:** `application/json`
 - **Body:** same shape as section 7 payload
 
-### Success Response
+### Success Response - (saved playlists migration)
 
 ```json
 {

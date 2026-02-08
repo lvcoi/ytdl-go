@@ -907,20 +907,41 @@ export default function DownloadView(props = {}) {
             <div class="text-xs text-gray-500">Extract high-quality MP3/Opus</div>
           </div>
         </button>
-        <div class="p-6 rounded-3xl bg-white/5 border-2 border-transparent flex flex-col gap-3 group has-tooltip relative cursor-help">
-          <span class="tooltip bg-gray-800 text-[10px] px-3 py-2 rounded-xl shadow-2xl mb-4 border border-white/10 w-56 text-center leading-relaxed">YouTube prevents downloads without valid Proof-of-Origin (PO) tokens. Automated bypass is active.</span>
-          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl w-fit"><Icon name="shield-check" class="w-5 h-5" /></div>
-          <div class="text-left">
-            <div class="font-bold text-white">PO Token Guard</div>
-            <div class="text-xs text-gray-500">Automated Bot Detection Bypass</div>
-          </div>
+        <div class="relative has-tooltip">
+          <span class="tooltip bg-gray-800 text-[10px] px-3 py-2 rounded-xl shadow-2xl mb-4 border border-white/10 w-56 text-center leading-relaxed">
+            Coming Soon: PO Token Guard runtime controls.
+          </span>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            aria-label="PO Token Guard (Coming Soon)"
+            class="w-full p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col gap-3 cursor-not-allowed opacity-70 text-left"
+          >
+            <div class="p-3 bg-white/5 text-gray-500 rounded-xl w-fit"><Icon name="shield-check" class="w-5 h-5" /></div>
+            <div>
+              <div class="font-bold text-gray-300">PO Token Guard</div>
+              <div class="text-xs text-gray-500">Automated Bot Detection Bypass</div>
+            </div>
+          </button>
         </div>
-        <div class="p-6 rounded-3xl bg-white/5 border-2 border-transparent flex flex-col gap-3">
-          <div class="p-3 bg-green-500/10 text-green-400 rounded-xl w-fit"><Icon name="database" class="w-5 h-5" /></div>
-          <div class="text-left">
-            <div class="font-bold text-white">Smart Meta</div>
-            <div class="text-xs text-gray-500">Auto-tagging & Organization</div>
-          </div>
+        <div class="relative has-tooltip">
+          <span class="tooltip bg-gray-800 text-[10px] px-3 py-2 rounded-xl shadow-2xl mb-4 border border-white/10 w-56 text-center leading-relaxed">
+            Coming Soon: Smart Meta auto-tagging and organization.
+          </span>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            aria-label="Smart Meta (Coming Soon)"
+            class="w-full p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col gap-3 cursor-not-allowed opacity-70 text-left"
+          >
+            <div class="p-3 bg-white/5 text-gray-500 rounded-xl w-fit"><Icon name="database" class="w-5 h-5" /></div>
+            <div>
+              <div class="font-bold text-gray-300">Smart Meta</div>
+              <div class="text-xs text-gray-500">Auto-tagging & Organization</div>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -1047,7 +1068,13 @@ export default function DownloadView(props = {}) {
               <input
                 type="number"
                 value={settings().jobs}
-                onInput={(e) => setSettings({ ...settings(), jobs: e.target.value })}
+                min="1"
+                max={MAX_JOBS}
+                step="1"
+                onInput={(e) => setSettings({
+                  ...settings(),
+                  jobs: toBoundedPositiveInteger(e.target.value, 1, MAX_JOBS),
+                })}
                 class="w-full bg-[#05070a] border border-white/10 rounded-xl p-3 outline-none focus:border-blue-500 text-gray-300"
               />
             </div>

@@ -84,10 +84,13 @@ Use `build.sh` for an integrated repository build (Go binary + frontend assets).
 # Build backend + frontend, then prompt to launch the UI
 ./build.sh
 
-# Build and automatically launch the UI
+# Build and automatically launch backend + frontend UI
 ./build.sh --web
 
-# Build and launch UI against a backend running on a different port
+# Build and launch against a backend on a custom requested web address
+YTDL_WEB_ADDR=127.0.0.1:9090 ./build.sh --web
+
+# Build and launch UI against an explicit API proxy target
 VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
 
 # Show script options
@@ -98,8 +101,9 @@ What it does:
 
 - Builds the Go binary to `./bin/yt`
 - Builds frontend assets into `internal/web/assets/`
-- Prompts to launch the UI unless `--web` is passed
-- Uses `VITE_API_PROXY_TARGET` for frontend API proxy target (default `http://127.0.0.1:8080`)
+- Prompts to launch backend + frontend dev UI unless `--web` is passed
+- Launches backend via `yt -web --web-addr "${YTDL_WEB_ADDR:-127.0.0.1:8080}"`
+- Uses `VITE_API_PROXY_TARGET` only when explicitly set; otherwise Vite auto-detects backend from `http://127.0.0.1:8080` + fallback ports
 - `ytdl-go -web` auto-falls back to the next available port if the requested port is already in use, and logs the final URL
 
 Options:

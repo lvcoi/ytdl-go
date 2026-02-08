@@ -37,6 +37,10 @@ const (
 	jobErroredTTL         = 30 * time.Minute
 	jobCleanupInterval    = time.Minute
 	maxPortFallbacks      = 20
+	maxTCPPort            = 65535
+	defaultMediaDirName   = "media"
+	legacyMediaDirName    = "frontend/media"
+	mediaDirEnvVar        = "YTDL_MEDIA_DIR"
 	mediaFolderAudio      = "audio"
 	mediaFolderVideo      = "video"
 	mediaFolderPlaylist   = "playlist"
@@ -310,10 +314,16 @@ func hasKnownMediaRootPrefix(template string) bool {
 func ListenAndServe(ctx context.Context, addr string) error {
 	startedAt := time.Now()
 
-	// Create a dedicated media directory for downloads.
-	mediaDir, err := filepath.Abs("media")
+	// Resolve media directory for downloads and library data.
+	mediaDir, err := resolveWebMediaDir()
 	if err != nil {
-		return fmt.Errorf("resolving media directory: %w", err)
+		return err
+	}
+	if strings.TrimSpace(os.Getenv(mediaDirEnvVar)) == "" {
+		defaultMediaDir, defaultErr := filepath.Abs(defaultMediaDirName)
+		if defaultErr == nil && mediaDir != defaultMediaDir {
+			log.Printf("Detected existing media under %s; using it as media directory. Set %s to override.", mediaDir, mediaDirEnvVar)
+		}
 	}
 	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
 		return fmt.Errorf("creating media directory: %w", err)
@@ -648,7 +658,7 @@ func listenWithPortFallback(addr string, maxFallbacks int) (net.Listener, int, e
 	}
 
 	port, err := strconv.Atoi(portText)
-	if err != nil || port < 0 || port > 65535 {
+	if err != nil || port < 0 || port > maxTCPPort {
 		return nil, 0, fmt.Errorf("invalid port in web address %q", addr)
 	}
 
@@ -662,7 +672,7 @@ func listenWithPortFallback(addr string, maxFallbacks int) (net.Listener, int, e
 	)
 	for offset := 0; offset <= maxFallbacks; offset++ {
 		candidatePort := port + offset
-		if candidatePort > 65535 {
+		if candidatePort > maxTCPPort {
 			break
 		}
 		attempts++
@@ -703,6 +713,76 @@ func formatWebURL(addr string) string {
 		Scheme: "http",
 		Host:   net.JoinHostPort(host, port),
 	}).String()
+}
+
+func resolveWebMediaDir() (string, error) {
+	if override := strings.TrimSpace(os.Getenv(mediaDirEnvVar)); override != "" {
+		mediaDir, err := filepath.Abs(override)
+		if err != nil {
+			return "", fmt.Errorf("resolving media directory from %s: %w", mediaDirEnvVar, err)
+		}
+		return mediaDir, nil
+	}
+
+	candidates := []string{defaultMediaDirName, legacyMediaDirName}
+	chosenMediaDir := ""
+	maxMediaCount := -1
+	for _, candidate := range candidates {
+		absCandidate, err := filepath.Abs(candidate)
+		if err != nil {
+			return "", fmt.Errorf("resolving media directory %q: %w", candidate, err)
+		}
+
+		mediaCount, err := countMediaFilesInDir(absCandidate)
+		if err != nil {
+			return "", fmt.Errorf("scanning media directory %q: %w", absCandidate, err)
+		}
+		if mediaCount > maxMediaCount {
+			chosenMediaDir = absCandidate
+			maxMediaCount = mediaCount
+		}
+	}
+
+	if chosenMediaDir == "" {
+		mediaDir, err := filepath.Abs(defaultMediaDirName)
+		if err != nil {
+			return "", fmt.Errorf("resolving media directory: %w", err)
+		}
+		return mediaDir, nil
+	}
+	return chosenMediaDir, nil
+}
+
+func countMediaFilesInDir(dir string) (int, error) {
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	if !info.IsDir() {
+		return 0, fmt.Errorf("path exists but is not a directory: %s", dir)
+	}
+
+	count := 0
+	err = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".json") {
+			return nil
+		}
+		count++
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func ensureMediaLayout(mediaDir string) error {

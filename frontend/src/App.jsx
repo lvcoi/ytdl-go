@@ -702,15 +702,26 @@ function App() {
             </button>
         </nav>
 
-        <div class="mt-auto p-4 bg-white/5 rounded-2xl border border-white/5">
-            <div class="flex items-center gap-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                <Icon name="puzzle" class="w-3 h-3" />
-                Extensions
-            </div>
-            <div class="flex items-center justify-between text-xs">
-                <span class="text-gray-400">PO Token Provider</span>
-                <span class="px-2 py-0.5 bg-green-500/10 text-green-500 rounded-full font-bold">Active</span>
-            </div>
+        <div class="mt-auto relative has-tooltip">
+            <span class="tooltip bg-gray-800 text-[10px] px-2 py-1 rounded shadow-xl mb-4 border border-white/10 w-56 text-center leading-relaxed">
+                Coming Soon: extension provider management and health status.
+            </span>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              aria-label="Extensions panel (Coming Soon)"
+              class="w-full p-4 bg-white/5 rounded-2xl border border-white/5 opacity-70 cursor-not-allowed text-left"
+            >
+              <div class="flex items-center gap-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  <Icon name="puzzle" class="w-3 h-3" />
+                  Extensions
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">PO Token Provider</span>
+                  <span class="px-2 py-0.5 bg-white/10 text-gray-500 rounded-full font-bold border border-white/10">Coming Soon</span>
+              </div>
+            </button>
         </div>
       </aside>
 
@@ -719,11 +730,21 @@ function App() {
         <header class="h-20 border-b border-white/5 flex items-center justify-between px-10 glass sticky top-0 z-20">
             <h2 class="text-lg font-bold text-white capitalize">{activeTab()}</h2>
             <div class="flex items-center gap-6">
-                <div class="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5 has-tooltip cursor-pointer">
-                    <span class="tooltip bg-gray-800 text-[10px] px-2 py-1 rounded shadow-xl mb-4 border border-white/10 w-48 text-center leading-relaxed">Logged in. Cookies synced for age-restricted content.</span>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span class="text-xs font-bold text-gray-300 italic">YT_AUTH_OK</span>
+                <div class="relative has-tooltip">
+                  <span class="tooltip bg-gray-800 text-[10px] px-2 py-1 rounded shadow-xl mb-4 border border-white/10 w-56 text-center leading-relaxed">
+                    Coming Soon: live auth cookie status and diagnostics.
+                  </span>
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    aria-label="YouTube auth status details (Coming Soon)"
+                    class="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5 cursor-not-allowed opacity-70"
+                  >
+                    <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                    <span class="text-xs font-bold text-gray-400 italic">YT_AUTH_OK</span>
                     <Icon name="chevron-down" class="w-3 h-3 text-gray-500" />
+                  </button>
                 </div>
                 <button onClick={toggleAdvanced} class={`px-4 py-2 rounded-full text-xs font-bold transition-all ${isAdvanced() ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-gray-500 hover:text-gray-300'}`}>
                     Advanced Mode
