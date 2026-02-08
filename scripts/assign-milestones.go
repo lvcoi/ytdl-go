@@ -231,7 +231,7 @@ return nil
 
 // Strategy 1: Use rules based on milestone due dates
 for _, rule := range rules {
-if closedAt.After(rule.StartDate) && closedAt.Before(rule.EndDate) {
+if (closedAt.After(rule.StartDate) || closedAt.Equal(rule.StartDate)) && (closedAt.Before(rule.EndDate) || closedAt.Equal(rule.EndDate)) {
 for _, m := range milestones {
 if m.GetTitle() == rule.Name {
 return m
