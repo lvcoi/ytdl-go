@@ -79,10 +79,6 @@ POST /api/download
 | `overwrite` | Overwrite existing files |
 | `skip` | Skip downloading duplicates |
 | `rename` | Auto-rename with suffix |
-| `prompt_all` | Apply choice to all duplicates |
-| `overwrite_all` | Overwrite all duplicates |
-| `skip_all` | Skip all duplicates |
-| `rename_all` | Auto-rename all duplicates |
 
 ##### Output Template Variables
 
