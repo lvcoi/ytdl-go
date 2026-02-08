@@ -20,7 +20,6 @@ If you can't find a solution here:
 1. **Check the logs** - Run with `-json` flag for detailed output
 2. **Search existing issues** - Visit [GitHub Issues](https://github.com/lvcoi/ytdl-go/issues)
 3. **Report a bug** - [Open a new issue](https://github.com/lvcoi/ytdl-go/issues/new) with:
-   - ytdl-go version (`ytdl-go -version`)
    - Full command you ran
    - Complete error message
    - Operating system and Go version

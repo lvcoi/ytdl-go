@@ -177,7 +177,7 @@ While not legally required by the MIT License, attribution is appreciated:
 **Example attribution:**
 
 ```text
-This software uses ytdl-go (https://github.com/ytdl-go/ytdl-go)
+This software uses ytdl-go (https://github.com/lvcoi/ytdl-go)
 Licensed under the MIT License
 ```
 

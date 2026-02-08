@@ -13,18 +13,6 @@ ytdl-go is designed to work out of the box with sensible defaults, but offers ex
 
 ---
 
-## Cookie Files
-
-Some video platforms require authentication (for example, for age-restricted, private, or members-only content). A common way for CLI tools to support this is by accepting a browser-exported cookie file.
-
-At the moment, the `ytdl-go` CLI does **not** support passing a cookie file via a `-cookies` flag or any other command-line option. This means that:
-
-- You can only download content that is accessible without logging in.
-- Examples you may see elsewhere using `ytdl-go -cookies …` refer to a flag that is not implemented in the current CLI.
-
-Support for cookie files may be added in a future release. Until then, there is no need to export cookies from your browser for use with `ytdl-go`.
----
-
 ## Configuration Files
 
 Currently, ytdl-go does not use configuration files. All settings are passed via command-line flags.
@@ -46,9 +34,7 @@ Understanding the defaults helps you use ytdl-go effectively:
 | **Format** | Auto | Container format (mp4, webm, etc.) |
 | **Jobs** | `1` | Concurrent downloads |
 | **Timeout** | `3m` | Network timeout |
-| **On Duplicate** | `prompt` | Behavior when file exists |
 
-Note: Retry behavior is handled internally and is not configurable via a `-retries` CLI flag or any other option.
 ---
 
 ## Common Configuration Patterns
@@ -155,10 +141,6 @@ Adjust for slow connections:
 ytdl-go -timeout 5m URL
 ```
 
-### Retry Logic
-
-`ytdl-go` automatically performs a limited number of internal retries for transient network errors (for example, timeouts or connection resets).
-This behavior is built in and cannot currently be configured via CLI flags.
 ---
 
 ## Advanced Configuration
@@ -173,24 +155,6 @@ ytdl-go -output-dir /safe/path -o "{title}.{ext}" URL
 ```
 
 > **Info:** This prevents path traversal attacks when using user-provided templates.
-
-### Metadata Embedding
-
-Control metadata embedding:
-
-```bash
-# Write metadata to JSON sidecar
-ytdl-go -write-info-json URL
-
-# Write description to .description file
-ytdl-go -write-description URL
-
-# Write thumbnail to .jpg file
-ytdl-go -write-thumbnail URL
-
-# All metadata options
-ytdl-go -write-info-json -write-description -write-thumbnail URL
-```
 
 ---
 

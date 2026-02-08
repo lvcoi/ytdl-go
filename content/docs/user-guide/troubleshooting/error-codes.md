@@ -237,11 +237,8 @@ ls -la /path/to/output
 # Check disk space
 df -h
 
-# Use valid output path
-ytdl-go -o "$HOME/Downloads/{title}.{ext}" URL
-
-# Handle duplicates
-ytdl-go -on-duplicate skip URL
+# Use relative path with output directory
+ytdl-go -output-dir "$HOME/Downloads" -o "{title}.{ext}" URL
 ```
 
 ---
@@ -270,7 +267,7 @@ case $exit_code in
     echo "✗ Format not supported"
     ;;
   4)
-    echo "✗ Content restricted - try with cookies"
+    echo "✗ Content restricted"
     ;;
   5)
     echo "✗ Network error - retrying..."

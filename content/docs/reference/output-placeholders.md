@@ -90,6 +90,7 @@ If a placeholder's value is not available, it is replaced with a safe default:
 # No album metadata available
 ytdl-go -o "{artist}/{album}/{title}.{ext}" [URL]
 # Results in: "Artist Name/Video Title.mp4"
+# (empty album segment is removed during path cleaning)
 ```
 
 ### Case Sensitivity
@@ -168,6 +169,8 @@ ytdl-go -o "Videos/{title} [{quality}].{ext}" [URL]
 # Output: "Videos/Video Title [720p].mp4"
 ```
 
+**Note:** Release date and release year placeholders like `{release_date}` and `{release_year}` are not currently supported.
+
 ### Advanced Templates
 
 ```bash
@@ -204,8 +207,9 @@ Understand how missing metadata is handled so you can choose appropriate templat
 ```bash
 # Album might be missing - the {album} placeholder becomes empty
 ytdl-go -o "Music/{artist}/{album}/{title}.{ext}" [URL]
-# If album metadata is missing, this becomes: "Music/Artist Name/Song Title.m4a"
-# (the empty album path segment is removed during path cleaning)
+# If album metadata is missing:
+#   Template expands to: "Music/Artist Name//Song Title.m4a"
+#   After filepath.Clean(): "Music/Artist Name/Song Title.m4a"
 
 # Or use a flat structure when metadata is uncertain
 ytdl-go -o "Music/{artist} - {title}.{ext}" [URL]
@@ -261,23 +265,20 @@ ytdl-go -o "{title}.{ext}" [URL]
 
 ## Metadata Override
 
-You can override placeholder values using the `-meta` flag:
+The `-meta` flag overrides metadata embedded in the output file (e.g., ID3 tags), but it does **not** affect template placeholder expansion. Template placeholders always use the video's original metadata from YouTube.
 
 ```bash
-# Override title
-ytdl-go -meta title="Custom Title" -o "{title}.{ext}" [URL]
-# Output: "Custom Title.mp4"
-
-# Override multiple fields
-ytdl-go \
+# The -meta flag sets the ID3 tags in the file, NOT the template placeholders
+ytdl-go -audio \
   -meta artist="Custom Artist" \
   -meta album="Custom Album" \
   -o "Music/{artist}/{album}/{title}.{ext}" \
   [URL]
-# Output: "Music/Custom Artist/Custom Album/Video Title.mp4"
+# Template uses original YouTube metadata for the path
+# ID3 tags in the file will contain "Custom Artist" and "Custom Album"
 ```
 
-See the [CLI Options - Metadata Flags](cli-options#metadata-flags) section for complete metadata override documentation.
+See the [Output Templates](../user-guide/usage/output-templates#working-with-metadata-overrides) guide for details.
 
 ## Directory Creation
 

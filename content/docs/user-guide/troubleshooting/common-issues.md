@@ -144,31 +144,20 @@ ytdl-go https://www.youtube.com/playlist?list=PLAYLIST_ID
 
 ```bash
 # Check output directory permissions
-ls -la /path/to/output
+ls -la .
 
-# Use directory you own
-ytdl-go -o "$HOME/Downloads/{title}.{ext}" URL
+# Use output directory flag with a directory you own
+ytdl-go -output-dir "$HOME/Downloads" -o "{title}.{ext}" URL
 
-# Or fix permissions
-chmod u+w /path/to/output
+# Or fix permissions of current directory
+chmod u+w .
 ```
 
 ### File Already Exists
 
 **Symptom:** "File already exists" error.
 
-**Solutions:**
-
-```bash
-# Skip duplicates
-ytdl-go -on-duplicate skip URL
-
-# Overwrite existing files
-ytdl-go -on-duplicate overwrite URL
-
-# Prompt for each duplicate (default)
-ytdl-go -on-duplicate prompt URL
-```
+**Solution:** ytdl-go prompts for confirmation by default when a file already exists. You can specify a relative path with the `-o` flag to control the output location.
 
 ### Path Too Long
 
@@ -300,10 +289,7 @@ ytdl-go -jobs 1 URL
 **Solution:** ytdl-go automatically embeds metadata. If missing:
 
 1. **Check audio format** - ID3 tags work best with m4a
-2. **Use `-write-info-json`** for sidecar metadata:
-   ```bash
-   ytdl-go -audio -write-info-json URL
-   ```
+2. **Check the file with a metadata viewer** to verify what was embedded
 
 ### Incorrect Metadata
 

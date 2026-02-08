@@ -195,7 +195,6 @@ Common placeholders:
 | `{id}` | Video ID |
 | `{ext}` | File extension |
 | `{quality}` | Quality (e.g., 1080p) |
-| `{upload-date}` | Upload date (YYYYMMDD) |
 | `{playlist-title}` | Playlist name |
 | `{index}` | Position in playlist |
 
@@ -203,17 +202,14 @@ See [Output Templates](../usage/output-templates) for the complete list.
 
 ### How do I avoid overwriting files?
 
-Use the `-on-duplicate` flag:
+ytdl-go prompts for confirmation by default when a file already exists. Use unique output templates to avoid conflicts:
 
 ```bash
-# Skip if exists
-ytdl-go -on-duplicate skip URL
+# Include video ID for uniqueness
+ytdl-go -o "{title}-{id}.{ext}" URL
 
-# Overwrite existing
-ytdl-go -on-duplicate overwrite URL
-
-# Prompt (default)
-ytdl-go -on-duplicate prompt URL
+# Organize by artist/album
+ytdl-go -o "{artist}/{album}/{title}.{ext}" URL
 ```
 
 ---
@@ -257,18 +253,7 @@ ytdl-go -meta artist="My Artist" -meta title="My Title" URL
 
 ### Can I save metadata to a separate file?
 
-Yes:
-
-```bash
-# JSON sidecar file
-ytdl-go -write-info-json URL
-
-# Description file
-ytdl-go -write-description URL
-
-# Thumbnail
-ytdl-go -write-thumbnail URL
-```
+ytdl-go automatically embeds metadata into the output file (ID3 tags for audio, metadata for video). For JSON output of download information, use the `-json` flag.
 
 See [Metadata & Sidecars](../usage/metadata-sidecars) for details.
 
@@ -326,7 +311,7 @@ Then open `http://localhost:8080` in your browser.
 Yes, bind to all interfaces:
 
 ```bash
-ytdl-go -web -addr 0.0.0.0:8080
+ytdl-go -web -web-addr 0.0.0.0:8080
 ```
 
 Then access from other devices using your computer's IP: `http://YOUR_IP:8080`
@@ -335,10 +320,10 @@ Then access from other devices using your computer's IP: `http://YOUR_IP:8080`
 
 ### Can I use a different port?
 
-Yes:
+Yes, specify the address and port:
 
 ```bash
-ytdl-go -web -port 3000
+ytdl-go -web -web-addr :3000
 ```
 
 ---
@@ -351,7 +336,7 @@ Absolutely! ytdl-go is designed for automation:
 
 ```bash
 #!/bin/bash
-ytdl-go -quiet -on-duplicate skip URL
+ytdl-go -quiet URL
 ```
 
 ### How do I get machine-readable output?
@@ -426,7 +411,6 @@ ytdl-go -timeout 10m URL
 
 1. Check [existing issues](https://github.com/lvcoi/ytdl-go/issues)
 2. Open a [new issue](https://github.com/lvcoi/ytdl-go/issues/new) with:
-   - ytdl-go version (`ytdl-go -version`)
    - Full command used
    - Complete error message
    - Operating system and Go version

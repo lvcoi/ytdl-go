@@ -150,8 +150,8 @@ ytdl-go -audio -o "Music/{artist} - {title}.{ext}" URL
 # Artist/Album structure
 ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 
-# With track numbers (if metadata available)
-ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
+# With track numbers from playlist position
+ytdl-go -audio -o "Music/{artist}/{album}/{index} - {title}.{ext}" URL
 
 # Music playlist
 ytdl-go -audio -o "Music/{artist}/{playlist-title}/{index} - {title}.{ext}" URL
@@ -325,7 +325,7 @@ Includes multiple metadata fields for maximum information.
 
 ## Working with Metadata Overrides
 
-The `-meta` flag allows overriding metadata that gets embedded in the output file (e.g., ID3 tags), but it does NOT affect template placeholders. Placeholders are always populated from the video's original metadata.
+The `-meta` flag allows overriding metadata that gets embedded in the output file (e.g., ID3 tags). It does **not** change the template placeholders—those are always populated from the video's original metadata.
 
 ```bash
 # This overrides embedded metadata, but template uses original artist
@@ -336,7 +336,7 @@ ytdl-go -audio \
         URL
 ```
 
-The template will expand using the video's original artist/album, while the embedded ID3 tags will contain your custom values.
+The template will expand using the video's original artist/album from YouTube's metadata, while the embedded ID3 tags in the output file will contain your custom values set via `-meta`.
 
 ## Security Considerations
 

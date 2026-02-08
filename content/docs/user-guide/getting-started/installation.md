@@ -53,9 +53,6 @@ chmod +x ytdl-go
 
 # Move to system path (optional)
 sudo mv ytdl-go /usr/local/bin/
-
-# Verify installation
-ytdl-go -version
 ```
 
 **macOS:**
@@ -69,9 +66,6 @@ chmod +x ytdl-go
 
 # Move to system path (optional)
 sudo mv ytdl-go /usr/local/bin/
-
-# Verify installation
-ytdl-go -version
 ```
 
 **Windows:**
@@ -79,7 +73,6 @@ ytdl-go -version
 1. Download `ytdl-go-windows-amd64.exe` from [releases](https://github.com/lvcoi/ytdl-go/releases/latest)
 2. Rename to `ytdl-go.exe`
 3. Add to your system PATH
-4. Verify: `ytdl-go -version`
 
 ### Using `go install`
 
@@ -148,9 +141,6 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
 After installation, verify ytdl-go is working:
 
 ```bash
-# Check version
-ytdl-go -version
-
 # Test with a simple download
 ytdl-go -info https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
