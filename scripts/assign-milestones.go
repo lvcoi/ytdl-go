@@ -2,7 +2,6 @@ package main
 
 import (
 "context"
-"encoding/json"
 "flag"
 "fmt"
 "log"
@@ -273,10 +272,4 @@ if len(s) <= maxLen {
 return s
 }
 return s[:maxLen-3] + "..."
-}
-
-// Pretty print JSON for debugging
-func prettyPrint(v interface{}) {
-b, _ := json.MarshalIndent(v, "", "  ")
-fmt.Println(string(b))
 }
