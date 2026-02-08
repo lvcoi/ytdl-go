@@ -157,13 +157,8 @@ ytdl-go -timeout 5m URL
 
 ### Retry Logic
 
-Configure retry attempts:
-
-```bash
-# Retry up to 5 times
-ytdl-go -retries 5 URL
-```
-
+`ytdl-go` automatically performs a limited number of internal retries for transient network errors (for example, timeouts or connection resets).
+This behavior is built in and cannot currently be configured via CLI flags.
 ---
 
 ## Advanced Configuration
