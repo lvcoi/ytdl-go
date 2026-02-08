@@ -262,7 +262,7 @@ ls -la /path/to/output
 df -h
 
 # Use valid output path
-ytdl-go -o "$HOME/Downloads/{title}.{ext}" [URL]
+ytdl-go -output-dir "$HOME/Downloads" -o "{title}.{ext}" [URL]
 ```
 
 ## JSON Mode Error Categories
