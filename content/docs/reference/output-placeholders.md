@@ -89,7 +89,7 @@ If a placeholder's value is not available, it is replaced with a safe default:
 ```bash
 # No album metadata available
 ytdl-go -o "{artist}/{album}/{title}.{ext}" [URL]
-# Results in: "Artist Name//Video Title.mp4"
+# Results in: "Artist Name/Video Title.mp4"
 ```
 
 ### Case Sensitivity
