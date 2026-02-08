@@ -25,33 +25,9 @@ At the moment, the `ytdl-go` CLI does **not** support passing a cookie file via 
 Support for cookie files may be added in a future release. Until then, there is no need to export cookies from your browser for use with `ytdl-go`.
 ---
 
-## Environment Variables
-
-Configure ytdl-go behavior via environment variables:
-
-### Output Directory
-
-```bash
-# Set default output directory
-export YTDL_OUTPUT_DIR="$HOME/Videos/YouTube"
-ytdl-go URL
-```
-
-### Proxy Configuration
-
-```bash
-# Use HTTP proxy
-export HTTP_PROXY=http://proxy.example.com:8080
-export HTTPS_PROXY=http://proxy.example.com:8080
-
-ytdl-go URL
-```
-
----
-
 ## Configuration Files
 
-Currently, ytdl-go does not use configuration files. All settings are passed via command-line flags or environment variables.
+Currently, ytdl-go does not use configuration files. All settings are passed via command-line flags.
 
 > **Note: Future Enhancement**
 >
