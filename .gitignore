@@ -93,3 +93,7 @@ site/
 
 # Frontend (Node.js)
 frontend/node_modules/
+
+# Scripts binaries
+scripts/assign-milestones
+scripts/go.sum
