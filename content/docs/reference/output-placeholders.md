@@ -214,14 +214,15 @@ ytdl-go -o "/home/user/downloads/{title}.{ext}" [URL]  # Absolute path
 
 ### Handle Missing Data
 
-Plan for missing metadata by using safe defaults:
+Understand how missing metadata is handled so you can choose appropriate templates:
 
 ```bash
-# Album might be missing - provide context
+# Album might be missing - the {album} placeholder becomes empty
 ytdl-go -o "Music/{artist}/{album}/{title}.{ext}" [URL]
-# Falls back to: "Music/Artist Name/unknown/Song Title.m4a"
+# If album metadata is missing, this becomes: "Music/Artist Name/Song Title.m4a"
+# (the empty album path segment is removed during path cleaning)
 
-# Or use flat structure when metadata uncertain
+# Or use a flat structure when metadata is uncertain
 ytdl-go -o "Music/{artist} - {title}.{ext}" [URL]
 ```
 
