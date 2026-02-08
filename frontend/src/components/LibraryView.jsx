@@ -657,9 +657,20 @@ export default function LibraryView(props) {
                   >
                     <Icon name="play" class="w-5 h-5 fill-white" />
                   </button>
-                  <button class="p-3 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-all">
-                    <Icon name="external-link" class="w-5 h-5" />
-                  </button>
+                  <div class="relative has-tooltip">
+                    <span class="tooltip bg-gray-800 text-[10px] px-2 py-1 rounded shadow-xl mb-4 border border-white/10 w-40 text-center leading-relaxed">
+                      Coming Soon: open source link / file path.
+                    </span>
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      aria-label="Open source link or file path (Coming Soon)"
+                      class="p-3 bg-white/5 rounded-xl text-gray-500 border border-white/10 cursor-not-allowed opacity-70 transition-all"
+                    >
+                      <Icon name="external-link" class="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

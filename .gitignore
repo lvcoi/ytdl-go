@@ -93,3 +93,6 @@ site/
 
 # Frontend (Node.js)
 frontend/node_modules/
+
+# Local task snapshots
+.task-archive/

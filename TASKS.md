@@ -15,9 +15,9 @@
 ## Current Branch Snapshot
 
 - Branch: `web-ui`
-- Last committed PR work: `PR10` (`921d5f3`)
-- Latest commit on branch: Update TASKS.md to reflect PR10 completion and add feature implementation planning to PR12 scope (`3c66346`)
-- Local in-progress changes: PR11 backend + docs updates (uncommitted)
+- Last committed PR work: `PR11` (`993dcb3`)
+- Latest commit on branch: Add automatic port fallback for web server with startup logging and dev workflow guidance (`993dcb3`)
+- Local in-progress changes: PR12 inactive-control feedback + disconnected-feature implementation plan (uncommitted)
 
 ## Recent Non-PR Work
 
@@ -86,9 +86,13 @@
 12. **PR11: Port Bind Failure Handling**
     - Covers: `10`, final part of `9`
     - Scope: backend auto-tries alternate ports on bind failure, clear startup/error messaging, dev flow guidance.
-    - Status: 🟡 Implemented locally (not committed)
+    - Status: ✅ Completed and committed (`993dcb3`)
 
 13. **PR12: Inactive Feature Feedback**
     - Covers: `12`
     - Scope: disabled visual states + "Coming Soon" tooltip for non-wired controls. Make a plan for implementing the disconnected features in the same task list format as this TASKS.md document.
-    - Status: ⏳ Pending
+    - Status: 🟡 Implemented locally (not committed)
+
+## PR12 Implementation Task List
+
+- Full implementation checklist moved to: `docs/WEBUI_IMPLEMENTATION_TASK_LIST.md`
