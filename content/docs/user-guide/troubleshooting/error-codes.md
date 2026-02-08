@@ -210,7 +210,7 @@ ytdl-go -info URL
 - Disk full
 - Invalid path
 - Directory doesn't exist
-- File already exists (with `on-duplicate` setting)
+- File already exists (interactive prompt or web API duplicate policy)
 
 **Examples:**
 
@@ -320,12 +320,12 @@ exit 5
 ```bash
 #!/bin/bash
 
-# Download only if it doesn't exist
-ytdl-go -on-duplicate skip "$1"
+# Use unique identifiers to avoid duplicates
+ytdl-go -o "{title}-{id}.{ext}" "$1"
 
 if [ $? -eq 6 ]; then
-  echo "File already exists, skipping"
-  exit 0
+  echo "File system error occurred"
+  exit 1
 fi
 ```
 

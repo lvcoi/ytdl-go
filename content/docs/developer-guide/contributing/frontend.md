@@ -43,13 +43,13 @@ In a separate terminal:
 
 ```bash
 cd ..
-go run . -web -port 8080
+go run . -web -web-addr 127.0.0.1:8080
 ```
 
 Or use a custom port:
 
 ```bash
-go run . -web -port 9090
+go run . -web -web-addr 127.0.0.1:9090
 ```
 
 ### 4. Make Changes

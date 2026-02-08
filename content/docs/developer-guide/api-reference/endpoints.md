@@ -388,7 +388,7 @@ GET /api/media/
 |-------|------|-------------|
 | `id` | `string` | Unique item identifier (filename) |
 | `title` | `string` | Media title |
-| `artist` | `string` | Artist/uploader name |
+| `artist` | `string` | Artist name |
 | `size` | `string` | Human-readable file size |
 | `date` | `string` | Download date (YYYY-MM-DD) |
 | `type` | `string` | Media type: `video` or `audio` |

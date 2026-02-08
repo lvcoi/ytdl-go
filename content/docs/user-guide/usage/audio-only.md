@@ -25,13 +25,13 @@ This downloads the highest quality audio-only stream available.
 
 ytdl-go uses a smart audio selection strategy:
 
-1. **First Choice**: Highest bitrate audio-only format
-2. **Codec Priority**: Opus > AAC > MP3
-3. **Fallback**: Extract audio from progressive video if audio-only unavailable
+1. **Best Quality**: Selects audio-only streams based on bitrate (higher bitrate = better quality)
+2. **Direct Download**: Downloads the audio stream directly without re-encoding
+3. **FFmpeg Fallback**: Falls back to FFmpeg extraction on 403 errors for audio-only downloads
 
 ### Audio Extraction Strategy
 
-If direct audio download fails (403 error):
+If direct audio-only download fails (403 error):
 
 1. Retry with single request method
 2. Use FFmpeg fallback (extracts from video) - FFmpeg is required for this fallback method

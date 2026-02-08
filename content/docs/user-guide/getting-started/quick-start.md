@@ -29,7 +29,7 @@ Perfect for music or podcasts:
 ytdl-go -audio https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
-Output: `Rick Astley - Never Gonna Give You Up.m4a`
+Output: `Rick Astley - Never Gonna Give You Up.{ext}` (extension depends on audio format)
 
 ### Download a Playlist
 

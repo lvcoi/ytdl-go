@@ -318,7 +318,7 @@ ytdl-go -meta artist="Correct Artist" -meta title="Correct Title" URL
 2. **Check port availability**:
    ```bash
    # Use different port if 8080 is taken
-   ytdl-go -web -port 3000
+   ytdl-go -web -web-addr :3000
    ```
 3. **Firewall blocking** - Allow the port through firewall
 
