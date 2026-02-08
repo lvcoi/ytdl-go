@@ -46,9 +46,9 @@ Understanding the defaults helps you use ytdl-go effectively:
 | **Format** | Auto | Container format (mp4, webm, etc.) |
 | **Jobs** | `1` | Concurrent downloads |
 | **Timeout** | `3m` | Network timeout |
-| **Retries** | `3` | Download retry attempts |
 | **On Duplicate** | `prompt` | Behavior when file exists |
 
+Note: Retry behavior is handled internally and is not configurable via a `-retries` CLI flag or any other option.
 ---
 
 ## Common Configuration Patterns
