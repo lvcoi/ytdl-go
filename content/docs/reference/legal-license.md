@@ -139,7 +139,7 @@ See the [Contributing Guide](../developer-guide/contributing) for more informati
 For license-related questions or concerns:
 
 - Open an issue on GitHub
-- Review the [LICENSE](https://github.com/ytdl-go/ytdl-go/blob/main/LICENSE) file in the repository
+- Review the [LICENSE](https://github.com/lvcoi/ytdl-go/blob/main/LICENSE) file in the repository
 
 ## Copyright Notices
 
