@@ -1,0 +1,55 @@
+baseURL = 'https://lvcoi.github.io/ytdl-go/'
+languageCode = 'en-us'
+title = 'ytdl-go Documentation'
+theme = 'hugo-book'
+
+# Enable GitInfo for last modified dates
+enableGitInfo = true
+
+# Enable emoji support
+enableEmoji = true
+
+[params]
+  # Book theme parameters
+  BookRepo = 'https://github.com/lvcoi/ytdl-go'
+  BookEditPath = 'edit/main'
+  BookSearch = true
+  BookComments = false
+  BookToC = true
+  BookMenuBundle = false
+  BookSectionPager = true
+  
+  # Description and social
+  description = 'Comprehensive documentation for ytdl-go - A powerful YouTube downloader written in Go'
+  
+[menu]
+  [[menu.before]]
+    name = "GitHub"
+    url = "https://github.com/lvcoi/ytdl-go"
+    weight = 10
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    anchorLineNos = false
+    codeFences = true
+    guessSyntax = false
+    hl_Lines = ''
+    hl_inline = false
+    lineAnchors = ''
+    lineNoStart = 1
+    lineNos = false
+    lineNumbersInTable = true
+    noClasses = true
+    noHl = false
+    style = 'monokai'
+    tabWidth = 4
+  [markup.tableOfContents]
+    endLevel = 3
+    ordered = false
+    startLevel = 2
+
+[outputs]
+  home = ['HTML', 'RSS', 'JSON']
