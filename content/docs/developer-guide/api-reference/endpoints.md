@@ -181,7 +181,7 @@ curl -X POST http://localhost:8080/api/download \
     "options": {
       "audio": true,
       "quality": "128k",
-      "output": "{uploader} - {title}.{ext}"
+      "output": "{artist} - {title}.{ext}"
     }
   }'
 ```
