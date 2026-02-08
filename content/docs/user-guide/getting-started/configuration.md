@@ -101,10 +101,10 @@ When using the web interface, configuration is managed through the UI:
 ytdl-go -web
 
 # Use custom port
-ytdl-go -web -port 3000
+ytdl-go -web -web-addr :3000
 
 # Bind to specific address
-ytdl-go -web -addr 0.0.0.0:8080
+ytdl-go -web -web-addr 0.0.0.0:8080
 ```
 
 ### Web UI Settings
