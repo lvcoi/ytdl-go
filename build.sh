@@ -6,6 +6,7 @@ BIN_DIR="$REPO_ROOT/bin"
 BINARY_NAME="yt"
 FRONTEND_DIR="$REPO_ROOT/frontend"
 DEFAULT_WEB_ADDR="127.0.0.1:8080"
+alias yt="$BIN_DIR/yt"
 
 # Colors and Formatting
 GREEN='\033[1;32m'

@@ -366,6 +366,20 @@ function App() {
     }
   };
 
+  const retryLibraryMetadataScan = async () => {
+    const synced = await fetchMediaFiles();
+    if (!synced) {
+      return {
+        ok: false,
+        message: 'Unable to refresh metadata right now. Please retry in a few seconds.',
+      };
+    }
+    return {
+      ok: true,
+      message: 'Library refreshed. Legacy files without sidecars may still need re-download for complete metadata and thumbnails.',
+    };
+  };
+
   const syncLibraryForJob = async (jobId, attempt = 1) => {
     if (!jobId || isDisposed) {
       return;
@@ -495,9 +509,17 @@ function App() {
     if (selected) {
       const mediaType = detectMediaType(selected);
       if (mediaType === 'audio' || mediaType === 'video') {
-        setState('library', 'activeMediaType', mediaType);
+        setState('library', 'typeFilter', mediaType);
       }
     }
+    setState('library', 'section', 'all_media');
+    setState('library', 'navPath', {
+      creatorType: '',
+      creatorName: '',
+      albumName: '',
+      playlistKey: '',
+      playlistKind: '',
+    });
     setActiveTab('library');
   };
 
@@ -677,9 +699,9 @@ function App() {
   });
 
   return (
-    <div class="flex h-screen bg-[#05070a] text-gray-200 overflow-hidden font-sans select-none">
+    <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
       {/* Sidebar */}
-      <aside class="w-72 bg-[#0a0c14] border-r border-white/5 flex flex-col p-6">
+      <aside class="w-72 bg-[#0a0f17]/85 border-r border-white/10 flex flex-col p-6 backdrop-blur-xl">
         <div class="flex items-center gap-3 mb-10 px-2">
             <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
                 <Icon name="zap" class="w-6 h-6 text-white fill-white" />
@@ -726,7 +748,7 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main class="flex-1 flex flex-col bg-[#05070a] relative">
+      <main class="flex-1 flex flex-col bg-transparent relative">
         <header class="h-20 border-b border-white/5 flex items-center justify-between px-10 glass sticky top-0 z-20">
             <h2 class="text-lg font-bold text-white capitalize">{activeTab()}</h2>
             <div class="flex items-center gap-6">
@@ -760,19 +782,30 @@ function App() {
               <div class="max-w-4xl mx-auto">
                   <LibraryView
                       downloads={() => state.library.downloads}
-                      activeMediaType={() => state.library.activeMediaType}
+                      section={() => state.library.section}
+                      viewMode={() => state.library.viewMode}
+                      typeFilter={() => state.library.typeFilter}
+                      navPath={() => state.library.navPath}
                       filters={() => state.library.filters}
                       sortKey={() => state.library.sortKey}
+                      uiState={() => state.library.ui}
                       savedPlaylists={() => state.library.savedPlaylists}
                       playlistAssignments={() => state.library.playlistAssignments}
-                      onMediaTypeChange={(nextType) => setState('library', 'activeMediaType', nextType)}
+                      onSectionChange={(nextSection) => setState('library', 'section', nextSection)}
+                      onViewModeChange={(nextViewMode) => setState('library', 'viewMode', nextViewMode)}
+                      onTypeFilterChange={(nextTypeFilter) => setState('library', 'typeFilter', nextTypeFilter)}
+                      onNavPathChange={(nextNavPath) => setState('library', 'navPath', nextNavPath)}
                       onFilterChange={(filterKey, value) => setState('library', 'filters', filterKey, value)}
                       onClearFilters={() => setState('library', 'filters', {
+                        query: '',
                         creator: '',
                         collection: '',
                         playlist: '',
                         savedPlaylistId: '',
                       })}
+                      onToggleAdvancedFilters={() => setState('library', 'ui', 'advancedFiltersOpen', (current) => !current)}
+                      onDismissMetadataBanner={() => setState('library', 'ui', 'metadataBannerDismissed', true)}
+                      onRetryMetadataScan={retryLibraryMetadataScan}
                       onSortKeyChange={(nextSortKey) => setState('library', 'sortKey', nextSortKey)}
                       onCreateSavedPlaylist={createSavedPlaylist}
                       onRenameSavedPlaylist={renameSavedPlaylist}

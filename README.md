@@ -253,6 +253,7 @@ ytdl-go -quiet URL
 - **403 Forbidden Errors:** The tool automatically retries with different methods. If persistent, check your IP reputation or try `-timeout 10m`.
 - **Restricted Content:** Private, age-gated, or member-only videos require authentication which is currently **not supported**.
 - **Playlists:** Empty videos or deleted entries in playlists are automatically skipped.
+- **Library Metadata/Thumbnails:** New downloads write sidecar metadata (`<media-file>.json`) used by the web UI for artist/album/thumbnail grouping. Legacy files without sidecars still load, but may appear under Unknown buckets until re-downloaded.
 - **Web Port Already in Use:** `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL and point Vite with `VITE_API_PROXY_TARGET=http://127.0.0.1:<port>`.
 
 </details>

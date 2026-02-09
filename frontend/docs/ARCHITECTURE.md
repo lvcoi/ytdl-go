@@ -22,11 +22,13 @@ The frontend is a **Single Page Application (SPA)** built with [SolidJS](https:/
 src/
 ├── App.jsx              # Root component and top-level layout
 ├── index.jsx            # Entry point, mounts App + store provider
+├── utils/
+│   └── libraryModel.js  # Normalized library grouping/filtering model
 ├── store/
 │   └── appStore.jsx     # Central app state + localStorage persistence
 └── components/
     ├── DownloadView.jsx  # URL input, download options, result display
-    ├── LibraryView.jsx   # Downloaded media list, search/filter
+    ├── LibraryView.jsx   # Explorer-style library (gallery/list/detail)
     ├── SettingsView.jsx  # Configuration (cookies, extensions)
     └── Player.jsx        # Media playback
 ```
@@ -38,11 +40,18 @@ State is centralized in `store/appStore.jsx` using Solid's context + store primi
 - **`ui.activeTab`** — Current view (download, library, settings)
 - **`ui.isAdvanced`** — Power-user toggle state
 - **`settings`** — Download options (output template, quality, jobs, audio-only, duplicate policy)
+- **`library.section`** — Active library section (`artists`, `channels`, `playlists`, `all_media`)
+- **`library.viewMode`** — Explorer presentation (`gallery`, `list`, `detail`)
+- **`library.typeFilter`** — Type filter (`all`, `audio`, `video`)
+- **`library.navPath`** — Drill-down path (creator/album/playlist context + breadcrumbs)
+- **`library.filters`** — Query + advanced filters (creator/collection/source playlist/saved playlist)
+- **`library.ui`** — Library-specific UI flags (advanced filters panel + metadata anomaly banner dismiss state)
 - **`download.urlInput`** — Current URL draft in the download textarea
 
 Runtime download progress state is also centralized so tab navigation does not reset active download progress UI.
 Saved playlists and media-to-playlist assignments are persisted on the backend (`media/data/saved_playlists.json`) and synced through `/api/library/playlists`.
 A one-time frontend migration path (`/api/library/playlists/migrate`) seeds backend data from legacy localStorage state.
+Library grouping and metadata anomaly detection are derived client-side by `utils/libraryModel.js` from `/api/media/` responses plus saved-playlist assignments.
 Only durable state is persisted to localStorage. Transient runtime state (active job status/progress/logs/prompts) is intentionally not persisted.
 
 ## Build & Integration Pipeline

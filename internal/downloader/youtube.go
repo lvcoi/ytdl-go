@@ -176,8 +176,8 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 			status = "error"
 		}
 		metadata := buildItemMetadata(video, format, ctxInfo, outputPath, status, err)
-		if opts.AudioOnly {
-			embedAudioTags(metadata, outputPath, printer)
+		if metaErr := finalizeDownloadMetadata(outputPath, opts.OutputDir, metadata, opts.AudioOnly, printer); metaErr != nil && err == nil {
+			err = metaErr
 		}
 	}()
 
@@ -186,7 +186,9 @@ func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.V
 	if err != nil {
 		if errorCategory(err) == CategoryUnsupported {
 			if video.HLSManifestURL != "" || video.DASHManifestURL != "" {
-				return downloadAdaptive(ctx, client, video, opts, ctxInfo, printer, prefix, err)
+				result, err = downloadAdaptive(ctx, client, video, opts, ctxInfo, printer, prefix, err)
+				outputPath = result.outputPath
+				return result, err
 			}
 		}
 		return result, err

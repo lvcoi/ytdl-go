@@ -145,10 +145,37 @@ Lists downloaded media with pagination.
       "id": "file.mp4",
       "title": "file",
       "artist": "Unknown Artist",
+      "album": "Unknown Album",
       "size": "12.5 MB",
+      "size_bytes": 13107200,
       "date": "2026-02-07",
+      "modified_at": "2026-02-07T18:55:12Z",
       "type": "video",
-      "filename": "file.mp4"
+      "filename": "video/file.mp4",
+      "relative_path": "video/file.mp4",
+      "folder": "video",
+      "source_url": "https://www.youtube.com/watch?v=abc123",
+      "thumbnail_url": "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+      "playlist": {
+        "id": "PL123",
+        "title": "Road Trip",
+        "url": "https://www.youtube.com/playlist?list=PL123",
+        "index": 1,
+        "count": 10
+      },
+      "has_sidecar": true,
+      "metadata": {
+        "id": "abc123",
+        "title": "file",
+        "artist": "Unknown Artist",
+        "album": "Unknown Album",
+        "thumbnail_url": "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+        "source_url": "https://www.youtube.com/watch?v=abc123",
+        "release_date": "2026-02-07",
+        "duration_seconds": 215,
+        "output": "video/file.mp4",
+        "status": "ok"
+      }
     }
   ],
   "next_offset": null
@@ -156,6 +183,9 @@ Lists downloaded media with pagination.
 ```
 
 - `next_offset` is `null` when there are no more results.
+- `has_sidecar=true` indicates metadata was loaded from a sidecar (`<media-file>.json`) written during download.
+- Library UI grouping and thumbnail rendering primarily use sidecar-backed fields (`artist`, `album`, `thumbnail_url`, `playlist`, `metadata.*`).
+- Legacy files without sidecars still appear in results with fallback metadata (`has_sidecar=false`).
 
 ## 6. Media File Serve
 

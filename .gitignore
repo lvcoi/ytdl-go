@@ -19,6 +19,8 @@ ytdl-go.exe
 # Go workspace file
 go.work
 *.code-workspace
+.gocache/
+.gotmp/
 
 # codeQL custom queries
 *codeql-custom-queries-go

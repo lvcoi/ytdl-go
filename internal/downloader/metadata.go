@@ -145,6 +145,19 @@ func writeSidecar(outputPath, baseDir string, metadata ItemMetadata) error {
 	return nil
 }
 
+func finalizeDownloadMetadata(outputPath, baseDir string, metadata ItemMetadata, audioOnly bool, printer *Printer) error {
+	if outputPath == "" {
+		return nil
+	}
+	if audioOnly {
+		embedAudioTags(metadata, outputPath, printer)
+	}
+	if err := writeSidecar(outputPath, baseDir, metadata); err != nil {
+		return err
+	}
+	return nil
+}
+
 func sidecarPath(outputPath, baseDir string) (string, error) {
 	return artifactPath(outputPath, ".json", baseDir)
 }

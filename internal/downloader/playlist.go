@@ -9,6 +9,8 @@ import (
 	"github.com/kkdai/youtube/v2"
 )
 
+var fetchMusicPlaylistEntriesFn = fetchMusicPlaylistEntries
+
 func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer, isMusicURL bool) error {
 	savedClient := youtube.DefaultClient
 	defer func() {
@@ -46,14 +48,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
 	}
 
-	albumMeta := map[string]musicEntryMeta{}
-	if strings.Contains(opts.OutputTemplate, "{album}") {
-		var err error
-		albumMeta, err = fetchMusicPlaylistEntries(ctx, playlist.ID, opts)
-		if err != nil {
-			return wrapCategory(CategoryNetwork, fmt.Errorf("fetching album metadata: %w", err))
-		}
-	}
+	albumMeta := resolveMusicPlaylistAlbumMeta(ctx, playlist.ID, opts, isMusicURL, printer)
 
 	printer.Log(LogInfo, fmt.Sprintf("playlist: %s (%d videos)", playlist.Title, len(playlist.Videos)))
 
@@ -205,6 +200,21 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return markReported(wrapCategory(CategoryUnsupported, errors.New("no playlist entries downloaded successfully")))
 	}
 	return nil
+}
+
+func resolveMusicPlaylistAlbumMeta(ctx context.Context, playlistID string, opts Options, isMusicURL bool, printer *Printer) map[string]musicEntryMeta {
+	if !isMusicURL {
+		return map[string]musicEntryMeta{}
+	}
+
+	albumMeta, err := fetchMusicPlaylistEntriesFn(ctx, playlistID, opts)
+	if err != nil {
+		if printer != nil {
+			printer.Log(LogWarn, fmt.Sprintf("warning: album metadata enrichment unavailable for playlist %s: %v", playlistID, err))
+		}
+		return map[string]musicEntryMeta{}
+	}
+	return albumMeta
 }
 
 func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts Options, _ *Printer) error {
