@@ -31,14 +31,16 @@ ytdl-go uses a smart audio selection strategy:
 
 ### Audio Extraction Strategy
 
-If direct audio-only download fails (403 error):
+If direct audio-only download fails with a 403 error:
 
 1. Retry with single request method
-2. Use FFmpeg fallback (extracts from video) - FFmpeg is required for this fallback method
+2. If retry also fails with 403, use FFmpeg fallback (extracts audio from video+audio stream)
 
 > **FFmpeg for Fallback**
 >
-> FFmpeg is required for fallback audio extraction when direct audio streams are unavailable. Install FFmpeg to enable this feature.
+> FFmpeg is required for fallback audio extraction when a 403 error blocks direct audio-only downloads. Install FFmpeg to enable this feature.
+>
+> Note: The FFmpeg fallback only triggers on 403 errors, not when audio-only formats are missing.
 
 ## Audio Quality Selection
 
@@ -400,10 +402,15 @@ done < urls.txt
 
 **Problem**: Some videos don't have audio-only streams
 
-**Solution**: ytdl-go automatically extracts audio from video
+**Solution**: When no audio-only formats are available, ytdl-go will return an "unsupported" error. Try one of these alternatives:
+
 ```bash
-# This is handled automatically
-ytdl-go -audio URL
+# Download video format and extract audio manually with FFmpeg
+ytdl-go URL  # Download video first
+ffmpeg -i video.mp4 -vn -acodec copy audio.m4a
+
+# Or use -list-formats to check available formats
+ytdl-go -list-formats URL
 ```
 
 ### Audio Quality Lower Than Expected

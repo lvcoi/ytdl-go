@@ -156,7 +156,12 @@ If a playlist download is interrupted:
 ytdl-go -o "{playlist-title}/{index} - {title}.{ext}" PLAYLIST_URL
 ```
 
-ytdl-go skips already downloaded files and resumes partial downloads.
+By default, ytdl-go will prompt when files already exist. To avoid duplicates when resuming, use a unique output template that includes the video ID:
+
+```bash
+# Use unique identifier to avoid prompts
+ytdl-go -o "{playlist-title}/{index} - {title}-{id}.{ext}" PLAYLIST_URL
+```
 
 ## Concurrent Processing
 

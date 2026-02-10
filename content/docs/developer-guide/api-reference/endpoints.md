@@ -260,17 +260,31 @@ POST /api/download/duplicate-response
 
 #### 400 Bad Request
 
+Invalid choice value (returned when `ParseDuplicateDecision` fails):
+
 ```json
 {
-  "error": "invalid choice"
+  "error": "invalid duplicate decision: <choice>"
 }
 ```
 
 #### 404 Not Found
 
+Prompt not found:
+
 ```json
 {
-  "error": "prompt not found"
+  "error": "duplicate prompt not found"
+}
+```
+
+#### 409 Conflict
+
+Prompt has already been answered:
+
+```json
+{
+  "error": "duplicate prompt has closed"
 }
 ```
 
