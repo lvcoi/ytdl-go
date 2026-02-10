@@ -122,10 +122,14 @@ cd ytdl-go
 
 **Build Script:**
 
-Use the one-command build script:
+Use the build script:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/lvcoi/ytdl-go/main/build.sh | bash
+curl -sSL -o build.sh https://raw.githubusercontent.com/lvcoi/ytdl-go/main/build.sh
+chmod +x build.sh
+# Optionally review the script before running it:
+# less build.sh
+./build.sh
 ```
 
 See the [Installation Guide](docs/user-guide/getting-started/installation) for detailed instructions.
