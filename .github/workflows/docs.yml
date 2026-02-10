@@ -55,7 +55,7 @@ jobs:
       - name: Install HUGO Book Theme
         run: |
           mkdir -p themes
-          git clone https://github.com/alex-shpak/hugo-book themes/hugo-book
+          git clone --depth 1 --branch v13 https://github.com/alex-shpak/hugo-book themes/hugo-book
       
       - name: Build with HUGO
         env:
