@@ -375,12 +375,14 @@ ls -la parent-directory/
 
 ### Empty Placeholders
 
-**Problem**: Placeholder shows as empty or `[unknown]`
+**Problem**: Placeholder shows as empty in the filename
 
 **Causes**:
 - Metadata not available (e.g., `{album}` for non-music content)
 - Playlist placeholder used for single video
 - Information not in video metadata
+
+**Note**: Missing optional placeholders like `{album}` expand to an empty string, and `filepath.Clean()` collapses duplicate path separators. For example, `"Music/{artist}/{album}/{title}.{ext}"` becomes `"Music/Artist Name/Song Title.m4a"` when album metadata is missing
 
 **Solutions**:
 ```bash

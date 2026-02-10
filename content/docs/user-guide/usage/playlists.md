@@ -329,8 +329,9 @@ ytdl-go -json \
 
 **Solutions**:
 ```bash
-# Run the same command again - it will resume and skip existing files
-ytdl-go -o "{playlist-title}/{index} - {title}.{ext}" PLAYLIST_URL
+# Run the same command again - ytdl-go will prompt for each existing file
+# To avoid prompts, use {id} in the template for unique filenames
+ytdl-go -o "{playlist-title}/{index} - {title}-{id}.{ext}" PLAYLIST_URL
 
 # Check for errors with debug logging
 ytdl-go -log-level debug -o "{playlist-title}/{index} - {title}.{ext}" PLAYLIST_URL
