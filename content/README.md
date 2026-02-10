@@ -13,7 +13,7 @@ This directory contains the HUGO-based documentation for ytdl-go.
 
 1. Clone the hugo-book theme:
    ```bash
-   git clone https://github.com/alex-shpak/hugo-book themes/hugo-book
+   git clone --branch v13 --depth 1 https://github.com/alex-shpak/hugo-book themes/hugo-book
    ```
 
 2. Run the HUGO development server:
