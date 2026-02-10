@@ -12,7 +12,7 @@ type: docs
 _Feature-rich, interactive, and dependency-free._
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
 
 [Quick Start](docs/user-guide/getting-started/quick-start) | [Installation Guide](docs/user-guide/getting-started/installation) | [View on GitHub](https://github.com/lvcoi/ytdl-go)
