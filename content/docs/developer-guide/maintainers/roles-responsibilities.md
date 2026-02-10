@@ -365,8 +365,8 @@ Monitor for security vulnerabilities:
    - If issues persist, check `sanitizePathComponent()` function
 
 3. **User guidance:**
-   - Use `-o` flag with absolute paths
-   - Ensure output directories exist
+   - Use `-o` with relative output templates (paths are resolved under the output directory)
+   - Use `-output-dir` with an absolute path to control the base output directory and ensure it exists
    - Avoid special characters in custom paths
 
 ### Issue: Memory Usage / Performance Problems
