@@ -169,17 +169,16 @@ ytdl-go -quality worst [URL]
 
 Specifies preferred container format or file extension.
 
-**Common Formats:**
+**Supported Values:**
 - `mp4` - MPEG-4 container (most compatible)
 - `webm` - WebM container (open source)
-- `m4a` - MPEG-4 Audio (AAC)
-- `opus` - Opus audio
-- `mp3` - MP3 audio
+- `3gp` - 3GPP container
 
 **Behavior:**
-- Filters available formats by container type
+- Filters available formats by container extension (derived from MIME type via `mimeToExt`)
+- Falls back to any available format if requested format not found
+- Does NOT transcode - only filters existing formats
 - Combined with `-quality` for precise selection
-- If format unavailable, download may fail
 
 **Examples:**
 
@@ -187,8 +186,8 @@ Specifies preferred container format or file extension.
 # Prefer MP4 container
 ytdl-go -format mp4 [URL]
 
-# Download audio as M4A
-ytdl-go -audio -format m4a [URL]
+# Prefer WebM container
+ytdl-go -audio -format webm [URL]
 
 # Specific quality and format
 ytdl-go -quality 720p -format mp4 [URL]

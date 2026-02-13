@@ -92,7 +92,7 @@ Output templates use placeholders that get replaced with video metadata:
 |-------------|-------------|---------|
 | `{title}` | Video title | `Rick Astley - Never Gonna Give You Up` |
 | `{id}` | Video ID | `dQw4w9WgXcQ` |
-| `{ext}` | File extension | `mp4`, `webm`, `m4a` |
+| `{ext}` | File extension | `mp4`, `webm` |
 | `{artist}` | Artist/channel name | `Rick Astley` |
 | `{playlist-title}` | Playlist name | `Best Music Videos` |
 

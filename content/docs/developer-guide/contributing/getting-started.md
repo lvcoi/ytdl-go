@@ -191,8 +191,8 @@ go build -o ytdl-go .
 ### Run the Binary
 
 ```bash
-# Show help
-./ytdl-go -help
+# Show usage (run with no arguments)
+./ytdl-go
 
 # Test with info mode (no download)
 ./ytdl-go -info https://www.youtube.com/watch?v=dQw4w9WgXcQ

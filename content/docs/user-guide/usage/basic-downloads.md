@@ -91,7 +91,7 @@ ytdl-go -format webm https://www.youtube.com/watch?v=VIDEO_ID
 
 > **Format Availability**
 >
-> If your requested format isn't available, the download may fail. Consider using the [interactive format selector](format-selection) to see available options.
+> If your requested format isn't available, ytdl-go automatically falls back to any available format. Use the [interactive format selector](format-selection) with `-list-formats` to see available options.
 
 ### Combining Quality and Format
 

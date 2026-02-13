@@ -31,14 +31,14 @@ ytdl-go -audio URL
 ### Selection Logic
 
 **For Video:**
-1. Highest resolution progressive format
-2. Preferred codec priority: H.264 > VP9 > others
-3. Best container: MP4 > WebM > others
+1. Highest resolution progressive format (audio+video in one stream)
+2. Selects based on resolution and bitrate
+3. No codec-priority ranking implemented
 
 **For Audio:**
 1. Highest bitrate audio-only format
-2. Codec priority: Opus > AAC > MP3
-3. Best container: M4A > Opus > WebM
+2. Selects based on bitrate only
+3. No codec-priority ranking implemented (Opus/AAC/MP3 selected by bitrate)
 
 ## Preference-Based Selection
 

@@ -133,15 +133,15 @@ ytdl-go shows progress for each video in the playlist:
 
 ## Handling Playlist Entries
 
-### Skipped Videos
+### Failed Videos
 
-ytdl-go automatically skips:
-- Deleted videos
-- Private videos
-- Unavailable videos
-- Empty entries
+ytdl-go logs errors for unavailable videos and continues:
+- Deleted videos - logged as error, processing continues
+- Private videos - logged as error, processing continues  
+- Unavailable videos - logged as error, processing continues
+- Empty entries - skipped silently
 
-The download continues with the next available video.
+The download continues with the next playlist entry after logging any failures.
 
 > **Error Handling**
 >
@@ -244,11 +244,15 @@ This sets the same artist and album for all tracks in the playlist.
 
 ### Download Specific Range
 
-While ytdl-go doesn't have built-in range selection, you can use the interactive mode:
+While ytdl-go doesn't have built-in range selection, you can use `-info` to extract individual video URLs:
 
 ```bash
-# View all formats and select specific videos
-ytdl-go -list-formats https://www.youtube.com/playlist?list=PLxxxxx
+# Get video info from playlist (JSON output)
+ytdl-go -info -json https://www.youtube.com/playlist?list=PLxxxxx > playlist.json
+
+# Then download specific videos using extracted URLs
+ytdl-go https://www.youtube.com/watch?v=VIDEO_ID_1
+ytdl-go https://www.youtube.com/watch?v=VIDEO_ID_2
 ```
 
 ### Using External Tools

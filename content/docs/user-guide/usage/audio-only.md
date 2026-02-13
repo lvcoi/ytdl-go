@@ -81,20 +81,19 @@ ytdl-go -audio -quality 96k https://www.youtube.com/watch?v=VIDEO_ID
 
 ## Audio Format Selection
 
-### Preferred Audio Format
+### Preferred Audio Container
 
-Use `-format` to specify the audio container:
+Use `-format` to filter by container extension (mp4, webm, 3gp):
 
 ```bash
-# M4A format (AAC codec)
-ytdl-go -audio -format m4a https://www.youtube.com/watch?v=VIDEO_ID
+# Prefer MP4 container (typically AAC audio)
+ytdl-go -audio -format mp4 https://www.youtube.com/watch?v=VIDEO_ID
 
-# Opus format (best quality/size ratio)
-ytdl-go -audio -format opus https://www.youtube.com/watch?v=VIDEO_ID
-
-# MP3 format (maximum compatibility)
-ytdl-go -audio -format mp3 https://www.youtube.com/watch?v=VIDEO_ID
+# Prefer WebM container (typically Opus audio)
+ytdl-go -audio -format webm https://www.youtube.com/watch?v=VIDEO_ID
 ```
+
+**Note:** `-format` filters existing formats by container extension derived from the stream's MIME type. It does not transcode audio. To see available formats and codecs, use `-list-formats`.
 
 ### Audio Format Comparison
 

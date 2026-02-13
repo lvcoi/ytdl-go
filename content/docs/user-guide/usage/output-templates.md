@@ -30,7 +30,7 @@ ytdl-go -o "template-string" URL
 |-------------|-------------|---------|-------|
 | `{title}` | Video title (sanitized) | `My Video Title` | Special characters removed |
 | `{id}` | YouTube video ID | `dQw4w9WgXcQ` | Unique identifier |
-| `{ext}` | File extension | `mp4`, `webm`, `m4a` | Determined by format |
+| `{ext}` | File extension | `mp4`, `webm` | Derived from stream MIME type |
 | `{quality}` | Quality label or bitrate | `1080p`, `720p`, `128k` | Video resolution or audio bitrate |
 
 ### Creator Placeholders
