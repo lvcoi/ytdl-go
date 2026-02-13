@@ -363,4 +363,4 @@ exit $exit_code
 - [Error Codes (Detailed)](../user-guide/troubleshooting/error-codes) - Comprehensive error documentation with solutions
 - [Common Issues](../user-guide/troubleshooting/common-issues) - Troubleshooting guide
 - [CLI Options](cli-options) - Command-line flag reference
-- [Advanced Usage](../user-guide/usage/advanced-usage) - Complex scenarios and scripting
+- Advanced Usage - Complex scenarios and scripting
