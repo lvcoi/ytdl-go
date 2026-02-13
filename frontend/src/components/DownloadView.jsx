@@ -878,7 +878,7 @@ export default function DownloadView(props = {}) {
     <div class="space-y-10 transition-smooth animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div class="space-y-3">
         <h1 class="text-5xl font-black tracking-tight text-white">
-          <span class="text-transparent bg-clip-text bg-vibrant-gradient">Unlock</span> Content.
+          <span class="text-transparent bg-clip-text bg-vibrant-gradient">YTDL</span>-GO.
         </h1>
         <p class="text-gray-400 font-medium text-lg max-w-2xl">
           Paste your YouTube URLs below to begin high-speed, parallel extraction with <span class="text-accent-primary">YTDL-Go</span>.
@@ -1010,7 +1010,15 @@ export default function DownloadView(props = {}) {
                 </div>
               </Show>
 
-              <Show when={sortedTaskEntries().length > 0}>
+              <Show 
+                when={sortedTaskEntries().length > 0}
+                fallback={
+                  <div class="flex flex-col items-center justify-center p-12 text-gray-600 animate-pulse">
+                    <Icon name="loader" class="w-8 h-8 mb-4 animate-spin" />
+                    <p class="font-bold text-sm uppercase tracking-widest">Initializing Extraction Pipeline...</p>
+                  </div>
+                }
+              >
                 <div class="space-y-8 max-h-[40rem] overflow-y-auto pr-4 custom-scrollbar">
                   <For each={sortedTaskEntries()}>
                     {([id, task]) => {

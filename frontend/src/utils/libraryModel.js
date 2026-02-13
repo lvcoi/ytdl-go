@@ -15,11 +15,11 @@ const firstNonEmpty = (...values) => {
   return '';
 };
 
-const normalizeMediaType = (value) => {
+const normalizeMediaType = (value, creator) => {
   const lowered = String(value || '').toLowerCase();
-  if (lowered === 'audio') return 'audio';
-  if (lowered === 'video') return 'video';
-  return 'video';
+  if (lowered === 'audio') return 'Music';
+  if (lowered === 'podcast') return 'Podcast';
+  return 'YTC';
 };
 
 const metadataFor = (item) => (item?.metadata && typeof item.metadata === 'object' ? item.metadata : {});
@@ -60,18 +60,18 @@ const withLatestThumb = (current, candidate) => {
 
 const normalizeItem = (rawItem, savedPlaylistById, playlistAssignments) => {
   const metadata = metadataFor(rawItem);
-  const type = normalizeMediaType(rawItem?.type);
+  const type = normalizeMediaType(rawItem?.type, rawItem?.artist || metadata.artist || metadata.author);
   const title = firstNonEmpty(rawItem?.title, metadata.title, 'Untitled');
   const creator = firstNonEmpty(
     rawItem?.artist,
     metadata.artist,
     metadata.author,
-    type === 'audio' ? UNKNOWN_ARTIST : UNKNOWN_CHANNEL,
+    type === 'Music' ? UNKNOWN_ARTIST : UNKNOWN_CHANNEL,
   );
   const album = firstNonEmpty(
     rawItem?.album,
     metadata.album,
-    type === 'audio' ? UNKNOWN_ALBUM : creator,
+    type === 'Music' ? UNKNOWN_ALBUM : creator,
   );
   const sourcePlaylist = firstNonEmpty(
     rawItem?.playlist?.title,
@@ -194,7 +194,7 @@ const pushByLatest = (items) => [...items].sort((left, right) => (
 
 const buildArtistGroups = (items) => {
   const byArtist = new Map();
-  for (const item of items.filter((entry) => entry.type === 'audio')) {
+  for (const item of items.filter((entry) => entry.type === 'Music')) {
     if (!byArtist.has(item.creator)) {
       byArtist.set(item.creator, {
         name: item.creator,
@@ -251,7 +251,7 @@ const buildArtistGroups = (items) => {
 
 const buildChannelGroups = (items) => {
   const byChannel = new Map();
-  for (const item of items.filter((entry) => entry.type === 'video')) {
+  for (const item of items.filter((entry) => entry.type === 'YTC')) {
     if (!byChannel.has(item.creator)) {
       byChannel.set(item.creator, {
         name: item.creator,
@@ -273,6 +273,41 @@ const buildChannelGroups = (items) => {
     const normalized = {
       name,
       type: 'channel',
+      items: sortMediaItems(value.items, 'newest'),
+      count: value.items.length,
+      latestTimestamp: value.latestTimestamp,
+      thumbnailUrl: value.thumbnailUrl,
+    };
+    groups.push(normalized);
+    byName.set(name, normalized);
+  }
+  return { groups: pushByLatest(groups), byName };
+};
+
+const buildPodcastGroups = (items) => {
+  const byPodcast = new Map();
+  for (const item of items.filter((entry) => entry.type === 'Podcast')) {
+    if (!byPodcast.has(item.creator)) {
+      byPodcast.set(item.creator, {
+        name: item.creator,
+        type: 'podcast',
+        items: [],
+        latestTimestamp: item.timestamp,
+        thumbnailUrl: item.thumbnailUrl || '',
+      });
+    }
+    const group = byPodcast.get(item.creator);
+    group.items.push(item);
+    group.latestTimestamp = Math.max(group.latestTimestamp, item.timestamp);
+    group.thumbnailUrl = withLatestThumb(group.thumbnailUrl, item.thumbnailUrl);
+  }
+
+  const groups = [];
+  const byName = new Map();
+  for (const [name, value] of byPodcast.entries()) {
+    const normalized = {
+      name,
+      type: 'podcast',
       items: sortMediaItems(value.items, 'newest'),
       count: value.items.length,
       latestTimestamp: value.latestTimestamp,
@@ -367,11 +402,13 @@ export const buildLibraryModel = ({
 
   const artistGroups = buildArtistGroups(filteredItems);
   const channelGroups = buildChannelGroups(filteredItems);
+  const podcastGroups = buildPodcastGroups(filteredItems);
   const playlistGroups = buildPlaylistGroups(filteredItems, normalizedSavedPlaylists);
 
   const creatorCards = pushByLatest([
     ...artistGroups.groups.map((entry) => ({ ...entry, key: `artist:${entry.name}`, creatorType: 'artist' })),
     ...channelGroups.groups.map((entry) => ({ ...entry, key: `channel:${entry.name}`, creatorType: 'channel' })),
+    ...podcastGroups.groups.map((entry) => ({ ...entry, key: `podcast:${entry.name}`, creatorType: 'podcast' })),
   ]);
 
   const filterOptions = {
@@ -389,6 +426,8 @@ export const buildLibraryModel = ({
     artistsByName: artistGroups.byName,
     channels: channelGroups.groups,
     channelsByName: channelGroups.byName,
+    podcasts: podcastGroups.groups,
+    podcastsByName: podcastGroups.byName,
     creatorCards,
     playlists: playlistGroups.combined,
     playlistsByKey: playlistGroups.byKey,

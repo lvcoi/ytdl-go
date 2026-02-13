@@ -6,21 +6,23 @@ import { buildLibraryModel } from '../utils/libraryModel';
 
 const SECTION_OPTIONS = [
   { value: 'artists', label: 'Artists' },
-  { value: 'channels', label: 'Channels' },
+  { value: 'channels', label: 'YTC' },
+  { value: 'podcasts', label: 'Podcasts' },
   { value: 'playlists', label: 'Playlists' },
   { value: 'all_media', label: 'All Media' },
 ];
 
 const VIEW_MODE_OPTIONS = [
   { value: 'gallery', label: 'Gallery' },
+  { value: 'columns', label: 'Columns' },
   { value: 'list', label: 'List' },
-  { value: 'detail', label: 'Detail' },
 ];
 
 const TYPE_FILTER_OPTIONS = [
   { value: 'all', label: 'All Types' },
-  { value: 'audio', label: 'Audio' },
-  { value: 'video', label: 'Video' },
+  { value: 'Music', label: 'Music' },
+  { value: 'YTC', label: 'YTC' },
+  { value: 'Podcast', label: 'Podcast' },
 ];
 
 const SORT_OPTIONS = [
@@ -341,8 +343,8 @@ export default function LibraryView(props) {
         if (!creator) {
           return {
             kind: 'landing',
-            title: 'Artists & Channels',
-            subtitle: 'Browse creators by recent activity.',
+            title: 'Artists',
+            subtitle: 'Browse music creators.',
             artists: libraryModel.artists,
             channels: libraryModel.channels,
             breadcrumbs: [],
@@ -355,7 +357,7 @@ export default function LibraryView(props) {
             return {
               kind: 'items',
               title: album.name,
-              subtitle: `${creator.name} • ${album.count} item${album.count === 1 ? '' : 's'}`,
+              subtitle: `${creator.name} • ${album.count} track${album.count === 1 ? '' : 's'}`,
               items: album.items,
               queueItems: album.items,
               breadcrumbs: [
@@ -382,8 +384,8 @@ export default function LibraryView(props) {
 
       return {
         kind: 'landing',
-        title: 'Artists & Channels',
-        subtitle: 'Rows of creator cards sorted by recent downloads.',
+        title: 'Artists',
+        subtitle: 'Music artists from your collection.',
         artists: libraryModel.artists,
         channels: libraryModel.channels,
         breadcrumbs: [],
@@ -401,7 +403,7 @@ export default function LibraryView(props) {
             items: channel.items,
             queueItems: channel.items,
             breadcrumbs: [
-              { label: 'Channels', nav: { ...EMPTY_NAV_PATH } },
+              { label: 'YTC', nav: { ...EMPTY_NAV_PATH } },
               { label: channel.name, nav: { creatorType: 'channel', creatorName: channel.name } },
             ],
           };
@@ -410,10 +412,38 @@ export default function LibraryView(props) {
 
       return {
         kind: 'creators',
-        title: 'Channels',
-        subtitle: 'Browse downloaded videos by channel.',
+        title: 'YTC',
+        subtitle: 'YouTube channels from your collection.',
         creators: libraryModel.channels,
         creatorType: 'channel',
+        breadcrumbs: [],
+      };
+    }
+
+    if (currentSection === 'podcasts') {
+      if (currentNav.creatorType === 'podcast' && currentNav.creatorName !== '') {
+        const podcast = libraryModel.podcastsByName.get(currentNav.creatorName);
+        if (podcast) {
+          return {
+            kind: 'items',
+            title: podcast.name,
+            subtitle: `${podcast.count} episode${podcast.count === 1 ? '' : 's'}`,
+            items: podcast.items,
+            queueItems: podcast.items,
+            breadcrumbs: [
+              { label: 'Podcasts', nav: { ...EMPTY_NAV_PATH } },
+              { label: podcast.name, nav: { creatorType: 'podcast', creatorName: podcast.name } },
+            ],
+          };
+        }
+      }
+
+      return {
+        kind: 'creators',
+        title: 'Podcasts',
+        subtitle: 'Podcasts from your collection.',
+        creators: libraryModel.podcasts,
+        creatorType: 'podcast',
         breadcrumbs: [],
       };
     }
@@ -479,11 +509,23 @@ export default function LibraryView(props) {
         thumbnailUrl: entry.thumbnailUrl,
         subtitle: 'Video library',
         onOpen: () => {
-          setSection('channels');
           setNavPath({ creatorType: 'channel', creatorName: entry.name });
         },
       }));
-      return [...artists, ...channels].sort((left, right) => right.latestTimestamp - left.latestTimestamp);
+      const podcasts = context.podcasts?.map((entry) => ({
+        key: `podcast:${entry.name}`,
+        name: entry.name,
+        type: 'Podcast',
+        count: entry.count,
+        latestTimestamp: entry.latestTimestamp,
+        thumbnailUrl: entry.thumbnailUrl,
+        subtitle: 'Podcast library',
+        onOpen: () => {
+          setSection('podcasts');
+          setNavPath({ creatorType: 'podcast', creatorName: entry.name });
+        },
+      })) || [];
+      return [...artists, ...channels, ...podcasts].sort((left, right) => right.latestTimestamp - left.latestTimestamp);
     }
 
     if (context.kind === 'creators') {
@@ -538,11 +580,29 @@ export default function LibraryView(props) {
   const explorerLandingArtists = createMemo(() => (explorer().kind === 'landing' ? explorer().artists : []));
   const explorerLandingChannels = createMemo(() => (explorer().kind === 'landing' ? explorer().channels : []));
 
+  const explorerHeader = createMemo(() => {
+    const context = explorer();
+    if (context.kind === 'items' && navPath().creatorType === 'artist' && navPath().albumName !== '') {
+      return (
+        <div class="space-y-1">
+          <h1 class="text-4xl font-black tracking-tight text-white">{navPath().creatorName}</h1>
+          <h2 class="text-2xl font-bold text-accent-primary/80">{navPath().albumName}</h2>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <h1 class="text-4xl font-black tracking-tight text-white">{context.title || 'Library'}</h1>
+        <p class="text-base text-gray-400 font-medium">{context.subtitle}</p>
+      </div>
+    );
+  });
+
   createEffect(() => {
     const context = explorer();
     const currentSelected = selectedDetailKey();
 
-    if (viewMode() !== 'detail') {
+    if (viewMode() === 'gallery') {
       return;
     }
 
@@ -621,10 +681,7 @@ export default function LibraryView(props) {
 
           <div class="min-w-0 flex-1 space-y-6">
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h1 class="text-4xl font-black tracking-tight text-white">{explorer().title || 'Library'}</h1>
-                <p class="text-base text-gray-400 font-medium">{explorer().subtitle}</p>
-              </div>
+              {explorerHeader()}
               <div class="rounded-full border border-accent-secondary/30 bg-accent-secondary/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.15em] text-accent-secondary">
                 {sectionCountLabel()}
               </div>
@@ -1053,7 +1110,7 @@ export default function LibraryView(props) {
 
             <Show when={explorerLandingChannels().length > 0}>
               <div class="space-y-6">
-                <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-secondary/80 ml-2">Channels</div>
+                <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-secondary/80 ml-2">YTC</div>
                 <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <For each={explorerLandingChannels()}>
                     {(channel) => (
@@ -1081,11 +1138,42 @@ export default function LibraryView(props) {
                 </Grid>
               </div>
             </Show>
+
+            <Show when={model().podcasts.length > 0}>
+              <div class="space-y-6">
+                <div class="text-xs font-black uppercase tracking-[0.25em] text-emerald-500/80 ml-2">Podcasts</div>
+                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <For each={model().podcasts}>
+                    {(podcast) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSection('podcasts');
+                          setNavPath({ creatorType: 'podcast', creatorName: podcast.name });
+                        }}
+                        class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-emerald-500/50 hover:shadow-vibrant"
+                      >
+                        <Thumbnail 
+                          src={podcast.thumbnailUrl} 
+                          alt={podcast.name} 
+                          size="md"
+                          class="!rounded-none"
+                        />
+                        <div class="space-y-1 p-5">
+                          <div class="truncate text-base font-black text-white">{podcast.name}</div>
+                          <div class="text-xs font-bold text-gray-500">{podcast.count} episode{podcast.count === 1 ? '' : 's'}</div>
+                        </div>
+                      </button>
+                    )}
+                  </For>
+                </Grid>
+              </div>
+            </Show>
           </div>
         </Show>
       </Show>
 
-      <Show when={viewMode() === 'list'}>
+      <Show when={viewMode() === 'columns'}>
         <Show
           when={explorer().kind === 'items'}
           fallback={(
@@ -1200,71 +1288,96 @@ export default function LibraryView(props) {
         </Show>
       </Show>
 
-      <Show when={viewMode() === 'detail'}>
-        <div class="grid gap-6 lg:grid-cols-[1fr_400px]">
-          <Show
-            when={explorer().kind === 'items'}
-            fallback={(
-              <div class="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
-                <table class="w-full text-sm">
-                  <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                    <tr>
-                      <th class="px-6 py-4 text-left">Name</th>
-                      <th class="px-6 py-4 text-left">Type</th>
-                      <th class="px-6 py-4 text-left">Count</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-white/5">
-                    <For each={creatorDetailRows()}>
-                      {(row) => (
-                        <tr
-                          class={`cursor-pointer transition-smooth ${
-                            selectedDetailKey() === row.key ? 'bg-accent-primary/20 text-white' : 'text-gray-400 hover:bg-white/5'
-                          }`}
-                          onClick={() => setSelectedDetailKey(row.key)}
-                        >
-                          <td class="px-6 py-4">
-                            <div class="font-bold">{row.name}</div>
-                            <Show when={row.subtitle !== ''}>
-                              <div class="text-xs font-medium opacity-60">{row.subtitle}</div>
-                            </Show>
-                          </td>
-                          <td class="px-6 py-4 text-xs font-bold uppercase tracking-widest">{row.type}</td>
-                          <td class="px-6 py-4 text-xs font-bold">{row.count}</td>
-                        </tr>
-                      )}
-                    </For>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          >
+      <Show when={viewMode() === 'columns'}>
+        <Show
+          when={explorer().kind === 'items'}
+          fallback={(
             <div class="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
               <table class="w-full text-sm">
                 <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                   <tr>
-                    <th class="px-6 py-4 text-left">Title</th>
+                    <th class="px-6 py-4 text-left">Name</th>
+                    <th class="px-6 py-4 text-left">Type</th>
+                    <th class="px-6 py-4 text-left">Items</th>
+                    <th class="px-6 py-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                  <For each={creatorDetailRows()}>
+                    {(row) => (
+                      <tr class="text-white hover:bg-white/2 transition-colors">
+                        <td class="px-6 py-4">
+                          <div class="flex items-center gap-4">
+                            <Thumbnail src={row.thumbnailUrl} alt={row.name} size="sm" class="h-10 w-10 !rounded-full flex-shrink-0" />
+                            <div>
+                              <div class="font-bold">{row.name}</div>
+                              <Show when={row.subtitle !== ''}>
+                                <div class="text-xs font-medium text-gray-500">{row.subtitle}</div>
+                              </Show>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 text-xs font-bold text-accent-primary/80 uppercase tracking-widest">{row.type}</td>
+                        <td class="px-6 py-4 text-xs font-bold text-gray-400">{row.count}</td>
+                        <td class="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={row.onOpen}
+                            class="rounded-xl border border-accent-primary/40 bg-accent-primary/20 px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-accent-primary/30 transition-smooth"
+                          >
+                            Open
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                  </For>
+                </tbody>
+              </table>
+            </div>
+          )}
+        >
+          <Show
+            when={explorerItems().length > 0}
+            fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No media items match this view yet.</div>}
+          >
+            <div class="overflow-x-auto rounded-3xl border border-white/5 bg-black/20">
+              <table class="w-full min-w-[980px] text-sm">
+                <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                  <tr>
+                    <th class="px-6 py-4 text-left">Media</th>
                     <th class="px-6 py-4 text-left">Creator</th>
                     <th class="px-6 py-4 text-left">Collection</th>
                     <th class="px-6 py-4 text-left">Type</th>
+                    <th class="px-6 py-4 text-left">Date</th>
+                    <th class="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5">
                   <For each={explorerItems()}>
                     {(item) => (
-                      <tr
-                        class={`cursor-pointer transition-smooth ${
-                          selectedDetailKey() === item.mediaKey ? 'bg-accent-primary/20 text-white' : 'text-gray-400 hover:bg-white/5'
-                        }`}
-                        onClick={() => setSelectedDetailKey(item.mediaKey)}
-                      >
+                      <tr class="align-top text-white hover:bg-white/2 transition-colors">
                         <td class="px-6 py-4">
-                          <div class="font-bold">{item.title}</div>
-                          <div class="text-xs font-medium opacity-60">{item.filename}</div>
+                          <div class="flex items-start gap-4">
+                            <Thumbnail src={item.thumbnailUrl} alt={item.title} size="sm" class="flex-shrink-0 !w-20" />
+                            <div class="min-w-0">
+                              <div class="truncate font-bold text-base">{item.title}</div>
+                              <div class="truncate text-xs font-medium text-gray-500">{item.size || 'Unknown size'}</div>
+                            </div>
+                          </div>
                         </td>
-                        <td class="px-6 py-4 text-xs font-bold">{item.creator}</td>
-                        <td class="px-6 py-4 text-xs font-bold">{item.album}</td>
-                        <td class="px-6 py-4 text-[10px] font-black uppercase tracking-widest">{item.type}</td>
+                        <td class="px-6 py-4 text-xs font-bold text-accent-primary/80">{item.creator}</td>
+                        <td class="px-6 py-4 text-xs font-bold text-gray-400">{item.album}</td>
+                        <td class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-500">{item.type}</td>
+                        <td class="px-6 py-4 text-xs font-medium text-gray-500">{firstNonEmpty(item.date, item.modifiedAt)}</td>
+                        <td class="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handlePlayItem(item, explorerQueueItems())}
+                            class="rounded-xl bg-accent-primary px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth"
+                          >
+                            Play
+                          </button>
+                        </td>
                       </tr>
                     )}
                   </For>
@@ -1272,126 +1385,77 @@ export default function LibraryView(props) {
               </table>
             </div>
           </Show>
+        </Show>
+      </Show>
 
-          <aside class="rounded-3xl border border-white/5 bg-black/40 p-6 sticky top-6 h-fit space-y-6">
-            <Show
-              when={explorer().kind === 'items'}
-              fallback={(
-                <Show
-                  when={selectedDetailRow()}
-                  fallback={<div class="text-sm text-gray-500 font-medium">Select a row to inspect details.</div>}
-                >
-                  <div class="space-y-6">
-                    <div class="aspect-video relative rounded-2xl overflow-hidden border border-white/10 bg-black/20">
-                      <Thumbnail src={selectedDetailRow()?.thumbnailUrl} alt={selectedDetailRow()?.name} size="md" />
-                    </div>
-                    <div class="space-y-4">
-                      <div>
-                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Name</div>
-                        <div class="text-xl font-black text-white">{selectedDetailRow()?.name}</div>
-                      </div>
-                      <div class="flex gap-4">
-                        <div class="flex-1">
-                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Type</div>
-                          <div class="text-xs font-bold text-accent-primary uppercase tracking-widest">{selectedDetailRow()?.type}</div>
-                        </div>
-                        <div class="flex-1">
-                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Count</div>
-                          <div class="text-xs font-bold text-white">{selectedDetailRow()?.count}</div>
-                        </div>
+      <Show when={viewMode() === 'list'}>
+        <Show
+          when={explorer().kind === 'items'}
+          fallback={(
+            <div class="space-y-2">
+              <For each={creatorDetailRows()}>
+                {(row) => (
+                  <button
+                    type="button"
+                    onClick={row.onOpen}
+                    class="w-full flex items-center justify-between gap-6 p-4 rounded-2xl border border-white/5 bg-black/20 hover:border-accent-primary/30 hover:bg-black/40 transition-smooth group"
+                  >
+                    <div class="flex items-center gap-4 min-w-0">
+                      <Thumbnail src={row.thumbnailUrl} alt={row.name} size="sm" class="h-12 w-12 !rounded-full flex-shrink-0" />
+                      <div class="text-left min-w-0">
+                        <div class="font-black text-white truncate">{row.name}</div>
+                        <div class="text-[10px] font-bold text-accent-primary/60 uppercase tracking-widest">{row.type}</div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => selectedDetailRow()?.onOpen?.()}
-                      class="w-full rounded-xl bg-vibrant-gradient px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
+                    <div class="flex items-center gap-8 shrink-0">
+                      <div class="text-right">
+                        <div class="text-xs font-bold text-white">{row.count}</div>
+                        <div class="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Items</div>
+                      </div>
+                      <Icon name="chevron-right" class="w-5 h-5 text-gray-700 group-hover:text-white transition-smooth" />
+                    </div>
+                  </button>
+                )}
+              </For>
+            </div>
+          )}
+        >
+          <div class="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
+            <table class="w-full text-sm">
+              <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                <tr>
+                  <th class="px-6 py-4 text-left">Track</th>
+                  <th class="px-6 py-4 text-left">Artist</th>
+                  <th class="px-6 py-4 text-left">Album</th>
+                  <th class="px-6 py-4 text-right">Length</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                <For each={explorerItems()}>
+                  {(item) => (
+                    <tr 
+                      class="text-white hover:bg-accent-primary/10 cursor-pointer transition-colors group"
+                      onClick={() => handlePlayItem(item, explorerQueueItems())}
                     >
-                      Open Collection
-                    </button>
-                  </div>
-                </Show>
-              )}
-            >
-              <Show
-                when={selectedDetailItem()}
-                fallback={<div class="text-sm text-gray-500 font-medium">Select an item to inspect metadata.</div>}
-              >
-                {(itemAccessor) => {
-                  const item = itemAccessor();
-                  return (
-                    <div class="space-y-6">
-                      <Thumbnail src={item.thumbnailUrl} alt={item.title} size="md" class="shadow-2xl" />
-                      
-                      <div class="space-y-1">
-                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Title</div>
-                        <div class="text-xl font-black text-white leading-tight">{item.title}</div>
-                      </div>
-
-                      <div class="grid grid-cols-2 gap-6">
-                        <div class="space-y-1">
-                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Creator</div>
-                          <div class="text-sm font-bold text-accent-primary">{item.creator}</div>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center gap-4">
+                          <div class="w-8 text-[10px] font-black text-gray-600 group-hover:text-accent-primary transition-colors">
+                            <Icon name="play" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span class="group-hover:hidden">01</span>
+                          </div>
+                          <div class="font-bold truncate">{item.title}</div>
                         </div>
-                        <div class="space-y-1">
-                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Collection</div>
-                          <div class="text-sm font-bold text-white">{item.album}</div>
-                        </div>
-                        <div class="space-y-1">
-                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Type</div>
-                          <div class="text-xs font-black uppercase tracking-widest text-gray-400">{item.type}</div>
-                        </div>
-                        <div class="space-y-1">
-                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Date</div>
-                          <div class="text-sm font-bold text-white">{firstNonEmpty(item.date, item.modifiedAt, '-')}</div>
-                        </div>
-                      </div>
-
-                      <div class="space-y-1">
-                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Source Playlist</div>
-                        <div class="text-sm font-medium text-gray-400">{item.sourcePlaylist || 'None'}</div>
-                      </div>
-
-                      <div class="space-y-2">
-                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Assignment</div>
-                        <select
-                          value={item.savedPlaylistId}
-                          onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
-                          class="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-accent-primary/50 transition-smooth"
-                        >
-                          <option value="">Unassigned</option>
-                          <For each={savedPlaylists()}>
-                            {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
-                          </For>
-                        </select>
-                      </div>
-
-                      <div class="flex items-center gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => handlePlayItem(item, explorerQueueItems())}
-                          class="flex-1 rounded-xl bg-vibrant-gradient px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
-                        >
-                          Play Now
-                        </button>
-                        <Show when={item.sourceURL !== ''}>
-                          <a
-                            href={item.sourceURL}
-                            target="_blank"
-                            rel="noreferrer"
-                            class="rounded-xl border border-white/10 bg-white/5 p-3 text-gray-400 hover:text-white hover:bg-white/10 transition-smooth"
-                            title="View Source"
-                          >
-                            <Icon name="external-link" class="w-5 h-5" />
-                          </a>
-                        </Show>
-                      </div>
-                    </div>
-                  );
-                }}
-              </Show>
-            </Show>
-          </aside>
-        </div>
+                      </td>
+                      <td class="px-6 py-4 text-xs font-bold text-gray-400">{item.creator}</td>
+                      <td class="px-6 py-4 text-xs font-bold text-gray-500">{item.album}</td>
+                      <td class="px-6 py-4 text-right text-xs font-mono text-gray-500">{item.size || '--:--'}</td>
+                    </tr>
+                  )}
+                </For>
+              </tbody>
+            </table>
+          </div>
+        </Show>
       </Show>
 
       <Show when={showSavedPlaylistManager()}>

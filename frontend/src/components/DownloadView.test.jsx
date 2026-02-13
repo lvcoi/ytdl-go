@@ -5,18 +5,19 @@ import { AppStoreProvider, useAppStore } from '../store/appStore';
 import { createRoot } from 'solid-js';
 
 describe('DownloadView component', () => {
-  it('renders initial state correctly', () => {
+    it('renders initial state correctly', () => {
     const { getByText, getByPlaceholderText } = render(() => (
       <AppStoreProvider>
         <DownloadView />
       </AppStoreProvider>
     ));
     
-    expect(getByText('Unlock')).toBeInTheDocument();
-    expect(getByText(/Content\./)).toBeInTheDocument();
+    expect(getByText('YTDL')).toBeInTheDocument();
+    expect(getByText(/-GO\./)).toBeInTheDocument();
     expect(getByPlaceholderText('Paste YouTube URLs here (one per line)...')).toBeInTheDocument();
     expect(getByText('Start Extraction')).toBeInTheDocument();
   });
+
 
   it('renders progress tasks with Media-First layout', () => {
     // This test needs to mock the store state with some tasks
