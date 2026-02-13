@@ -26,7 +26,7 @@ ytdl-go -o "{artist} - {title}.{ext}" [URL]
 |-------------|-------------|---------------|-------|
 | `{title}` | Video title (sanitized) | `My Video Title` | Special characters removed/replaced |
 | `{id}` | YouTube video ID | `dQw4w9WgXcQ` | Unique 11-character identifier |
-| `{ext}` | File extension | `mp4`, `webm`, `m4a` | Based on selected format |
+| `{ext}` | File extension | `mp4`, `webm` | Based on selected format |
 | `{quality}` | Quality label or bitrate | `1080p`, `720p`, `128k` | Video resolution or audio bitrate |
 
 ### Author/Artist Placeholders
