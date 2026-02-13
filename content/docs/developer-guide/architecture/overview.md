@@ -333,10 +333,10 @@ ytdl-go supports multiple levels of concurrency:
 - Controlled by `-jobs` flag
 
 #### 2. Playlist-Level Concurrency (`-playlist-concurrency N`)
-- Downloads multiple playlist entries in parallel
-- Default: auto (based on CPU count)
-- Can be disabled (1) or maximized (high number)
 
+> Note: As of the current implementation, playlist downloads are processed sequentially.
+> The `-playlist-concurrency` flag is parsed but ignored; playlist-level concurrency is
+> a planned feature and not yet implemented.
 #### 3. Segment-Level Concurrency (`-segment-concurrency N`)
 - For HLS/DASH streams, downloads segments in parallel
 - Default: auto (based on CPU count)
