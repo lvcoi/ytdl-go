@@ -397,8 +397,8 @@ Monitor for security vulnerabilities:
    # Lower -jobs flag
    ytdl-go -jobs 2 [URLs...]
    
-   # Lower playlist/segment concurrency
-   ytdl-go -playlist-concurrency 1 -segment-concurrency 1 [URL]
+   # Lower segment concurrency
+   ytdl-go -segment-concurrency 1 [URL]
    ```
 
 2. **Check for leaks:**
