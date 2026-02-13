@@ -1,5 +1,7 @@
 import { For, Show, onCleanup, onMount } from 'solid-js';
 import Icon from './Icon';
+import Thumbnail from './Thumbnail';
+import { Grid, GridItem } from './Grid';
 import DuplicateModal from './DuplicateModal';
 import { MAX_JOBS, MAX_TIMEOUT_SECONDS, useAppStore } from '../store/appStore';
 import {
@@ -7,6 +9,7 @@ import {
   isTerminalDownloadStatus,
   normalizeDownloadStatus,
 } from '../utils/downloadStatus';
+import { getStatusColor } from '../utils/theme';
 
 const reconnectDelaysMs = [1000, 2000, 4000, 8000, 10000];
 const maxReconnectAttempts = 5;
@@ -62,6 +65,7 @@ const statusTone = (status) => {
       card: 'bg-red-500/5 border-red-500/20',
       icon: 'bg-red-500/10 text-red-400',
       accent: 'text-red-400',
+      bar: 'bg-red-500',
     };
   }
   if (status === 'complete') {
@@ -69,6 +73,7 @@ const statusTone = (status) => {
       card: 'bg-green-500/5 border-green-500/20',
       icon: 'bg-green-500/10 text-green-400',
       accent: 'text-green-400',
+      bar: 'bg-green-500',
     };
   }
   if (status === 'reconnecting') {
@@ -76,12 +81,14 @@ const statusTone = (status) => {
       card: 'bg-amber-500/5 border-amber-500/20',
       icon: 'bg-amber-500/10 text-amber-400',
       accent: 'text-amber-400',
+      bar: 'bg-amber-500',
     };
   }
   return {
-    card: 'bg-blue-500/5 border-blue-500/20',
-    icon: 'bg-blue-500/10 text-blue-400',
-    accent: 'text-blue-400',
+    card: 'glass-vibrant',
+    icon: 'bg-accent-primary/10 text-accent-primary',
+    accent: 'text-accent-primary',
+    bar: 'bg-vibrant-gradient',
   };
 };
 
@@ -720,7 +727,7 @@ export default function DownloadView(props = {}) {
                       jobId,
                       promptId: evt.promptId,
                       path: typeof evt.path === 'string' ? evt.path : '',
-                      filename: typeof evt.filename === 'string' ? evt.filename : '',
+                      filename: typeof duplicate.filename === 'string' ? duplicate.filename : '',
                     },
                   ];
                 });
@@ -868,228 +875,277 @@ export default function DownloadView(props = {}) {
   };
 
   return (
-    <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div class="space-y-2">
-        <h1 class="text-4xl font-black text-white">Unlock Content.</h1>
-        <p class="text-gray-500 font-medium">Paste your YouTube URLs below to begin high-speed extraction.</p>
+    <div class="space-y-10 transition-smooth animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div class="space-y-3">
+        <h1 class="text-5xl font-black tracking-tight text-white">
+          <span class="text-transparent bg-clip-text bg-vibrant-gradient">Unlock</span> Content.
+        </h1>
+        <p class="text-gray-400 font-medium text-lg max-w-2xl">
+          Paste your YouTube URLs below to begin high-speed, parallel extraction with <span class="text-accent-primary">YTDL-Go</span>.
+        </p>
       </div>
 
-      <div class="relative group">
-        <textarea
-          value={urlInput()}
-          onInput={(e) => setUrlInput(e.target.value)}
-          class="w-full h-64 bg-[#0a0c14] border-2 border-white/5 rounded-[2rem] p-8 outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all text-xl font-medium placeholder:text-gray-800 custom-scrollbar shadow-2xl"
-          placeholder="Enter URLs (one per line)..."
-        ></textarea>
-        <div class="absolute bottom-6 right-6 flex gap-3">
-          <button onClick={() => setUrlInput('')} class="p-4 bg-white/5 rounded-2xl hover:bg-red-500/10 hover:text-red-400 transition-all">
-            <Icon name="trash-2" class="w-6 h-6" />
-          </button>
-          <button
-            disabled={isDownloading()}
-            onClick={handleDownload}
-            class="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold flex items-center gap-3 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50"
-          >
-            <Icon name="download-cloud" class="w-6 h-6" />
-            {isDownloading() ? 'Processing...' : 'Start Extraction'}
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-3 gap-4">
-        <button
-          onClick={() => setSettings({ ...settings(), audioOnly: !settings().audioOnly })}
-          class={`p-6 rounded-3xl border-2 transition-all flex flex-col gap-3 ${settings().audioOnly ? 'bg-blue-600/10 border-blue-500/50' : 'bg-white/5 border-transparent hover:border-white/10'}`}
-        >
-          <div class="p-3 bg-purple-500/10 text-purple-400 rounded-xl w-fit"><Icon name="music" class="w-5 h-5" /></div>
-          <div class="text-left">
-            <div class="font-bold text-white">Audio Only</div>
-            <div class="text-xs text-gray-500">Extract high-quality MP3/Opus</div>
-          </div>
-        </button>
-        <div class="relative has-tooltip">
-          <span class="tooltip bg-gray-800 text-[10px] px-3 py-2 rounded-xl shadow-2xl mb-4 border border-white/10 w-56 text-center leading-relaxed">
-            Coming Soon: PO Token Guard runtime controls.
-          </span>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            aria-label="PO Token Guard (Coming Soon)"
-            class="w-full p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col gap-3 cursor-not-allowed opacity-70 text-left"
-          >
-            <div class="p-3 bg-white/5 text-gray-500 rounded-xl w-fit"><Icon name="shield-check" class="w-5 h-5" /></div>
-            <div>
-              <div class="font-bold text-gray-300">PO Token Guard</div>
-              <div class="text-xs text-gray-500">Automated Bot Detection Bypass</div>
-            </div>
-          </button>
-        </div>
-        <div class="relative has-tooltip">
-          <span class="tooltip bg-gray-800 text-[10px] px-3 py-2 rounded-xl shadow-2xl mb-4 border border-white/10 w-56 text-center leading-relaxed">
-            Coming Soon: Smart Meta auto-tagging and organization.
-          </span>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            aria-label="Smart Meta (Coming Soon)"
-            class="w-full p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col gap-3 cursor-not-allowed opacity-70 text-left"
-          >
-            <div class="p-3 bg-white/5 text-gray-500 rounded-xl w-fit"><Icon name="database" class="w-5 h-5" /></div>
-            <div>
-              <div class="font-bold text-gray-300">Smart Meta</div>
-              <div class="text-xs text-gray-500">Auto-tagging & Organization</div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      <Show when={jobStatus()}>
-        <div class={`p-6 rounded-3xl border-2 space-y-4 animate-in fade-in duration-300 ${currentStatusTone().card}`}>
-          <div class="flex items-start gap-3">
-            <div class={`p-2 rounded-xl ${currentStatusTone().icon}`}>
-              <Icon
-                name={statusIconName(normalizeStatus(jobStatus()?.status))}
-                class={`w-5 h-5 ${!isTerminalStatus(normalizeStatus(jobStatus()?.status)) ? 'animate-spin' : ''}`}
-              />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="font-bold text-white">{statusTitle(normalizeStatus(jobStatus()?.status))}</div>
-              <Show when={jobStatus()?.message}>
-                <div class="text-xs text-gray-500 break-words">{jobStatus().message}</div>
-              </Show>
-              <Show when={jobStatus()?.status === 'error' && jobStatus()?.error}>
-                <div class={`text-xs break-words ${currentStatusTone().accent}`}>{jobStatus().error}</div>
-              </Show>
-              <div class="mt-2 flex flex-wrap gap-3 text-[11px] text-gray-500">
-                <Show when={jobStatus()?.jobId}>
-                  <span>Job: <span class="text-gray-400 font-mono">{jobStatus().jobId}</span></span>
-                </Show>
-                <Show when={taskSummary().total > 0}>
-                  <span>Tasks: <span class="text-gray-400">{taskSummary().done}/{taskSummary().total}</span></span>
-                </Show>
-                <Show when={isTerminalStatus(normalizeStatus(jobStatus()?.status)) && jobStatus()?.exitCode != null}>
-                  <span>Exit Code: <span class="text-gray-400">{jobStatus().exitCode}</span></span>
-                </Show>
-              </div>
-            </div>
-          </div>
-
-          <Show when={hasDownloadedMedia() && typeof props.onOpenLibrary === 'function'}>
-            <div class="flex justify-end">
-              <button
-                onClick={openLibrary}
-                class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500"
+      <Grid class="!p-0 !gap-8">
+        <div class="lg:col-span-3 space-y-6">
+          <div class="relative group">
+            <div class="absolute -inset-1 bg-vibrant-gradient rounded-[2.5rem] opacity-20 group-focus-within:opacity-40 blur transition-smooth"></div>
+            <textarea
+              value={urlInput()}
+              onInput={(e) => setUrlInput(e.target.value)}
+              class="relative w-full h-80 bg-bg-surface border border-white/10 rounded-[2rem] p-8 outline-none focus:border-accent-primary/50 transition-smooth text-xl font-medium placeholder:text-gray-700 custom-scrollbar shadow-2xl"
+              placeholder="Paste YouTube URLs here (one per line)..."
+            ></textarea>
+            <div class="absolute bottom-6 right-6 flex gap-4">
+              <button 
+                onClick={() => setUrlInput('')} 
+                class="p-4 glass rounded-2xl hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-smooth"
+                title="Clear input"
               >
-                <Icon name="layers" class="w-4 h-4" />
-                View in Library
+                <Icon name="trash-2" class="w-6 h-6" />
+              </button>
+              <button
+                disabled={isDownloading()}
+                onClick={handleDownload}
+                class="px-10 py-4 bg-vibrant-gradient text-white rounded-2xl font-bold flex items-center gap-3 transition-smooth shadow-vibrant hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
+              >
+                <Icon name={isDownloading() ? "loader" : "download-cloud"} class={`w-6 h-6 ${isDownloading() ? 'animate-spin' : ''}`} />
+                {isDownloading() ? 'Processing...' : 'Start Extraction'}
               </button>
             </div>
-          </Show>
+          </div>
 
-          <Show when={currentStats()}>
-            <div class="grid grid-cols-3 gap-2">
-              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div class="text-[10px] uppercase tracking-wider text-gray-500">Total</div>
-                <div class="text-sm font-bold text-white">{currentStats().total}</div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button
+              onClick={() => setSettings({ ...settings(), audioOnly: !settings().audioOnly })}
+              class={`p-6 rounded-3xl border transition-smooth flex flex-col gap-4 group/btn ${settings().audioOnly ? 'glass-vibrant border-accent-primary/30' : 'glass border-white/5 hover:border-white/20'}`}
+            >
+              <div class={`p-3 rounded-xl w-fit transition-smooth ${settings().audioOnly ? 'bg-accent-primary/20 text-accent-primary' : 'bg-white/5 text-gray-500 group-hover/btn:text-gray-300'}`}>
+                <Icon name="music" class="w-6 h-6" />
               </div>
-              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div class="text-[10px] uppercase tracking-wider text-gray-500">Succeeded</div>
-                <div class="text-sm font-bold text-green-400">{currentStats().succeeded}</div>
+              <div class="text-left">
+                <div class="font-bold text-white">Audio Only</div>
+                <div class="text-xs text-gray-500 group-hover/btn:text-gray-400">High-quality MP3/Opus</div>
               </div>
-              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div class="text-[10px] uppercase tracking-wider text-gray-500">Failed</div>
-                <div class="text-sm font-bold text-red-400">{currentStats().failed}</div>
+            </button>
+            
+            <div class="relative has-tooltip">
+              <span class="tooltip glass border border-white/10 text-[10px] px-4 py-2 rounded-xl shadow-2xl mb-4 w-60 text-center leading-relaxed z-50">
+                PO Token Guard uses <span class="text-accent-primary">BgUtils</span> to bypass YouTube bot detection automatically.
+              </span>
+              <div class="p-6 rounded-3xl glass-vibrant border border-accent-secondary/30 flex flex-col gap-4 text-left">
+                <div class="p-3 bg-accent-secondary/20 text-accent-secondary rounded-xl w-fit"><Icon name="shield-check" class="w-6 h-6" /></div>
+                <div>
+                  <div class="font-bold text-white">PO Token Guard</div>
+                  <div class="text-xs text-gray-400">Bot Detection Bypass Active</div>
+                </div>
               </div>
             </div>
-          </Show>
 
-          <Show when={sortedTaskEntries().length > 0}>
-            <div class="space-y-3">
-              <For each={sortedTaskEntries()}>
-                {([id, task]) => {
-                  const percent = toFinitePercent(task?.percent);
-                  return (
-                    <div class="space-y-1">
-                      <div class="flex items-center justify-between text-xs">
-                        <span class="text-gray-400 truncate flex-1">{task?.label || id}</span>
-                        <span class="text-gray-500 ml-2">
-                          {formatPercent(percent, Boolean(task?.done))}
-                          {task?.total > 0 ? ` · ${humanBytes(task.current)} / ${humanBytes(task.total)}` : ''}
-                        </span>
-                      </div>
-                      <div class="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          class={`h-full rounded-full transition-all duration-300 ${task?.done ? 'bg-green-500' : 'bg-blue-500'}`}
-                          style={{ width: `${Math.min(100, percent)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                }}
-              </For>
+            <div class="relative has-tooltip">
+              <span class="tooltip glass border border-white/10 text-[10px] px-4 py-2 rounded-xl shadow-2xl mb-4 w-60 text-center leading-relaxed z-50">
+                Smart Meta automatically fetches and embeds high-quality metadata and thumbnails.
+              </span>
+              <div class="p-6 rounded-3xl glass border border-white/10 flex flex-col gap-4 text-left">
+                <div class="p-3 bg-white/5 text-accent-primary/60 rounded-xl w-fit"><Icon name="database" class="w-6 h-6" /></div>
+                <div>
+                  <div class="font-bold text-gray-300">Smart Meta</div>
+                  <div class="text-xs text-gray-500">Auto-tagging & Thumbnails</div>
+                </div>
+              </div>
             </div>
-          </Show>
+          </div>
+        </div>
 
-          <Show when={logMessages().length > 0}>
-            <div class="max-h-32 overflow-y-auto custom-scrollbar space-y-0.5">
-              <For each={logMessages()}>
-                {(log) => (
-                  <div class={`text-[11px] font-mono px-2 py-0.5 rounded break-words ${
-                    log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-amber-400' : 'text-gray-500'
-                  }`}>
-                    {log.message}
+        <div class="lg:col-span-2">
+          <Show when={jobStatus()} fallback={
+            <div class="h-full flex flex-col items-center justify-center p-12 glass rounded-[2rem] border-dashed border-white/10 text-gray-600">
+              <Icon name="activity" class="w-12 h-12 mb-4 opacity-20" />
+              <p class="font-medium text-center">Active downloads and real-time progress will appear here.</p>
+            </div>
+          }>
+            <div class={`p-8 rounded-[2rem] border transition-smooth space-y-8 h-fit ${currentStatusTone().card}`}>
+              <div class="flex items-start gap-5">
+                <div class={`p-4 rounded-2xl shadow-xl ${currentStatusTone().icon}`}>
+                  <Icon
+                    name={statusIconName(currentStatus())}
+                    class={`w-8 h-8 ${!isTerminalStatus(currentStatus()) ? 'animate-spin' : ''}`}
+                  />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-black text-white">{statusTitle(currentStatus())}</h2>
+                    <Show when={hasDownloadedMedia() && typeof props.onOpenLibrary === 'function'}>
+                      <button
+                        onClick={openLibrary}
+                        class="flex items-center gap-2 rounded-xl glass-vibrant px-4 py-2 text-xs font-bold text-white hover:scale-105 transition-smooth"
+                      >
+                        <Icon name="layers" class="w-4 h-4" />
+                        Library
+                      </button>
+                    </Show>
                   </div>
-                )}
-              </For>
+                  <Show when={jobStatus()?.message}>
+                    <p class="text-sm text-gray-400 mt-1 font-medium">{jobStatus().message}</p>
+                  </Show>
+                  <Show when={currentStatus() === 'error' && jobStatus()?.error}>
+                    <p class={`text-sm mt-2 font-bold ${currentStatusTone().accent}`}>{jobStatus().error}</p>
+                  </Show>
+                </div>
+              </div>
+
+              <Show when={currentStats()}>
+                <div class="grid grid-cols-3 gap-4">
+                  <div class="glass rounded-2xl p-4 border-white/5">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total</div>
+                    <div class="text-xl font-black text-white">{currentStats().total}</div>
+                  </div>
+                  <div class="glass rounded-2xl p-4 border-white/5">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Success</div>
+                    <div class="text-xl font-black text-green-400">{currentStats().succeeded}</div>
+                  </div>
+                  <div class="glass rounded-2xl p-4 border-white/5">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Failed</div>
+                    <div class="text-xl font-black text-red-400">{currentStats().failed}</div>
+                  </div>
+                </div>
+              </Show>
+
+              <Show when={sortedTaskEntries().length > 0}>
+                <div class="space-y-8 max-h-[40rem] overflow-y-auto pr-4 custom-scrollbar">
+                  <For each={sortedTaskEntries()}>
+                    {([id, task]) => {
+                      const percent = toFinitePercent(task?.percent);
+                      return (
+                        <div class="space-y-4 group/task animate-in fade-in slide-in-from-right-4 duration-500">
+                          <div class="flex flex-col sm:flex-row gap-6">
+                            <Thumbnail 
+                              src={task?.thumbnailUrl} 
+                              size="md" 
+                              class="w-full sm:w-48 flex-shrink-0 shadow-2xl rounded-2xl border border-white/5" 
+                            />
+                            <div class="flex-1 min-w-0 space-y-4">
+                              <div class="space-y-1">
+                                <div class="flex items-center justify-between gap-4">
+                                  <span class="text-lg font-black text-white truncate pr-4">{task?.label || id}</span>
+                                  <span class={`text-base font-black font-mono ${task?.done ? 'text-green-400' : 'text-accent-secondary'}`}>
+                                    {formatPercent(percent, Boolean(task?.done))}
+                                  </span>
+                                </div>
+                                <Show when={task?.creator}>
+                                  <div class="text-xs font-bold text-accent-primary/80 uppercase tracking-widest">{task.creator}</div>
+                                </Show>
+                              </div>
+
+                              <div class="space-y-2">
+                                <div class="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 p-0.5">
+                                  <div
+                                    class={`h-full rounded-full transition-all duration-700 ease-out shadow-vibrant ${task?.done ? 'bg-green-500' : 'bg-vibrant-gradient'}`}
+                                    style={{ width: `${Math.min(100, percent)}%` }}
+                                  ></div>
+                                </div>
+                                <Show when={task?.total > 0}>
+                                  <div class="text-[10px] font-black text-gray-500 flex justify-between uppercase tracking-[0.1em]">
+                                    <span class="flex items-center gap-1.5">
+                                      <Icon name="database" class="w-3 h-3" />
+                                      {humanBytes(task.current)} / {humanBytes(task.total)}
+                                    </span>
+                                    <Show when={!task.done} fallback={<span class="text-green-500/80 font-black">Ready</span>}>
+                                      <span class="animate-pulse text-accent-secondary">Extracting...</span>
+                                    </Show>
+                                  </div>
+                                </Show>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  </For>
+                </div>
+              </Show>
+
+              <Show when={logMessages().length > 0}>
+                <div class="glass rounded-[1.5rem] p-4 border-white/5 bg-black/20">
+                  <div class="text-[10px] font-black uppercase tracking-widest text-gray-600 mb-3 flex items-center gap-2">
+                    <Icon name="terminal" class="w-3 h-3" />
+                    Console Output
+                  </div>
+                  <div class="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                    <For each={logMessages()}>
+                      {(log) => (
+                        <div class={`text-[11px] font-mono leading-relaxed break-words ${
+                          log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-amber-400' : 'text-gray-500'
+                        }`}>
+                          <span class="opacity-30 mr-2">›</span>{log.message}
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </Show>
             </div>
           </Show>
         </div>
-      </Show>
+      </Grid>
 
       {isAdvanced() && (
-        <div class="p-8 bg-[#0a0c14] border border-white/5 rounded-[2rem] space-y-6 animate-in zoom-in-95 duration-300">
-          <h3 class="font-bold text-white flex items-center gap-2">
-            <Icon name="terminal" class="w-4 h-4 text-blue-400" />
-            Power User Options
-          </h3>
-          <div class="grid grid-cols-2 gap-6">
-            <div class="space-y-2">
-              <label class="text-xs font-bold text-gray-500">Output Template</label>
-              <input
-                value={settings().output}
-                onInput={(e) => setSettings({ ...settings(), output: e.target.value })}
-                class="w-full bg-[#05070a] border border-white/10 rounded-xl p-3 outline-none focus:border-blue-500 text-gray-300"
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-xs font-bold text-gray-500">Concurrent Jobs</label>
-              <input
-                type="number"
-                value={settings().jobs}
-                min="1"
-                max={MAX_JOBS}
-                step="1"
-                onInput={(e) => setSettings({
-                  ...settings(),
-                  jobs: toBoundedPositiveInteger(e.target.value, 1, MAX_JOBS),
-                })}
-                class="w-full bg-[#05070a] border border-white/10 rounded-xl p-3 outline-none focus:border-blue-500 text-gray-300"
-              />
-            </div>
-            <div class="space-y-2 col-span-2">
-              <label class="text-xs font-bold text-gray-500">Duplicate Policy</label>
-              <select
-                value={settings().onDuplicate || 'prompt'}
-                onChange={(e) => setSettings({ ...settings(), onDuplicate: e.target.value })}
-                class="w-full bg-[#05070a] border border-white/10 rounded-xl p-3 outline-none focus:border-blue-500 text-gray-300"
-              >
-                <option value="prompt">Prompt (default)</option>
-                <option value="overwrite">Overwrite</option>
-                <option value="skip">Skip</option>
-                <option value="rename">Rename</option>
-              </select>
+        <div class="p-10 glass rounded-[2.5rem] border-accent-primary/10 space-y-8 animate-in zoom-in-95 duration-500 relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+            <Icon name="settings" class="w-32 h-82 rotate-12" />
+          </div>
+          <div class="relative">
+            <h3 class="text-xl font-black text-white flex items-center gap-3">
+              <div class="p-2 glass rounded-lg text-accent-primary">
+                <Icon name="terminal" class="w-5 h-5" />
+              </div>
+              Power User Options
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+              <div class="space-y-3">
+                <label class="text-xs font-black uppercase tracking-widest text-gray-500 ml-1">Output Template</label>
+                <input
+                  value={settings().output}
+                  onInput={(e) => setSettings({ ...settings(), output: e.target.value })}
+                  class="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none focus:border-accent-primary/50 text-white font-medium transition-smooth"
+                  placeholder="e.g. {title}.{ext}"
+                />
+              </div>
+              <div class="space-y-3">
+                <label class="text-xs font-black uppercase tracking-widest text-gray-500 ml-1">Concurrent Jobs</label>
+                <div class="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="1"
+                    max={MAX_JOBS}
+                    value={settings().jobs}
+                    onInput={(e) => setSettings({
+                      ...settings(),
+                      jobs: toBoundedPositiveInteger(e.target.value, 1, MAX_JOBS),
+                    })}
+                    class="flex-1 accent-accent-primary"
+                  />
+                  <span class="glass px-4 py-2 rounded-xl text-white font-black min-w-[3rem] text-center border-white/10">{settings().jobs}</span>
+                </div>
+              </div>
+              <div class="space-y-3 md:col-span-2">
+                <label class="text-xs font-black uppercase tracking-widest text-gray-500 ml-1">Duplicate Policy</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <For each={['prompt', 'overwrite', 'skip', 'rename']}>
+                    {(policy) => (
+                      <button
+                        onClick={() => setSettings({ ...settings(), onDuplicate: policy })}
+                        class={`px-4 py-3 rounded-xl border font-bold text-xs capitalize transition-smooth ${
+                          (settings().onDuplicate || 'prompt') === policy 
+                            ? 'glass-vibrant border-accent-primary/30 text-white' 
+                            : 'glass border-white/5 text-gray-500 hover:border-white/20'
+                        }`}
+                      >
+                        {policy}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
             </div>
           </div>
         </div>
