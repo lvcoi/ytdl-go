@@ -1,5 +1,7 @@
 import { For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import Icon from './Icon';
+import Thumbnail from './Thumbnail';
+import { Grid, GridItem } from './Grid';
 import { buildLibraryModel } from '../utils/libraryModel';
 
 const SECTION_OPTIONS = [
@@ -96,7 +98,6 @@ export default function LibraryView(props) {
   const [playlistMessage, setPlaylistMessage] = createSignal('');
   const [playlistMessageTone, setPlaylistMessageTone] = createSignal('neutral');
   const [showSavedPlaylistManager, setShowSavedPlaylistManager] = createSignal(false);
-  const [failedThumbByKey, setFailedThumbByKey] = createSignal({});
   const [selectedDetailKey, setSelectedDetailKey] = createSignal('');
   const [metadataRetryMessage, setMetadataRetryMessage] = createSignal('');
 
@@ -232,16 +233,6 @@ export default function LibraryView(props) {
     clearNavPath();
     setSelectedDetailKey('');
   };
-
-  const markThumbFailed = (key, src) => {
-    setFailedThumbByKey((current) => ({ ...current, [key]: src }));
-  };
-
-  const canRenderThumb = (key, src) => (
-    typeof src === 'string'
-    && src.trim() !== ''
-    && failedThumbByKey()[key] !== src
-  );
 
   const handleRetryMetadataScan = async () => {
     if (typeof props.onRetryMetadataScan !== 'function') {
@@ -604,21 +595,21 @@ export default function LibraryView(props) {
   });
 
   return (
-    <div class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-      <div class="relative overflow-hidden rounded-3xl border border-cyan-500/10 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.12),transparent_52%),radial-gradient(circle_at_80%_0%,rgba(20,184,166,0.1),transparent_40%),linear-gradient(180deg,#090c12,#070a10)] p-6 shadow-[0_0_0_1px_rgba(15,23,42,0.45),0_20px_80px_rgba(6,10,18,0.6)]">
-        <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <aside class="w-full lg:w-56 shrink-0 rounded-2xl border border-white/10 bg-black/20 p-3">
-            <div class="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-200/80">Library Sections</div>
-            <div class="mt-2 space-y-1">
+    <div class="space-y-6 transition-smooth animate-in fade-in slide-in-from-right-4 duration-500">
+      <div class="relative overflow-hidden rounded-[2rem] border border-accent-primary/20 glass-vibrant p-8 shadow-2xl">
+        <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+          <aside class="w-full lg:w-64 shrink-0 rounded-2xl border border-white/5 bg-black/40 p-4">
+            <div class="text-[10px] font-black uppercase tracking-[0.2em] text-accent-primary/80 ml-2 mb-3">Library</div>
+            <div class="space-y-1">
               <For each={SECTION_OPTIONS}>
                 {(option) => (
                   <button
                     type="button"
                     onClick={() => setSection(option.value)}
-                    class={`w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${
+                    class={`w-full rounded-xl px-4 py-3 text-left text-sm font-bold transition-smooth ${
                       section() === option.value
-                        ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/40'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10 border border-transparent'
+                        ? 'bg-accent-primary/20 text-white border border-accent-primary/30 shadow-vibrant'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
                     {option.label}
@@ -628,13 +619,13 @@ export default function LibraryView(props) {
             </div>
           </aside>
 
-          <div class="min-w-0 flex-1 space-y-4">
+          <div class="min-w-0 flex-1 space-y-6">
             <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
-                <h1 class="text-3xl font-black tracking-tight text-white">Your Library</h1>
-                <p class="text-sm text-slate-400">{explorer().subtitle}</p>
+                <h1 class="text-4xl font-black tracking-tight text-white">{explorer().title || 'Library'}</h1>
+                <p class="text-base text-gray-400 font-medium">{explorer().subtitle}</p>
               </div>
-              <div class="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100">
+              <div class="rounded-full border border-accent-secondary/30 bg-accent-secondary/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.15em] text-accent-secondary">
                 {sectionCountLabel()}
               </div>
             </div>
@@ -673,17 +664,17 @@ export default function LibraryView(props) {
               </div>
             </Show>
 
-            <div class="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-3">
+            <div class="flex flex-wrap items-center gap-3 rounded-[1.5rem] border border-white/5 bg-black/40 p-3">
               <div class="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
                 <For each={VIEW_MODE_OPTIONS}>
                   {(option) => (
                     <button
                       type="button"
                       onClick={() => setViewMode(option.value)}
-                      class={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      class={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-smooth ${
                         viewMode() === option.value
-                          ? 'bg-cyan-500/30 text-cyan-100'
-                          : 'text-slate-300 hover:text-white hover:bg-white/10'
+                          ? 'bg-accent-primary text-white shadow-vibrant'
+                          : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       {option.label}
@@ -695,7 +686,7 @@ export default function LibraryView(props) {
               <select
                 value={typeFilter()}
                 onChange={(event) => setTypeFilter(event.currentTarget.value)}
-                class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                class="rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-xs font-bold text-white outline-none focus:border-accent-primary/50 transition-smooth"
               >
                 <For each={TYPE_FILTER_OPTIONS}>
                   {(option) => <option value={option.value}>{option.label}</option>}
@@ -709,7 +700,7 @@ export default function LibraryView(props) {
                     props.onSortKeyChange(event.currentTarget.value);
                   }
                 }}
-                class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                class="rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-xs font-bold text-white outline-none focus:border-accent-primary/50 transition-smooth"
               >
                 <For each={SORT_OPTIONS}>
                   {(option) => <option value={option.value}>{option.label}</option>}
@@ -723,22 +714,22 @@ export default function LibraryView(props) {
                     props.onToggleAdvancedFilters();
                   }
                 }}
-                class={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                class={`rounded-xl border px-4 py-2 text-xs font-bold transition-smooth ${
                   uiState().advancedFiltersOpen
-                    ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-100'
-                    : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+                    ? 'border-accent-primary/40 bg-accent-primary/20 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10'
                 }`}
               >
-                Advanced Filters
+                Filters
               </button>
 
               <Show when={section() === 'playlists'}>
                 <button
                   type="button"
                   onClick={() => setShowSavedPlaylistManager(true)}
-                  class="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 transition-colors"
+                  class="rounded-xl border border-accent-secondary/40 bg-accent-secondary/20 px-4 py-2 text-xs font-bold text-white hover:bg-accent-secondary/30 transition-smooth"
                 >
-                  Manage Saved Playlists
+                  Manage Playlists
                 </button>
               </Show>
 
@@ -746,13 +737,13 @@ export default function LibraryView(props) {
                 type="button"
                 onClick={clearFilters}
                 disabled={!hasActiveFilters()}
-                class={`ml-auto rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                class={`ml-auto rounded-xl border px-4 py-2 text-xs font-bold transition-smooth ${
                   hasActiveFilters()
-                    ? 'border-white/20 bg-white/5 text-slate-100 hover:bg-white/10'
-                    : 'border-white/10 bg-white/5 text-slate-500 cursor-not-allowed'
+                    ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                    : 'border-white/5 bg-white/2 text-gray-700 cursor-not-allowed'
                 }`}
               >
-                Clear Filters
+                Reset
               </button>
             </div>
 
@@ -877,284 +868,217 @@ export default function LibraryView(props) {
               fallback={(
                 <Show
                   when={explorerItems().length > 0}
-                  fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">No media items match this view yet.</div>}
+                  fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No media items match this view yet.</div>}
                 >
-                  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     <For each={explorerItems()}>
-                      {(item) => {
-                        const thumbKey = `media:${item.mediaKey}`;
-                        return (
-                          <div class="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 transition-colors hover:border-cyan-400/40">
-                            <div class="relative aspect-video overflow-hidden bg-slate-900">
-                              <Show
-                                when={canRenderThumb(thumbKey, item.thumbnailUrl)}
-                                fallback={<div class="flex h-full items-center justify-center"><Icon name={item.type === 'audio' ? 'music' : 'film'} class="h-8 w-8 text-slate-500" /></div>}
-                              >
-                                <img
-                                  src={item.thumbnailUrl}
-                                  alt={item.title}
-                                  loading="lazy"
-                                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                  onError={() => markThumbFailed(thumbKey, item.thumbnailUrl)}
-                                />
-                              </Show>
-                              <div class="absolute left-2 top-2 rounded-full border border-black/30 bg-black/45 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/90">
-                                {item.type}
-                              </div>
+                      {(item) => (
+                        <div class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant">
+                          <div class="relative">
+                            <Thumbnail 
+                              src={item.thumbnailUrl} 
+                              alt={item.title} 
+                              size="md"
+                              class="!rounded-none"
+                            />
+                            <div class="absolute left-4 top-4 rounded-full border border-black/30 bg-black/60 backdrop-blur-md px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white/90">
+                              {item.type}
                             </div>
-                            <div class="space-y-2 p-3">
-                              <div class="truncate text-sm font-bold text-white">{item.title}</div>
-                              <div class="truncate text-xs text-slate-400">{item.creator}</div>
-                              <div class="truncate text-[11px] text-slate-500">{item.album} • {item.date || item.modifiedAt}</div>
-                              <div class="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handlePlayItem(item, explorerQueueItems())}
-                                  class="rounded-lg bg-cyan-500 px-2 py-1 text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition-colors"
+                          </div>
+                          <div class="space-y-4 p-6">
+                            <div class="space-y-1">
+                              <div class="truncate text-lg font-black text-white">{item.title}</div>
+                              <div class="truncate text-sm font-bold text-accent-primary/80">{item.creator}</div>
+                              <div class="truncate text-xs font-medium text-gray-500">{item.album} • {item.date || item.modifiedAt}</div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                              <button
+                                type="button"
+                                onClick={() => handlePlayItem(item, explorerQueueItems())}
+                                class="rounded-xl bg-vibrant-gradient px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
+                              >
+                                Play
+                              </button>
+                              <div class="min-w-0 flex-1">
+                                <select
+                                  value={item.savedPlaylistId}
+                                  onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
+                                  class="w-full truncate rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-accent-primary/50 transition-smooth"
                                 >
-                                  Play
-                                </button>
-                                <label class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                                  Saved
-                                  <select
-                                    value={item.savedPlaylistId}
-                                    onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
-                                    class="mt-1 w-full truncate rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 normal-case"
-                                  >
-                                    <option value="">Unassigned</option>
-                                    <For each={savedPlaylists()}>
-                                      {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
-                                    </For>
-                                  </select>
-                                </label>
+                                  <option value="">Unassigned</option>
+                                  <For each={savedPlaylists()}>
+                                    {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
+                                  </For>
+                                </select>
                               </div>
                             </div>
                           </div>
-                        );
-                      }}
+                        </div>
+                      )}
                     </For>
-                  </div>
+                  </Grid>
                 </Show>
               )}
             >
               <Show when={explorer().kind === 'creators'}>
                 <Show
                   when={explorerCreators().length > 0}
-                  fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">No creators available for this filter set.</div>}
+                  fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No creators available for this filter set.</div>}
                 >
-                  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
                     <For each={explorerCreators()}>
-                      {(entry) => {
-                        const thumbKey = `creator:${explorer().creatorType}:${entry.name}`;
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => setNavPath({ creatorType: explorer().creatorType, creatorName: entry.name })}
-                            class="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 text-left transition-colors hover:border-cyan-400/40"
-                          >
-                            <div class="relative aspect-video bg-slate-900">
-                              <Show
-                                when={canRenderThumb(thumbKey, entry.thumbnailUrl)}
-                                fallback={<div class="flex h-full items-center justify-center"><Icon name={explorer().creatorType === 'channel' ? 'film' : 'music'} class="h-8 w-8 text-slate-500" /></div>}
-                              >
-                                <img
-                                  src={entry.thumbnailUrl}
-                                  alt={entry.name}
-                                  loading="lazy"
-                                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                  onError={() => markThumbFailed(thumbKey, entry.thumbnailUrl)}
-                                />
-                              </Show>
-                            </div>
-                            <div class="space-y-1 p-3">
-                              <div class="truncate text-sm font-bold text-white">{entry.name}</div>
-                              <div class="text-xs text-slate-400">{entry.count} item{entry.count === 1 ? '' : 's'}</div>
-                            </div>
-                          </button>
-                        );
-                      }}
+                      {(entry) => (
+                        <button
+                          type="button"
+                          onClick={() => setNavPath({ creatorType: explorer().creatorType, creatorName: entry.name })}
+                          class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
+                        >
+                          <Thumbnail 
+                            src={entry.thumbnailUrl} 
+                            alt={entry.name} 
+                            size="md"
+                            class="!rounded-none"
+                          />
+                          <div class="space-y-1 p-5">
+                            <div class="truncate text-base font-black text-white">{entry.name}</div>
+                            <div class="text-xs font-bold text-gray-500">{entry.count} item{entry.count === 1 ? '' : 's'}</div>
+                          </div>
+                        </button>
+                      )}
                     </For>
-                  </div>
+                  </Grid>
                 </Show>
               </Show>
 
               <Show when={explorer().kind === 'albums'}>
                 <Show
                   when={explorerAlbums().length > 0}
-                  fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">No albums available for this artist.</div>}
+                  fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No albums available for this artist.</div>}
                 >
-                  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
                     <For each={explorerAlbums()}>
-                      {(album) => {
-                        const thumbKey = `album:${explorer().creator.name}:${album.name}`;
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => setNavPath({ creatorType: 'artist', creatorName: explorer().creator.name, albumName: album.name })}
-                            class="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 text-left transition-colors hover:border-cyan-400/40"
-                          >
-                            <div class="relative aspect-square bg-slate-900">
-                              <Show
-                                when={canRenderThumb(thumbKey, album.thumbnailUrl)}
-                                fallback={<div class="flex h-full items-center justify-center"><Icon name="music" class="h-8 w-8 text-slate-500" /></div>}
-                              >
-                                <img
-                                  src={album.thumbnailUrl}
-                                  alt={album.name}
-                                  loading="lazy"
-                                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                  onError={() => markThumbFailed(thumbKey, album.thumbnailUrl)}
-                                />
-                              </Show>
-                            </div>
-                            <div class="space-y-1 p-3">
-                              <div class="truncate text-sm font-bold text-white">{album.name}</div>
-                              <div class="text-xs text-slate-400">{album.count} track{album.count === 1 ? '' : 's'}</div>
-                            </div>
-                          </button>
-                        );
-                      }}
+                      {(album) => (
+                        <button
+                          type="button"
+                          onClick={() => setNavPath({ creatorType: 'artist', creatorName: explorer().creator.name, albumName: album.name })}
+                          class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
+                        >
+                          <Thumbnail 
+                            src={album.thumbnailUrl} 
+                            alt={album.name} 
+                            size="md"
+                            class="!aspect-square !rounded-none"
+                          />
+                          <div class="space-y-1 p-5">
+                            <div class="truncate text-base font-black text-white">{album.name}</div>
+                            <div class="text-xs font-bold text-gray-500">{album.count} track{album.count === 1 ? '' : 's'}</div>
+                          </div>
+                        </button>
+                      )}
                     </For>
-                  </div>
+                  </Grid>
                 </Show>
               </Show>
 
               <Show when={explorer().kind === 'playlists'}>
                 <Show
                   when={explorerPlaylists().length > 0}
-                  fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">No playlists available for this filter set.</div>}
+                  fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No playlists available for this filter set.</div>}
                 >
-                  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     <For each={explorerPlaylists()}>
-                      {(playlist) => {
-                        const thumbKey = `playlist:${playlist.key}`;
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => setNavPath({ playlistKey: playlist.key, playlistKind: playlist.kind })}
-                            class="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 text-left transition-colors hover:border-cyan-400/40"
-                          >
-                            <div class="relative aspect-video bg-slate-900">
-                              <Show
-                                when={canRenderThumb(thumbKey, playlist.thumbnailUrl)}
-                                fallback={<div class="flex h-full items-center justify-center"><Icon name="layers" class="h-8 w-8 text-slate-500" /></div>}
-                              >
-                                <img
-                                  src={playlist.thumbnailUrl}
-                                  alt={playlist.name}
-                                  loading="lazy"
-                                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                  onError={() => markThumbFailed(thumbKey, playlist.thumbnailUrl)}
-                                />
-                              </Show>
-                              <div class={`absolute left-2 top-2 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                                playlist.kind === 'source'
-                                  ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-100'
-                                  : 'border-cyan-300/50 bg-cyan-500/20 text-cyan-100'
-                              }`}
-                              >
-                                {playlist.kind}
-                              </div>
+                      {(playlist) => (
+                        <button
+                          type="button"
+                          onClick={() => setNavPath({ playlistKey: playlist.key, playlistKind: playlist.kind })}
+                          class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
+                        >
+                          <div class="relative">
+                            <Thumbnail 
+                              src={playlist.thumbnailUrl} 
+                              alt={playlist.name} 
+                              size="md"
+                              class="!rounded-none"
+                            />
+                            <div class={`absolute left-4 top-4 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${
+                              playlist.kind === 'source'
+                                ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-400'
+                                : 'border-accent-secondary/30 bg-accent-secondary/20 text-accent-secondary'
+                            }`}
+                            >
+                              {playlist.kind}
                             </div>
-                            <div class="space-y-1 p-3">
-                              <div class="truncate text-sm font-bold text-white">{playlist.name}</div>
-                              <div class="text-xs text-slate-400">{playlist.count} item{playlist.count === 1 ? '' : 's'}</div>
-                            </div>
-                          </button>
-                        );
-                      }}
+                          </div>
+                          <div class="space-y-1 p-5">
+                            <div class="truncate text-base font-black text-white">{playlist.name}</div>
+                            <div class="text-xs font-bold text-gray-500">{playlist.count} item{playlist.count === 1 ? '' : 's'}</div>
+                          </div>
+                        </button>
+                      )}
                     </For>
-                  </div>
+                  </Grid>
                 </Show>
               </Show>
             </Show>
           )}
         >
-          <div class="space-y-6">
-            <Show
-              when={explorerLandingArtists().length > 0}
-              fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-6 text-sm text-slate-400">No artist groups available for this filter set.</div>}
-            >
-              <div>
-                <div class="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-200/80">Artists</div>
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="space-y-10">
+            <Show when={explorerLandingArtists().length > 0}>
+              <div class="space-y-6">
+                <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-primary/80 ml-2">Artists</div>
+                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <For each={explorerLandingArtists()}>
-                    {(artist) => {
-                      const thumbKey = `artist:${artist.name}`;
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => setNavPath({ creatorType: 'artist', creatorName: artist.name })}
-                          class="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 text-left transition-colors hover:border-cyan-400/40"
-                        >
-                          <div class="relative aspect-video bg-slate-900">
-                            <Show
-                              when={canRenderThumb(thumbKey, artist.thumbnailUrl)}
-                              fallback={<div class="flex h-full items-center justify-center"><Icon name="music" class="h-8 w-8 text-slate-500" /></div>}
-                            >
-                              <img
-                                src={artist.thumbnailUrl}
-                                alt={artist.name}
-                                loading="lazy"
-                                class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                onError={() => markThumbFailed(thumbKey, artist.thumbnailUrl)}
-                              />
-                            </Show>
-                          </div>
-                          <div class="space-y-1 p-3">
-                            <div class="truncate text-sm font-bold text-white">{artist.name}</div>
-                            <div class="text-xs text-slate-400">{artist.count} track{artist.count === 1 ? '' : 's'}</div>
-                          </div>
-                        </button>
-                      );
-                    }}
+                    {(artist) => (
+                      <button
+                        type="button"
+                        onClick={() => setNavPath({ creatorType: 'artist', creatorName: artist.name })}
+                        class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
+                      >
+                        <Thumbnail 
+                          src={artist.thumbnailUrl} 
+                          alt={artist.name} 
+                          size="md"
+                          class="!rounded-none"
+                        />
+                        <div class="space-y-1 p-5">
+                          <div class="truncate text-base font-black text-white">{artist.name}</div>
+                          <div class="text-xs font-bold text-gray-500">{artist.count} track{artist.count === 1 ? '' : 's'}</div>
+                        </div>
+                      </button>
+                    )}
                   </For>
-                </div>
+                </Grid>
               </div>
             </Show>
 
-            <Show
-              when={explorerLandingChannels().length > 0}
-              fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-6 text-sm text-slate-400">No channel groups available for this filter set.</div>}
-            >
-              <div>
-                <div class="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-200/80">Channels</div>
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Show when={explorerLandingChannels().length > 0}>
+              <div class="space-y-6">
+                <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-secondary/80 ml-2">Channels</div>
+                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <For each={explorerLandingChannels()}>
-                    {(channel) => {
-                      const thumbKey = `channel:${channel.name}`;
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSection('channels');
-                            setNavPath({ creatorType: 'channel', creatorName: channel.name });
-                          }}
-                          class="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 text-left transition-colors hover:border-cyan-400/40"
-                        >
-                          <div class="relative aspect-video bg-slate-900">
-                            <Show
-                              when={canRenderThumb(thumbKey, channel.thumbnailUrl)}
-                              fallback={<div class="flex h-full items-center justify-center"><Icon name="film" class="h-8 w-8 text-slate-500" /></div>}
-                            >
-                              <img
-                                src={channel.thumbnailUrl}
-                                alt={channel.name}
-                                loading="lazy"
-                                class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                onError={() => markThumbFailed(thumbKey, channel.thumbnailUrl)}
-                              />
-                            </Show>
-                          </div>
-                          <div class="space-y-1 p-3">
-                            <div class="truncate text-sm font-bold text-white">{channel.name}</div>
-                            <div class="text-xs text-slate-400">{channel.count} video{channel.count === 1 ? '' : 's'}</div>
-                          </div>
-                        </button>
-                      );
-                    }}
+                    {(channel) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSection('channels');
+                          setNavPath({ creatorType: 'channel', creatorName: channel.name });
+                        }}
+                        class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-secondary/50 hover:shadow-vibrant"
+                      >
+                        <Thumbnail 
+                          src={channel.thumbnailUrl} 
+                          alt={channel.name} 
+                          size="md"
+                          class="!rounded-none"
+                        />
+                        <div class="space-y-1 p-5">
+                          <div class="truncate text-base font-black text-white">{channel.name}</div>
+                          <div class="text-xs font-bold text-gray-500">{channel.count} video{channel.count === 1 ? '' : 's'}</div>
+                        </div>
+                      </button>
+                    )}
                   </For>
-                </div>
+                </Grid>
               </div>
             </Show>
           </div>
@@ -1165,35 +1089,35 @@ export default function LibraryView(props) {
         <Show
           when={explorer().kind === 'items'}
           fallback={(
-            <div class="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+            <div class="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
               <table class="w-full text-sm">
-                <thead class="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                   <tr>
-                    <th class="px-4 py-3 text-left">Name</th>
-                    <th class="px-4 py-3 text-left">Type</th>
-                    <th class="px-4 py-3 text-left">Count</th>
-                    <th class="px-4 py-3 text-left">Latest</th>
-                    <th class="px-4 py-3 text-right">Action</th>
+                    <th class="px-6 py-4 text-left">Name</th>
+                    <th class="px-6 py-4 text-left">Type</th>
+                    <th class="px-6 py-4 text-left">Count</th>
+                    <th class="px-6 py-4 text-left">Latest</th>
+                    <th class="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-white/5">
                   <For each={creatorDetailRows()}>
                     {(row) => (
-                      <tr class="border-t border-white/5 text-slate-200">
-                        <td class="px-4 py-3">
-                          <div class="font-semibold text-white">{row.name}</div>
+                      <tr class="text-white hover:bg-white/2 transition-colors">
+                        <td class="px-6 py-4">
+                          <div class="font-bold">{row.name}</div>
                           <Show when={row.subtitle !== ''}>
-                            <div class="text-xs text-slate-500">{row.subtitle}</div>
+                            <div class="text-xs font-medium text-gray-500">{row.subtitle}</div>
                           </Show>
                         </td>
-                        <td class="px-4 py-3 text-xs text-slate-400">{row.type}</td>
-                        <td class="px-4 py-3 text-xs text-slate-400">{row.count}</td>
-                        <td class="px-4 py-3 text-xs text-slate-400">{row.latestTimestamp > 0 ? new Date(row.latestTimestamp).toLocaleDateString() : '-'}</td>
-                        <td class="px-4 py-3 text-right">
+                        <td class="px-6 py-4 text-xs font-bold text-accent-primary/80 uppercase tracking-widest">{row.type}</td>
+                        <td class="px-6 py-4 text-xs font-bold text-gray-400">{row.count}</td>
+                        <td class="px-6 py-4 text-xs font-medium text-gray-500">{row.latestTimestamp > 0 ? new Date(row.latestTimestamp).toLocaleDateString() : '-'}</td>
+                        <td class="px-6 py-4 text-right">
                           <button
                             type="button"
                             onClick={row.onOpen}
-                            class="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-2 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30 transition-colors"
+                            class="rounded-xl border border-accent-primary/40 bg-accent-primary/20 px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-accent-primary/30 transition-smooth"
                           >
                             Open
                           </button>
@@ -1208,82 +1132,66 @@ export default function LibraryView(props) {
         >
           <Show
             when={explorerItems().length > 0}
-            fallback={<div class="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">No media items match this view yet.</div>}
+            fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No media items match this view yet.</div>}
           >
-            <div class="overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
+            <div class="overflow-x-auto rounded-3xl border border-white/5 bg-black/20">
               <table class="w-full min-w-[980px] text-sm">
-                <thead class="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                   <tr>
-                    <th class="px-4 py-3 text-left">Media</th>
-                    <th class="px-4 py-3 text-left">Creator</th>
-                    <th class="px-4 py-3 text-left">Collection</th>
-                    <th class="px-4 py-3 text-left">Playlists</th>
-                    <th class="px-4 py-3 text-left">Type</th>
-                    <th class="px-4 py-3 text-left">Date</th>
-                    <th class="px-4 py-3 text-left">Saved Assignment</th>
-                    <th class="px-4 py-3 text-right">Action</th>
+                    <th class="px-6 py-4 text-left">Media</th>
+                    <th class="px-6 py-4 text-left">Creator</th>
+                    <th class="px-6 py-4 text-left">Collection</th>
+                    <th class="px-6 py-4 text-left">Playlists</th>
+                    <th class="px-6 py-4 text-left">Type</th>
+                    <th class="px-6 py-4 text-left">Date</th>
+                    <th class="px-6 py-4 text-left">Assignment</th>
+                    <th class="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-white/5">
                   <For each={explorerItems()}>
-                    {(item) => {
-                      const thumbKey = `list:${item.mediaKey}`;
-                      return (
-                        <tr class="border-t border-white/5 align-top text-slate-200">
-                          <td class="px-4 py-3">
-                            <div class="flex items-start gap-3">
-                              <div class="h-14 w-24 overflow-hidden rounded-lg border border-white/10 bg-slate-900">
-                                <Show
-                                  when={canRenderThumb(thumbKey, item.thumbnailUrl)}
-                                  fallback={<div class="flex h-full items-center justify-center"><Icon name={item.type === 'audio' ? 'music' : 'film'} class="h-5 w-5 text-slate-500" /></div>}
-                                >
-                                  <img
-                                    src={item.thumbnailUrl}
-                                    alt={item.title}
-                                    loading="lazy"
-                                    class="h-full w-full object-cover"
-                                    onError={() => markThumbFailed(thumbKey, item.thumbnailUrl)}
-                                  />
-                                </Show>
-                              </div>
-                              <div class="min-w-0">
-                                <div class="truncate font-semibold text-white">{item.title}</div>
-                                <div class="truncate text-xs text-slate-500">{item.size || 'Unknown size'} • {item.filename}</div>
-                              </div>
+                    {(item) => (
+                      <tr class="align-top text-white hover:bg-white/2 transition-colors">
+                        <td class="px-6 py-4">
+                          <div class="flex items-start gap-4">
+                            <Thumbnail src={item.thumbnailUrl} alt={item.title} size="sm" class="flex-shrink-0" />
+                            <div class="min-w-0">
+                              <div class="truncate font-bold text-base">{item.title}</div>
+                              <div class="truncate text-xs font-medium text-gray-500">{item.size || 'Unknown size'} • {item.filename}</div>
                             </div>
-                          </td>
-                          <td class="px-4 py-3 text-xs text-slate-300">{item.creator}</td>
-                          <td class="px-4 py-3 text-xs text-slate-300">{item.album}</td>
-                          <td class="px-4 py-3 text-xs text-slate-300">
-                            <div>{item.sourcePlaylist}</div>
-                            <div class="text-slate-500">Saved: {item.savedPlaylistName}</div>
-                          </td>
-                          <td class="px-4 py-3 text-xs uppercase text-slate-400">{item.type}</td>
-                          <td class="px-4 py-3 text-xs text-slate-400">{firstNonEmpty(item.date, item.modifiedAt)}</td>
-                          <td class="px-4 py-3">
-                            <select
-                              value={item.savedPlaylistId}
-                              onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
-                              class="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-                            >
-                              <option value="">Unassigned</option>
-                              <For each={savedPlaylists()}>
-                                {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
-                              </For>
-                            </select>
-                          </td>
-                          <td class="px-4 py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handlePlayItem(item, explorerQueueItems())}
-                              class="rounded-lg bg-cyan-500 px-2 py-1 text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition-colors"
-                            >
-                              Play
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    }}
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 text-xs font-bold text-accent-primary/80">{item.creator}</td>
+                        <td class="px-6 py-4 text-xs font-bold text-gray-400">{item.album}</td>
+                        <td class="px-6 py-4 text-xs font-medium text-gray-500">
+                          <div>{item.sourcePlaylist}</div>
+                          <div class="text-accent-secondary/60">Saved: {item.savedPlaylistName}</div>
+                        </td>
+                        <td class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-500">{item.type}</td>
+                        <td class="px-6 py-4 text-xs font-medium text-gray-500">{firstNonEmpty(item.date, item.modifiedAt)}</td>
+                        <td class="px-6 py-4">
+                          <select
+                            value={item.savedPlaylistId}
+                            onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
+                            class="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-accent-primary/50 transition-smooth"
+                          >
+                            <option value="">Unassigned</option>
+                            <For each={savedPlaylists()}>
+                              {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
+                            </For>
+                          </select>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handlePlayItem(item, explorerQueueItems())}
+                            class="rounded-xl bg-vibrant-gradient px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
+                          >
+                            Play
+                          </button>
+                        </td>
+                      </tr>
+                    )}
                   </For>
                 </tbody>
               </table>
@@ -1293,36 +1201,36 @@ export default function LibraryView(props) {
       </Show>
 
       <Show when={viewMode() === 'detail'}>
-        <div class="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div class="grid gap-6 lg:grid-cols-[1fr_400px]">
           <Show
             when={explorer().kind === 'items'}
             fallback={(
-              <div class="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+              <div class="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
                 <table class="w-full text-sm">
-                  <thead class="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                  <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                     <tr>
-                      <th class="px-4 py-3 text-left">Name</th>
-                      <th class="px-4 py-3 text-left">Type</th>
-                      <th class="px-4 py-3 text-left">Count</th>
+                      <th class="px-6 py-4 text-left">Name</th>
+                      <th class="px-6 py-4 text-left">Type</th>
+                      <th class="px-6 py-4 text-left">Count</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody class="divide-y divide-white/5">
                     <For each={creatorDetailRows()}>
                       {(row) => (
                         <tr
-                          class={`cursor-pointer border-t border-white/5 text-slate-200 transition-colors ${
-                            selectedDetailKey() === row.key ? 'bg-cyan-500/10' : 'hover:bg-white/5'
+                          class={`cursor-pointer transition-smooth ${
+                            selectedDetailKey() === row.key ? 'bg-accent-primary/20 text-white' : 'text-gray-400 hover:bg-white/5'
                           }`}
                           onClick={() => setSelectedDetailKey(row.key)}
                         >
-                          <td class="px-4 py-3">
-                            <div class="font-semibold text-white">{row.name}</div>
+                          <td class="px-6 py-4">
+                            <div class="font-bold">{row.name}</div>
                             <Show when={row.subtitle !== ''}>
-                              <div class="text-xs text-slate-500">{row.subtitle}</div>
+                              <div class="text-xs font-medium opacity-60">{row.subtitle}</div>
                             </Show>
                           </td>
-                          <td class="px-4 py-3 text-xs text-slate-400">{row.type}</td>
-                          <td class="px-4 py-3 text-xs text-slate-400">{row.count}</td>
+                          <td class="px-6 py-4 text-xs font-bold uppercase tracking-widest">{row.type}</td>
+                          <td class="px-6 py-4 text-xs font-bold">{row.count}</td>
                         </tr>
                       )}
                     </For>
@@ -1331,32 +1239,32 @@ export default function LibraryView(props) {
               </div>
             )}
           >
-            <div class="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+            <div class="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
               <table class="w-full text-sm">
-                <thead class="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                <thead class="bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
                   <tr>
-                    <th class="px-4 py-3 text-left">Title</th>
-                    <th class="px-4 py-3 text-left">Creator</th>
-                    <th class="px-4 py-3 text-left">Collection</th>
-                    <th class="px-4 py-3 text-left">Type</th>
+                    <th class="px-6 py-4 text-left">Title</th>
+                    <th class="px-6 py-4 text-left">Creator</th>
+                    <th class="px-6 py-4 text-left">Collection</th>
+                    <th class="px-6 py-4 text-left">Type</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-white/5">
                   <For each={explorerItems()}>
                     {(item) => (
                       <tr
-                        class={`cursor-pointer border-t border-white/5 text-slate-200 transition-colors ${
-                          selectedDetailKey() === item.mediaKey ? 'bg-cyan-500/10' : 'hover:bg-white/5'
+                        class={`cursor-pointer transition-smooth ${
+                          selectedDetailKey() === item.mediaKey ? 'bg-accent-primary/20 text-white' : 'text-gray-400 hover:bg-white/5'
                         }`}
                         onClick={() => setSelectedDetailKey(item.mediaKey)}
                       >
-                        <td class="px-4 py-3">
-                          <div class="font-semibold text-white">{item.title}</div>
-                          <div class="text-xs text-slate-500">{item.filename}</div>
+                        <td class="px-6 py-4">
+                          <div class="font-bold">{item.title}</div>
+                          <div class="text-xs font-medium opacity-60">{item.filename}</div>
                         </td>
-                        <td class="px-4 py-3 text-xs text-slate-300">{item.creator}</td>
-                        <td class="px-4 py-3 text-xs text-slate-300">{item.album}</td>
-                        <td class="px-4 py-3 text-xs uppercase text-slate-400">{item.type}</td>
+                        <td class="px-6 py-4 text-xs font-bold">{item.creator}</td>
+                        <td class="px-6 py-4 text-xs font-bold">{item.album}</td>
+                        <td class="px-6 py-4 text-[10px] font-black uppercase tracking-widest">{item.type}</td>
                       </tr>
                     )}
                   </For>
@@ -1365,33 +1273,40 @@ export default function LibraryView(props) {
             </div>
           </Show>
 
-          <aside class="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <aside class="rounded-3xl border border-white/5 bg-black/40 p-6 sticky top-6 h-fit space-y-6">
             <Show
               when={explorer().kind === 'items'}
               fallback={(
                 <Show
                   when={selectedDetailRow()}
-                  fallback={<div class="text-sm text-slate-500">Select a row to inspect details.</div>}
+                  fallback={<div class="text-sm text-gray-500 font-medium">Select a row to inspect details.</div>}
                 >
-                  <div class="space-y-3">
-                    <div>
-                      <div class="text-[11px] uppercase tracking-wide text-slate-500">Name</div>
-                      <div class="text-sm font-semibold text-white">{selectedDetailRow()?.name}</div>
+                  <div class="space-y-6">
+                    <div class="aspect-video relative rounded-2xl overflow-hidden border border-white/10 bg-black/20">
+                      <Thumbnail src={selectedDetailRow()?.thumbnailUrl} alt={selectedDetailRow()?.name} size="md" />
                     </div>
-                    <div>
-                      <div class="text-[11px] uppercase tracking-wide text-slate-500">Type</div>
-                      <div class="text-xs text-slate-300">{selectedDetailRow()?.type}</div>
-                    </div>
-                    <div>
-                      <div class="text-[11px] uppercase tracking-wide text-slate-500">Count</div>
-                      <div class="text-xs text-slate-300">{selectedDetailRow()?.count}</div>
+                    <div class="space-y-4">
+                      <div>
+                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Name</div>
+                        <div class="text-xl font-black text-white">{selectedDetailRow()?.name}</div>
+                      </div>
+                      <div class="flex gap-4">
+                        <div class="flex-1">
+                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Type</div>
+                          <div class="text-xs font-bold text-accent-primary uppercase tracking-widest">{selectedDetailRow()?.type}</div>
+                        </div>
+                        <div class="flex-1">
+                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Count</div>
+                          <div class="text-xs font-bold text-white">{selectedDetailRow()?.count}</div>
+                        </div>
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => selectedDetailRow()?.onOpen?.()}
-                      class="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition-colors"
+                      class="w-full rounded-xl bg-vibrant-gradient px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
                     >
-                      Open
+                      Open Collection
                     </button>
                   </div>
                 </Show>
@@ -1399,86 +1314,74 @@ export default function LibraryView(props) {
             >
               <Show
                 when={selectedDetailItem()}
-                fallback={<div class="text-sm text-slate-500">Select an item to inspect metadata.</div>}
+                fallback={<div class="text-sm text-gray-500 font-medium">Select an item to inspect metadata.</div>}
               >
                 {(itemAccessor) => {
                   const item = itemAccessor();
-                  const thumbKey = `detail:${item.mediaKey}`;
                   return (
-                    <div class="space-y-3">
-                      <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
-                        <div class="aspect-video">
-                          <Show
-                            when={canRenderThumb(thumbKey, item.thumbnailUrl)}
-                            fallback={<div class="flex h-full items-center justify-center"><Icon name={item.type === 'audio' ? 'music' : 'film'} class="h-8 w-8 text-slate-500" /></div>}
-                          >
-                            <img
-                              src={item.thumbnailUrl}
-                              alt={item.title}
-                              loading="lazy"
-                              class="h-full w-full object-cover"
-                              onError={() => markThumbFailed(thumbKey, item.thumbnailUrl)}
-                            />
-                          </Show>
-                        </div>
+                    <div class="space-y-6">
+                      <Thumbnail src={item.thumbnailUrl} alt={item.title} size="md" class="shadow-2xl" />
+                      
+                      <div class="space-y-1">
+                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Title</div>
+                        <div class="text-xl font-black text-white leading-tight">{item.title}</div>
                       </div>
-                      <div>
-                        <div class="text-[11px] uppercase tracking-wide text-slate-500">Title</div>
-                        <div class="text-sm font-semibold text-white">{item.title}</div>
-                      </div>
-                      <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                        <div>
-                          <div class="text-[11px] uppercase tracking-wide text-slate-500">Creator</div>
-                          <div>{item.creator}</div>
+
+                      <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Creator</div>
+                          <div class="text-sm font-bold text-accent-primary">{item.creator}</div>
                         </div>
-                        <div>
-                          <div class="text-[11px] uppercase tracking-wide text-slate-500">Collection</div>
-                          <div>{item.album}</div>
+                        <div class="space-y-1">
+                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Collection</div>
+                          <div class="text-sm font-bold text-white">{item.album}</div>
                         </div>
-                        <div>
-                          <div class="text-[11px] uppercase tracking-wide text-slate-500">Type</div>
-                          <div class="uppercase">{item.type}</div>
+                        <div class="space-y-1">
+                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Type</div>
+                          <div class="text-xs font-black uppercase tracking-widest text-gray-400">{item.type}</div>
                         </div>
-                        <div>
-                          <div class="text-[11px] uppercase tracking-wide text-slate-500">Date</div>
-                          <div>{firstNonEmpty(item.date, item.modifiedAt, '-')}</div>
-                        </div>
-                        <div class="col-span-2">
-                          <div class="text-[11px] uppercase tracking-wide text-slate-500">Source Playlist</div>
-                          <div>{item.sourcePlaylist}</div>
+                        <div class="space-y-1">
+                          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Date</div>
+                          <div class="text-sm font-bold text-white">{firstNonEmpty(item.date, item.modifiedAt, '-')}</div>
                         </div>
                       </div>
 
-                      <label class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Saved Playlist
+                      <div class="space-y-1">
+                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Source Playlist</div>
+                        <div class="text-sm font-medium text-gray-400">{item.sourcePlaylist || 'None'}</div>
+                      </div>
+
+                      <div class="space-y-2">
+                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Assignment</div>
                         <select
                           value={item.savedPlaylistId}
                           onChange={(event) => handleAssignSavedPlaylist(item, event.currentTarget.value)}
-                          class="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 normal-case"
+                          class="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-accent-primary/50 transition-smooth"
                         >
                           <option value="">Unassigned</option>
                           <For each={savedPlaylists()}>
                             {(playlist) => <option value={playlist.id}>{playlist.name}</option>}
                           </For>
                         </select>
-                      </label>
+                      </div>
 
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-3 pt-2">
                         <button
                           type="button"
                           onClick={() => handlePlayItem(item, explorerQueueItems())}
-                          class="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition-colors"
+                          class="flex-1 rounded-xl bg-vibrant-gradient px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
                         >
-                          Play
+                          Play Now
                         </button>
                         <Show when={item.sourceURL !== ''}>
                           <a
                             href={item.sourceURL}
                             target="_blank"
                             rel="noreferrer"
-                            class="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
+                            class="rounded-xl border border-white/10 bg-white/5 p-3 text-gray-400 hover:text-white hover:bg-white/10 transition-smooth"
+                            title="View Source"
                           >
-                            Source
+                            <Icon name="external-link" class="w-5 h-5" />
                           </a>
                         </Show>
                       </div>
@@ -1492,87 +1395,93 @@ export default function LibraryView(props) {
       </Show>
 
       <Show when={showSavedPlaylistManager()}>
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div class="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0b0f16] p-5 shadow-2xl">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-bold text-white">Manage Saved Playlists</h3>
-              <button
-                type="button"
-                onClick={() => setShowSavedPlaylistManager(false)}
-                class="rounded-lg border border-white/15 bg-white/5 p-2 text-slate-300 hover:bg-white/10 transition-colors"
-              >
-                <Icon name="x" class="h-4 w-4" />
-              </button>
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div class="w-full max-w-xl rounded-[2rem] border border-white/10 bg-bg-surface p-8 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+              <Icon name="layers" class="w-32 h-32 rotate-12" />
             </div>
 
-            <div class="mt-4 flex gap-2">
-              <input
-                type="text"
-                value={newSavedPlaylistName()}
-                onInput={(event) => setNewSavedPlaylistName(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    void handleCreateSavedPlaylist();
-                  }
-                }}
-                placeholder="New saved playlist name"
-                class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-              />
-              <button
-                type="button"
-                onClick={() => { void handleCreateSavedPlaylist(); }}
-                class="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 transition-colors"
-              >
-                Create
-              </button>
-            </div>
-
-            <Show when={playlistMessage() !== ''}>
-              <div class={`mt-2 text-xs ${
-                playlistMessageTone() === 'error'
-                  ? 'text-red-300'
-                  : playlistMessageTone() === 'success'
-                    ? 'text-emerald-300'
-                    : 'text-slate-400'
-              }`}
-              >
-                {playlistMessage()}
+            <div class="relative space-y-6">
+              <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-black text-white">Saved Playlists</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowSavedPlaylistManager(false)}
+                  class="rounded-xl border border-white/10 bg-white/5 p-2 text-gray-400 hover:text-white hover:bg-white/10 transition-smooth"
+                >
+                  <Icon name="x" class="h-6 w-6" />
+                </button>
               </div>
-            </Show>
 
-            <div class="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
-              <Show
-                when={savedPlaylists().length > 0}
-                fallback={<div class="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-slate-400">No saved playlists yet.</div>}
-              >
-                <For each={savedPlaylists()}>
-                  {(playlist) => (
-                    <div class="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                      <div class="min-w-0">
-                        <div class="truncate text-sm font-semibold text-white">{playlist.name}</div>
-                        <div class="text-[11px] text-slate-500">ID: {playlist.id}</div>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => { void handleRenameSavedPlaylist(playlist); }}
-                          class="rounded-lg border border-white/15 px-2 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
-                        >
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { void handleDeleteSavedPlaylist(playlist); }}
-                          class="rounded-lg border border-red-400/30 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/20 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </For>
+              <div class="flex gap-3">
+                <input
+                  type="text"
+                  value={newSavedPlaylistName()}
+                  onInput={(event) => setNewSavedPlaylistName(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void handleCreateSavedPlaylist();
+                    }
+                  }}
+                  placeholder="Playlist name..."
+                  class="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-accent-primary/50 transition-smooth"
+                />
+                <button
+                  type="button"
+                  onClick={() => { void handleCreateSavedPlaylist(); }}
+                  class="rounded-xl bg-accent-primary px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:scale-105 transition-smooth shadow-vibrant"
+                >
+                  Create
+                </button>
+              </div>
+
+              <Show when={playlistMessage() !== ''}>
+                <div class={`text-xs font-bold px-4 py-2 rounded-lg ${
+                  playlistMessageTone() === 'error'
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : playlistMessageTone() === 'success'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-white/5 text-gray-400 border border-white/10'
+                }`}
+                >
+                  {playlistMessage()}
+                </div>
               </Show>
+
+              <div class="max-h-80 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                <Show
+                  when={savedPlaylists().length > 0}
+                  fallback={<div class="rounded-2xl border border-white/5 bg-white/2 p-6 text-center text-xs font-medium text-gray-500">No saved playlists yet.</div>}
+                >
+                  <For each={savedPlaylists()}>
+                    {(playlist) => (
+                      <div class="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3 group/item hover:border-white/10 transition-smooth">
+                        <div class="min-w-0">
+                          <div class="truncate text-sm font-bold text-white">{playlist.name}</div>
+                          <div class="text-[10px] font-bold text-gray-600 uppercase tracking-widest">ID: {playlist.id.slice(0, 8)}...</div>
+                        </div>
+                        <div class="flex items-center gap-2 opacity-0 group-hover/item:opacity-100 transition-smooth">
+                          <button
+                            type="button"
+                            onClick={() => { void handleRenameSavedPlaylist(playlist); }}
+                            class="rounded-lg border border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-smooth"
+                          >
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { void handleDeleteSavedPlaylist(playlist); }}
+                            class="rounded-lg border border-red-500/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-smooth"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </Show>
+              </div>
             </div>
           </div>
         </div>
