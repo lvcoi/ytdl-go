@@ -378,6 +378,34 @@ For a deep dive into the codebase architecture:
 - Understand the download strategy chain
 - Learn about the TUI seamless transition model
 
+## Maintenance Scripts
+
+The `scripts/` directory contains utility scripts for repository maintenance:
+
+### Milestone Assignment Script
+
+Automatically assign closed issues to appropriate milestones:
+
+```bash
+# Preview what would be assigned (dry-run mode)
+export GITHUB_TOKEN="your_github_token_here"
+cd scripts
+./assign-milestones.sh
+
+# Actually update issues
+./assign-milestones.sh -dry-run=false
+
+# Process a specific issue
+./assign-milestones.sh -issue=42 -dry-run=false
+
+# See detailed output
+./assign-milestones.sh -verbose
+```
+
+For more details, see [`scripts/README.md`](scripts/README.md).
+
+**Note**: You'll need a GitHub personal access token with `repo` scope. Never commit tokens to the repository!
+
 ## Getting Help
 
 - **Issues**: Open a GitHub issue for bugs or feature requests
