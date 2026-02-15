@@ -388,6 +388,7 @@ export default function LibraryView(props) {
         subtitle: 'Music artists from your collection.',
         artists: libraryModel.artists,
         videos: libraryModel.videos,
+        podcasts: libraryModel.podcasts,
         breadcrumbs: [],
       };
     }
@@ -509,6 +510,7 @@ export default function LibraryView(props) {
         thumbnailUrl: entry.thumbnailUrl,
         subtitle: 'Video library',
         onOpen: () => {
+          setSection('videos');
           setNavPath({ creatorType: 'video_creator', creatorName: entry.name });
         },
       }));
@@ -1103,6 +1105,36 @@ export default function LibraryView(props) {
               </div>
             </Show>
 
+            <Show when={explorerLandingVideos().length > 0}>
+              <div class="space-y-6">
+                <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-primary/80 ml-2">YouTube Videos</div>
+                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <For each={explorerLandingVideos()}>
+                    {(video) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSection('videos');
+                          setNavPath({ creatorType: 'video_creator', creatorName: video.name });
+                        }}
+                        class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
+                      >
+                        <Thumbnail
+                          src={video.thumbnailUrl}
+                          alt={video.name}
+                          size="md"
+                          class="!rounded-none"
+                        />
+                        <div class="space-y-1 p-5">
+                          <div class="truncate text-base font-black text-white">{video.name}</div>
+                          <div class="text-xs font-bold text-gray-500">{video.count} video{video.count === 1 ? '' : 's'}</div>
+                        </div>
+                      </button>
+                    )}
+                  </For>
+                </Grid>
+              </div>
+            </Show>
 
 
             <Show when={model().podcasts.length > 0}>

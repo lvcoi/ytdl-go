@@ -257,7 +257,7 @@ const buildArtistGroups = (items) => {
 
 const buildVideoGroups = (items) => {
   const byCreator = new Map();
-  // Filter for 'YouTube Video' instead of 'YTC'
+  // Filter for 'YouTube Video'
   for (const item of items.filter((entry) => entry.type === 'YouTube Video')) {
     if (!byCreator.has(item.creator)) {
       byCreator.set(item.creator, {
