@@ -98,3 +98,12 @@ frontend/node_modules/
 
 # Local task snapshots
 .task-archive/
+**node_modules/
+.github/
+.windsurf/
+**conductor/
+**.antigravity/
+.gemini/
+gha-creds-*.json
+**github/   
+**windsurf/

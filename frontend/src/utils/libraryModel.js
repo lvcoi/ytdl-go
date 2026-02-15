@@ -1,5 +1,6 @@
 const UNKNOWN_ARTIST = 'Unknown Artist';
-const UNKNOWN_CHANNEL = 'Unknown Channel';
+const UNKNOWN_CHANNEL = 'Unknown Channel'; // Kept for legacy compatibility if needed
+const UNKNOWN_CREATOR = 'Unknown Creator';
 const UNKNOWN_ALBUM = 'Unknown Album';
 const UNKNOWN_PLAYLIST = 'Standalone';
 
@@ -17,9 +18,14 @@ const firstNonEmpty = (...values) => {
 
 const normalizeMediaType = (value, creator) => {
   const lowered = String(value || '').toLowerCase();
-  if (lowered === 'audio') return 'Music';
+  // If the backend explicitly says 'podcast'
   if (lowered === 'podcast') return 'Podcast';
-  return 'YTC';
+
+  // If the backend says 'music' or 'audio', map to Music
+  if (lowered === 'music' || lowered === 'audio') return 'Music';
+
+  // Default everything else (mostly 'video') to YouTube Video
+  return 'YouTube Video';
 };
 
 const metadataFor = (item) => (item?.metadata && typeof item.metadata === 'object' ? item.metadata : {});
@@ -66,7 +72,7 @@ const normalizeItem = (rawItem, savedPlaylistById, playlistAssignments) => {
     rawItem?.artist,
     metadata.artist,
     metadata.author,
-    type === 'Music' ? UNKNOWN_ARTIST : UNKNOWN_CHANNEL,
+    type === 'Music' ? UNKNOWN_ARTIST : UNKNOWN_CREATOR,
   );
   const album = firstNonEmpty(
     rawItem?.album,
@@ -249,19 +255,20 @@ const buildArtistGroups = (items) => {
   return { groups: pushByLatest(groups), byName };
 };
 
-const buildChannelGroups = (items) => {
-  const byChannel = new Map();
-  for (const item of items.filter((entry) => entry.type === 'YTC')) {
-    if (!byChannel.has(item.creator)) {
-      byChannel.set(item.creator, {
+const buildVideoGroups = (items) => {
+  const byCreator = new Map();
+  // Filter for 'YouTube Video' instead of 'YTC'
+  for (const item of items.filter((entry) => entry.type === 'YouTube Video')) {
+    if (!byCreator.has(item.creator)) {
+      byCreator.set(item.creator, {
         name: item.creator,
-        type: 'channel',
+        type: 'video_creator',
         items: [],
         latestTimestamp: item.timestamp,
         thumbnailUrl: item.thumbnailUrl || '',
       });
     }
-    const group = byChannel.get(item.creator);
+    const group = byCreator.get(item.creator);
     group.items.push(item);
     group.latestTimestamp = Math.max(group.latestTimestamp, item.timestamp);
     group.thumbnailUrl = withLatestThumb(group.thumbnailUrl, item.thumbnailUrl);
@@ -269,10 +276,10 @@ const buildChannelGroups = (items) => {
 
   const groups = [];
   const byName = new Map();
-  for (const [name, value] of byChannel.entries()) {
+  for (const [name, value] of byCreator.entries()) {
     const normalized = {
       name,
-      type: 'channel',
+      type: 'video_creator',
       items: sortMediaItems(value.items, 'newest'),
       count: value.items.length,
       latestTimestamp: value.latestTimestamp,
@@ -401,13 +408,13 @@ export const buildLibraryModel = ({
   const sortedItems = sortMediaItems(filteredItems, sortKey);
 
   const artistGroups = buildArtistGroups(filteredItems);
-  const channelGroups = buildChannelGroups(filteredItems);
+  const videoGroups = buildVideoGroups(filteredItems);
   const podcastGroups = buildPodcastGroups(filteredItems);
   const playlistGroups = buildPlaylistGroups(filteredItems, normalizedSavedPlaylists);
 
   const creatorCards = pushByLatest([
     ...artistGroups.groups.map((entry) => ({ ...entry, key: `artist:${entry.name}`, creatorType: 'artist' })),
-    ...channelGroups.groups.map((entry) => ({ ...entry, key: `channel:${entry.name}`, creatorType: 'channel' })),
+    ...videoGroups.groups.map((entry) => ({ ...entry, key: `video_creator:${entry.name}`, creatorType: 'video_creator' })),
     ...podcastGroups.groups.map((entry) => ({ ...entry, key: `podcast:${entry.name}`, creatorType: 'podcast' })),
   ]);
 
@@ -424,8 +431,8 @@ export const buildLibraryModel = ({
     anomalyCount: anomalyItems.length,
     artists: artistGroups.groups,
     artistsByName: artistGroups.byName,
-    channels: channelGroups.groups,
-    channelsByName: channelGroups.byName,
+    videos: videoGroups.groups,
+    videosByName: videoGroups.byName,
     podcasts: podcastGroups.groups,
     podcastsByName: podcastGroups.byName,
     creatorCards,

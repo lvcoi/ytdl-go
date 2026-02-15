@@ -6,19 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 var fetchMusicPlaylistEntriesFn = fetchMusicPlaylistEntries
 
 func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer, isMusicURL bool) error {
-	savedClient := youtube.DefaultClient
-	defer func() {
-		youtube.DefaultClient = savedClient
-	}()
-
-	youtube.DefaultClient = youtube.WebClient
-	playlistClient := newClient(opts)
+	playlistClient := newClientForType("web", opts)
 	playlist, err := playlistClient.GetPlaylistContext(ctx, url)
 	if err != nil {
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
@@ -52,8 +46,7 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 
 	printer.Log(LogInfo, fmt.Sprintf("playlist: %s (%d videos)", playlist.Title, len(playlist.Videos)))
 
-	youtube.DefaultClient = youtube.AndroidClient
-	videoClient := newClient(opts)
+	videoClient := newClientForType("android", opts)
 	type playlistOutcome struct {
 		ok      bool
 		failed  bool
@@ -222,8 +215,7 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 		return nil
 	}
 
-	youtube.DefaultClient = youtube.AndroidClient
-	client := newClient(opts)
+	client := newClientForType("android", opts)
 
 	for i, entry := range playlist.Videos {
 		if entry == nil || entry.ID == "" {

@@ -9,19 +9,20 @@
     - [x] Implement the core CSS Grid structure used by all primary views.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Foundation & Theming' (Protocol in workflow.md)
 
-## Phase 2: Core View Overhaul
-- [x] Task: Refactor the Progress Dashboard to the "Media-First" layout. 6898049
+## Phase 2: Core View Overhaul [~]
+- [x] Task: Refactor the Progress Dashboard to the "Media-First" layout. 6898049, 1f266fc
     - [x] Task: Create and test Thumbnail component components.
     - [x] Implement large thumbnails and state-based animations for progress updates and queue modifications.
-
-- [x] Task: Refactor the Media Library to the "Media-First" layout. 551d7ce
+- [x] Task: Refactor the Media Library to the "Media-First" layout. 551d7ce, 1f266fc
     - [x] Write unit tests for the updated Media Library components.
     - [x] Implement Hero-style thumbnails and item density adjustments.
+.
 
-- [ ] Task: Update the Settings view to align with the new theme and layout consistency.
-    - [ ] Write unit tests for the updated Settings components.
-    - [ ] Apply the new theme and layout consistency to the Settings page.
+- [x] Task: Update the Settings view to align with the new theme and layout consistency. 026cd8d
+    - [x] Write unit tests for the updated Settings components.
+    - [x] Apply the new theme and layout consistency to the Settings page.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Core View Overhaul' (Protocol in workflow.md)
+
 
 ## Phase 3: Integrated Media Player
 - [ ] Task: Develop the Integrated Media Player interface.

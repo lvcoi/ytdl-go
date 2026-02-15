@@ -9,7 +9,8 @@ require (
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.26.4
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/kkdai/youtube/v2 v2.10.5
+	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
+	github.com/lvcoi/ytdl-lib/v2 v2.10.5-fork.3
 	github.com/u2takey/ffmpeg-go v0.5.0
 )
 
@@ -23,7 +24,6 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
-	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -23,7 +23,7 @@ const (
 
 // adjustChunkSize picks a smaller chunk size for the YouTube client to keep
 // progress updates frequent without spawning thousands of requests.
-func adjustChunkSize(client *youtube.Client, contentLength int64) {
+func adjustChunkSize(client YouTubeClient, contentLength int64) {
 	if client == nil || contentLength <= 0 {
 		return
 	}
@@ -33,7 +33,7 @@ func adjustChunkSize(client *youtube.Client, contentLength int64) {
 	} else if chunk > maxChunkSize {
 		chunk = maxChunkSize
 	}
-	client.ChunkSize = chunk
+	client.SetChunkSize(chunk)
 }
 
 // ffmpegAvailable checks if ffmpeg is installed and accessible
@@ -43,7 +43,7 @@ func ffmpegAvailable() bool {
 }
 
 // downloadWithFFmpegFallback downloads a progressive format and extracts audio using ffmpeg
-func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath, baseDir string, progress *progressWriter) (downloadResult, error) {
+func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath, baseDir string, progress *progressWriter) (downloadResult, error) {
 	result := downloadResult{}
 
 	// Find the best progressive format with high-quality audio
@@ -160,7 +160,7 @@ func extractAudio(inputPath, outputPath string) error {
 		Run()
 }
 
-func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (result downloadResult, err error) {
+func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (result downloadResult, err error) {
 	var (
 		format     *youtube.Format
 		outputPath string

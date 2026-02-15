@@ -5,8 +5,8 @@ import { Grid, GridItem } from './Grid';
 import { buildLibraryModel } from '../utils/libraryModel';
 
 const SECTION_OPTIONS = [
-  { value: 'artists', label: 'Artists' },
-  { value: 'channels', label: 'YTC' },
+  { value: 'artists', label: 'Music' },
+  { value: 'videos', label: 'YouTube Videos' },
   { value: 'podcasts', label: 'Podcasts' },
   { value: 'playlists', label: 'Playlists' },
   { value: 'all_media', label: 'All Media' },
@@ -21,7 +21,7 @@ const VIEW_MODE_OPTIONS = [
 const TYPE_FILTER_OPTIONS = [
   { value: 'all', label: 'All Types' },
   { value: 'Music', label: 'Music' },
-  { value: 'YTC', label: 'YTC' },
+  { value: 'YouTube Video', label: 'YouTube Videos' },
   { value: 'Podcast', label: 'Podcast' },
 ];
 
@@ -343,10 +343,10 @@ export default function LibraryView(props) {
         if (!creator) {
           return {
             kind: 'landing',
-            title: 'Artists',
+            title: 'Music',
             subtitle: 'Browse music creators.',
             artists: libraryModel.artists,
-            channels: libraryModel.channels,
+            videos: libraryModel.videos,
             breadcrumbs: [],
           };
         }
@@ -361,7 +361,7 @@ export default function LibraryView(props) {
               items: album.items,
               queueItems: album.items,
               breadcrumbs: [
-                { label: 'Artists', nav: { ...EMPTY_NAV_PATH } },
+                { label: 'Music', nav: { ...EMPTY_NAV_PATH } },
                 { label: creator.name, nav: { creatorType: 'artist', creatorName: creator.name } },
                 { label: album.name, nav: { creatorType: 'artist', creatorName: creator.name, albumName: album.name } },
               ],
@@ -376,7 +376,7 @@ export default function LibraryView(props) {
           albums: creator.albums,
           creator,
           breadcrumbs: [
-            { label: 'Artists', nav: { ...EMPTY_NAV_PATH } },
+            { label: 'Music', nav: { ...EMPTY_NAV_PATH } },
             { label: creator.name, nav: { creatorType: 'artist', creatorName: creator.name } },
           ],
         };
@@ -384,27 +384,27 @@ export default function LibraryView(props) {
 
       return {
         kind: 'landing',
-        title: 'Artists',
+        title: 'Music',
         subtitle: 'Music artists from your collection.',
         artists: libraryModel.artists,
-        channels: libraryModel.channels,
+        videos: libraryModel.videos,
         breadcrumbs: [],
       };
     }
 
-    if (currentSection === 'channels') {
-      if (currentNav.creatorType === 'channel' && currentNav.creatorName !== '') {
-        const channel = libraryModel.channelsByName.get(currentNav.creatorName);
-        if (channel) {
+    if (currentSection === 'videos') {
+      if (currentNav.creatorType === 'video_creator' && currentNav.creatorName !== '') {
+        const creator = libraryModel.videosByName.get(currentNav.creatorName);
+        if (creator) {
           return {
             kind: 'items',
-            title: channel.name,
-            subtitle: `${channel.count} video${channel.count === 1 ? '' : 's'}`,
-            items: channel.items,
-            queueItems: channel.items,
+            title: creator.name,
+            subtitle: `${creator.count} video${creator.count === 1 ? '' : 's'}`,
+            items: creator.items,
+            queueItems: creator.items,
             breadcrumbs: [
-              { label: 'YTC', nav: { ...EMPTY_NAV_PATH } },
-              { label: channel.name, nav: { creatorType: 'channel', creatorName: channel.name } },
+              { label: 'YouTube Videos', nav: { ...EMPTY_NAV_PATH } },
+              { label: creator.name, nav: { creatorType: 'video_creator', creatorName: creator.name } },
             ],
           };
         }
@@ -412,10 +412,10 @@ export default function LibraryView(props) {
 
       return {
         kind: 'creators',
-        title: 'YTC',
+        title: 'YouTube Videos',
         subtitle: 'YouTube channels from your collection.',
-        creators: libraryModel.channels,
-        creatorType: 'channel',
+        creators: libraryModel.videos,
+        creatorType: 'video_creator',
         breadcrumbs: [],
       };
     }
@@ -493,23 +493,23 @@ export default function LibraryView(props) {
       const artists = context.artists.map((entry) => ({
         key: `artist:${entry.name}`,
         name: entry.name,
-        type: 'Artist',
+        type: 'Music',
         count: entry.count,
         latestTimestamp: entry.latestTimestamp,
         thumbnailUrl: entry.thumbnailUrl,
         subtitle: `${entry.albums.length} album${entry.albums.length === 1 ? '' : 's'}`,
         onOpen: () => setNavPath({ creatorType: 'artist', creatorName: entry.name }),
       }));
-      const channels = context.channels.map((entry) => ({
-        key: `channel:${entry.name}`,
+      const videos = context.videos.map((entry) => ({
+        key: `video_creator:${entry.name}`,
         name: entry.name,
-        type: 'Channel',
+        type: 'YouTube Video',
         count: entry.count,
         latestTimestamp: entry.latestTimestamp,
         thumbnailUrl: entry.thumbnailUrl,
         subtitle: 'Video library',
         onOpen: () => {
-          setNavPath({ creatorType: 'channel', creatorName: entry.name });
+          setNavPath({ creatorType: 'video_creator', creatorName: entry.name });
         },
       }));
       const podcasts = context.podcasts?.map((entry) => ({
@@ -525,18 +525,18 @@ export default function LibraryView(props) {
           setNavPath({ creatorType: 'podcast', creatorName: entry.name });
         },
       })) || [];
-      return [...artists, ...channels, ...podcasts].sort((left, right) => right.latestTimestamp - left.latestTimestamp);
+      return [...artists, ...videos, ...podcasts].sort((left, right) => right.latestTimestamp - left.latestTimestamp);
     }
 
     if (context.kind === 'creators') {
       return context.creators.map((entry) => ({
         key: `${context.creatorType}:${entry.name}`,
         name: entry.name,
-        type: context.creatorType === 'channel' ? 'Channel' : 'Artist',
+        type: context.creatorType === 'video_creator' ? 'YouTube Video' : 'Music',
         count: entry.count,
         latestTimestamp: entry.latestTimestamp,
         thumbnailUrl: entry.thumbnailUrl,
-        subtitle: context.creatorType === 'channel'
+        subtitle: context.creatorType === 'video_creator'
           ? 'Video library'
           : `${entry.albums?.length || 0} album${(entry.albums?.length || 0) === 1 ? '' : 's'}`,
         onOpen: () => setNavPath({ creatorType: context.creatorType, creatorName: entry.name }),
@@ -578,7 +578,7 @@ export default function LibraryView(props) {
   const explorerAlbums = createMemo(() => (explorer().kind === 'albums' ? explorer().albums : []));
   const explorerPlaylists = createMemo(() => (explorer().kind === 'playlists' ? explorer().playlists : []));
   const explorerLandingArtists = createMemo(() => (explorer().kind === 'landing' ? explorer().artists : []));
-  const explorerLandingChannels = createMemo(() => (explorer().kind === 'landing' ? explorer().channels : []));
+  const explorerLandingVideos = createMemo(() => (explorer().kind === 'landing' ? explorer().videos : []));
 
   const explorerHeader = createMemo(() => {
     const context = explorer();
@@ -649,7 +649,7 @@ export default function LibraryView(props) {
       return `${context.creators.length} creators`;
     }
     if (context.kind === 'landing') {
-      return `${context.artists.length + context.channels.length} creators`;
+      return `${context.artists.length + context.videos.length} creators`;
     }
     return '';
   });
@@ -666,11 +666,10 @@ export default function LibraryView(props) {
                   <button
                     type="button"
                     onClick={() => setSection(option.value)}
-                    class={`w-full rounded-xl px-4 py-3 text-left text-sm font-bold transition-smooth ${
-                      section() === option.value
-                        ? 'bg-accent-primary/20 text-white border border-accent-primary/30 shadow-vibrant'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-                    }`}
+                    class={`w-full rounded-xl px-4 py-3 text-left text-sm font-bold transition-smooth ${section() === option.value
+                      ? 'bg-accent-primary/20 text-white border border-accent-primary/30 shadow-vibrant'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                      }`}
                   >
                     {option.label}
                   </button>
@@ -728,11 +727,10 @@ export default function LibraryView(props) {
                     <button
                       type="button"
                       onClick={() => setViewMode(option.value)}
-                      class={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-smooth ${
-                        viewMode() === option.value
-                          ? 'bg-accent-primary text-white shadow-vibrant'
-                          : 'text-gray-500 hover:text-white hover:bg-white/5'
-                      }`}
+                      class={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-smooth ${viewMode() === option.value
+                        ? 'bg-accent-primary text-white shadow-vibrant'
+                        : 'text-gray-500 hover:text-white hover:bg-white/5'
+                        }`}
                     >
                       {option.label}
                     </button>
@@ -771,11 +769,10 @@ export default function LibraryView(props) {
                     props.onToggleAdvancedFilters();
                   }
                 }}
-                class={`rounded-xl border px-4 py-2 text-xs font-bold transition-smooth ${
-                  uiState().advancedFiltersOpen
-                    ? 'border-accent-primary/40 bg-accent-primary/20 text-white'
-                    : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10'
-                }`}
+                class={`rounded-xl border px-4 py-2 text-xs font-bold transition-smooth ${uiState().advancedFiltersOpen
+                  ? 'border-accent-primary/40 bg-accent-primary/20 text-white'
+                  : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
               >
                 Filters
               </button>
@@ -794,11 +791,10 @@ export default function LibraryView(props) {
                 type="button"
                 onClick={clearFilters}
                 disabled={!hasActiveFilters()}
-                class={`ml-auto rounded-xl border px-4 py-2 text-xs font-bold transition-smooth ${
-                  hasActiveFilters()
-                    ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
-                    : 'border-white/5 bg-white/2 text-gray-700 cursor-not-allowed'
-                }`}
+                class={`ml-auto rounded-xl border px-4 py-2 text-xs font-bold transition-smooth ${hasActiveFilters()
+                  ? 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                  : 'border-white/5 bg-white/2 text-gray-700 cursor-not-allowed'
+                  }`}
               >
                 Reset
               </button>
@@ -932,9 +928,9 @@ export default function LibraryView(props) {
                       {(item) => (
                         <div class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant">
                           <div class="relative">
-                            <Thumbnail 
-                              src={item.thumbnailUrl} 
-                              alt={item.title} 
+                            <Thumbnail
+                              src={item.thumbnailUrl}
+                              alt={item.title}
                               size="md"
                               class="!rounded-none"
                             />
@@ -990,9 +986,9 @@ export default function LibraryView(props) {
                           onClick={() => setNavPath({ creatorType: explorer().creatorType, creatorName: entry.name })}
                           class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
                         >
-                          <Thumbnail 
-                            src={entry.thumbnailUrl} 
-                            alt={entry.name} 
+                          <Thumbnail
+                            src={entry.thumbnailUrl}
+                            alt={entry.name}
                             size="md"
                             class="!rounded-none"
                           />
@@ -1020,9 +1016,9 @@ export default function LibraryView(props) {
                           onClick={() => setNavPath({ creatorType: 'artist', creatorName: explorer().creator.name, albumName: album.name })}
                           class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
                         >
-                          <Thumbnail 
-                            src={album.thumbnailUrl} 
-                            alt={album.name} 
+                          <Thumbnail
+                            src={album.thumbnailUrl}
+                            alt={album.name}
                             size="md"
                             class="!aspect-square !rounded-none"
                           />
@@ -1051,17 +1047,16 @@ export default function LibraryView(props) {
                           class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
                         >
                           <div class="relative">
-                            <Thumbnail 
-                              src={playlist.thumbnailUrl} 
-                              alt={playlist.name} 
+                            <Thumbnail
+                              src={playlist.thumbnailUrl}
+                              alt={playlist.name}
                               size="md"
                               class="!rounded-none"
                             />
-                            <div class={`absolute left-4 top-4 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${
-                              playlist.kind === 'source'
-                                ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-400'
-                                : 'border-accent-secondary/30 bg-accent-secondary/20 text-accent-secondary'
-                            }`}
+                            <div class={`absolute left-4 top-4 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest backdrop-blur-md ${playlist.kind === 'source'
+                              ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-400'
+                              : 'border-accent-secondary/30 bg-accent-secondary/20 text-accent-secondary'
+                              }`}
                             >
                               {playlist.kind}
                             </div>
@@ -1091,9 +1086,9 @@ export default function LibraryView(props) {
                         onClick={() => setNavPath({ creatorType: 'artist', creatorName: artist.name })}
                         class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
                       >
-                        <Thumbnail 
-                          src={artist.thumbnailUrl} 
-                          alt={artist.name} 
+                        <Thumbnail
+                          src={artist.thumbnailUrl}
+                          alt={artist.name}
                           size="md"
                           class="!rounded-none"
                         />
@@ -1108,36 +1103,7 @@ export default function LibraryView(props) {
               </div>
             </Show>
 
-            <Show when={explorerLandingChannels().length > 0}>
-              <div class="space-y-6">
-                <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-secondary/80 ml-2">YTC</div>
-                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                  <For each={explorerLandingChannels()}>
-                    {(channel) => (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSection('channels');
-                          setNavPath({ creatorType: 'channel', creatorName: channel.name });
-                        }}
-                        class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-secondary/50 hover:shadow-vibrant"
-                      >
-                        <Thumbnail 
-                          src={channel.thumbnailUrl} 
-                          alt={channel.name} 
-                          size="md"
-                          class="!rounded-none"
-                        />
-                        <div class="space-y-1 p-5">
-                          <div class="truncate text-base font-black text-white">{channel.name}</div>
-                          <div class="text-xs font-bold text-gray-500">{channel.count} video{channel.count === 1 ? '' : 's'}</div>
-                        </div>
-                      </button>
-                    )}
-                  </For>
-                </Grid>
-              </div>
-            </Show>
+
 
             <Show when={model().podcasts.length > 0}>
               <div class="space-y-6">
@@ -1153,9 +1119,9 @@ export default function LibraryView(props) {
                         }}
                         class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-emerald-500/50 hover:shadow-vibrant"
                       >
-                        <Thumbnail 
-                          src={podcast.thumbnailUrl} 
-                          alt={podcast.name} 
+                        <Thumbnail
+                          src={podcast.thumbnailUrl}
+                          alt={podcast.name}
                           size="md"
                           class="!rounded-none"
                         />
@@ -1433,7 +1399,7 @@ export default function LibraryView(props) {
               <tbody class="divide-y divide-white/5">
                 <For each={explorerItems()}>
                   {(item) => (
-                    <tr 
+                    <tr
                       class="text-white hover:bg-accent-primary/10 cursor-pointer transition-colors group"
                       onClick={() => handlePlayItem(item, explorerQueueItems())}
                     >
@@ -1501,13 +1467,12 @@ export default function LibraryView(props) {
               </div>
 
               <Show when={playlistMessage() !== ''}>
-                <div class={`text-xs font-bold px-4 py-2 rounded-lg ${
-                  playlistMessageTone() === 'error'
-                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                    : playlistMessageTone() === 'success'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-white/5 text-gray-400 border border-white/10'
-                }`}
+                <div class={`text-xs font-bold px-4 py-2 rounded-lg ${playlistMessageTone() === 'error'
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  : playlistMessageTone() === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-white/5 text-gray-400 border border-white/10'
+                  }`}
                 >
                   {playlistMessage()}
                 </div>

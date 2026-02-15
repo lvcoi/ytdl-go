@@ -1,0 +1,15 @@
+{
+  "id": "jNQXAC9IVRw",
+  "title": "Me at the zoo",
+  "artist": "jawed",
+  "author": "jawed",
+  "duration_seconds": 19,
+  "thumbnail_url": "https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg?sqp=-oaymwEmCOADEOgC8quKqQMa8AEB-AG-AoAC8AGKAgwIABABGFUgWShlMA8=&rs=AOn4CLA9eLBatYv9WbkD4BbZ2Im-biSPTw",
+  "source_url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "extractor": "kkdai/youtube",
+  "extractor_version": "unknown",
+  "output": "test_output/Me at the zoo.mp4",
+  "format": "mp4",
+  "quality": "240p",
+  "status": "ok"
+}

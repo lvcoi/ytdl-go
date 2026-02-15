@@ -1,8 +1,9 @@
 <div align="center">
+<img src="img/ytdl-Gopher.png" alt="ytdl-gopher">
 
 # ytdl-go
 
-**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive, and dependency-free._
+**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive._
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
@@ -181,9 +182,6 @@ ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
-**Supported Placeholders:**
-`{title}`, `{artist}`, `{album}`, `{id}`, `{ext}`, `{quality}`, `{playlist-title}`, `{playlist-id}`, `{index}`, `{count}`
-
 ---
 
 ## ⚙️ Advanced Usage
@@ -231,17 +229,7 @@ ytdl-go -quiet URL
 
 ## 📊 Command Line Options
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-o` | `{title}.{ext}` | Output template. |
-| `-audio` | `false` | Download best audio-only format. |
-| `-list-formats` | `false` | Launch interactive format selector. |
-| `-quality` | `best` | Target quality (`1080p`, `720p`, `worst`). |
-| `-format` | `` | Preferred container (`mp4`, `webm`, `m4a`). |
-| `-jobs` | `1` | Concurrent download jobs. |
-| `-json` | `false` | Output logs/status as JSON lines. |
-| `-quiet` | `false` | Suppress progress and other non-error output (errors are still printed). |
-| `-meta` | `` | Override metadata field (`key=value`). |
+For a comprehensive reference of all command-line flags, see the [Command-Line Flags Reference](./docs/FLAGS.md).
 
 ---
 
