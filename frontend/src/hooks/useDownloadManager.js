@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from 'solid-js';
+import { createEffect, onCleanup, batch } from 'solid-js';
 import { useAppStore } from '../store/appStore';
 import {
     isActiveDownloadStreamStatus,
@@ -295,19 +295,21 @@ export function useDownloadManager() {
             ? Math.trunc(Number(evt.exitCode))
             : null;
 
-        setJobStatus((prev) => ({
-            ...(prev || {}),
-            jobId: expectedJobId,
-            status,
-            message: getStatusMessage(status, evt.message, eventError),
-            error: status === 'error' ? (eventError || prev?.error || statusDefaultMessage('error')) : '',
-            exitCode: resolveExitCode(status, eventExitCode, prev?.exitCode),
-            stats: eventStats || prev?.stats || null,
-        }));
+        batch(() => {
+            setJobStatus((prev) => ({
+                ...(prev || {}),
+                jobId: expectedJobId,
+                status,
+                message: getStatusMessage(status, evt.message, eventError),
+                error: status === 'error' ? (eventError || prev?.error || statusDefaultMessage('error')) : '',
+                exitCode: resolveExitCode(status, eventExitCode, prev?.exitCode),
+                stats: eventStats || prev?.stats || null,
+            }));
 
-        setIsDownloading(false);
-        setDuplicateQueue([]);
-        setDuplicateError('');
+            setIsDownloading(false);
+            setDuplicateQueue([]);
+            setDuplicateError('');
+        });
         
         // Stop the stream but don't clear the task/log state yet so user can see final results
         closeProgressStream();
