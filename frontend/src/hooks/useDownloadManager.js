@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, batch } from 'solid-js';
+import { createEffect, onCleanup } from 'solid-js';
 import { useAppStore } from '../store/appStore';
 import {
     isActiveDownloadStreamStatus,
@@ -83,6 +83,7 @@ const resolveExitCode = (status, explicitExitCode, previousExitCode) => {
 };
 
 const reportSseClientError = (message, error) => {
+    if (!import.meta.env?.DEV) return;
     if (error) {
         console.warn(`[download-sse] ${message}`, error);
         return;
@@ -136,7 +137,6 @@ export function useDownloadManager() {
 
     const closeProgressStream = () => {
         if (eventSource) {
-            console.debug('[download-sse] closing event source');
             eventSource.close();
             eventSource = null;
         }
@@ -180,88 +180,84 @@ export function useDownloadManager() {
 
         if (snapshotJobId !== expectedJobId) return;
 
-        console.debug('[download-sse] applying snapshot', snapshot);
-
-        batch(() => {
-            const tasks = {};
-            if (Array.isArray(snapshot.tasks)) {
-                for (const task of snapshot.tasks) {
-                    if (!task || typeof task !== 'object' || typeof task.id !== 'string' || task.id === '') continue;
-                    const total = toNonNegativeInteger(task.total, 0);
-                    const current = toNonNegativeInteger(task.current, 0);
-                    const percent = toFinitePercent(task.percent);
-                    const done = Boolean(task.done) || percent >= 100;
-                    tasks[task.id] = {
-                        label: task.label || task.id,
-                        total,
-                        current: total > 0 && current > total ? total : current,
-                        percent: done ? 100 : percent,
-                        done,
-                    };
-                }
-            }
-            setProgressTasks(tasks);
-
-            const logs = [];
-            if (Array.isArray(snapshot.logs)) {
-                for (const log of snapshot.logs.slice(-maxVisibleLogs)) {
-                    if (!log || typeof log !== 'object') continue;
-                    if (typeof log.message !== 'string' || log.message === '') continue;
-                    logs.push({
-                        level: normalizeLogLevel(log.level),
-                        message: log.message,
-                    });
-                }
-            }
-            setLogMessages(logs);
-
-            const duplicates = [];
-            if (Array.isArray(snapshot.duplicates)) {
-                for (const duplicate of snapshot.duplicates) {
-                    if (!duplicate || typeof duplicate !== 'object') continue;
-                    if (typeof duplicate.promptId !== 'string' || duplicate.promptId === '') continue;
-                    duplicates.push({
-                        jobId: snapshotJobId,
-                        promptId: duplicate.promptId,
-                        path: typeof duplicate.path === 'string' ? duplicate.path : '',
-                        filename: typeof duplicate.filename === 'string' ? duplicate.filename : '',
-                    });
-                }
-            }
-            setDuplicateQueue(duplicates);
-            setDuplicateError('');
-
-            const snapshotStatus = normalizeStatus(snapshot.status);
-            const snapshotStats = normalizeStats(snapshot.stats);
-            const snapshotError = typeof snapshot.error === 'string' ? snapshot.error : '';
-            const snapshotExitCode = Number.isFinite(Number(snapshot.exitCode))
-                ? Math.trunc(Number(snapshot.exitCode))
-                : null;
-
-            const snapshotLastSeq = Number(snapshot.lastSeq);
-            if (Number.isFinite(snapshotLastSeq) && snapshotLastSeq > lastEventSeq) {
-                lastEventSeq = Math.trunc(snapshotLastSeq);
-            }
-
-            setJobStatus((prev) => {
-                const nextStatus = snapshotStatus || normalizeStatus(prev?.status) || 'running';
-                return {
-                    ...(prev || {}),
-                    jobId: snapshotJobId,
-                    status: nextStatus,
-                    message: getStatusMessage(nextStatus, '', snapshotError),
-                    error: nextStatus === 'error' ? (snapshotError || prev?.error || statusDefaultMessage('error')) : '',
-                    exitCode: resolveExitCode(nextStatus, snapshotExitCode, prev?.exitCode),
-                    stats: snapshotStats || prev?.stats || null,
+        const tasks = {};
+        if (Array.isArray(snapshot.tasks)) {
+            for (const task of snapshot.tasks) {
+                if (!task || typeof task !== 'object' || typeof task.id !== 'string' || task.id === '') continue;
+                const total = toNonNegativeInteger(task.total, 0);
+                const current = toNonNegativeInteger(task.current, 0);
+                const percent = toFinitePercent(task.percent);
+                const done = Boolean(task.done) || percent >= 100;
+                tasks[task.id] = {
+                    label: task.label || task.id,
+                    total,
+                    current: total > 0 && current > total ? total : current,
+                    percent: done ? 100 : percent,
+                    done,
                 };
-            });
-
-            if (snapshotStatus && isTerminalStatus(snapshotStatus)) {
-                setIsDownloading(false);
-            } else {
-                setIsDownloading(true);
             }
+        }
+        setProgressTasks(tasks);
+
+        const logs = [];
+        if (Array.isArray(snapshot.logs)) {
+            for (const log of snapshot.logs.slice(-maxVisibleLogs)) {
+                if (!log || typeof log !== 'object') continue;
+                if (typeof log.message !== 'string' || log.message === '') continue;
+                logs.push({
+                    level: normalizeLogLevel(log.level),
+                    message: log.message,
+                });
+            }
+        }
+        setLogMessages(logs);
+
+        const duplicates = [];
+        if (Array.isArray(snapshot.duplicates)) {
+            for (const duplicate of snapshot.duplicates) {
+                if (!duplicate || typeof duplicate !== 'object') continue;
+                if (typeof duplicate.promptId !== 'string' || duplicate.promptId === '') continue;
+                duplicates.push({
+                    jobId: snapshotJobId,
+                    promptId: duplicate.promptId,
+                    path: typeof duplicate.path === 'string' ? duplicate.path : '',
+                    filename: typeof duplicate.filename === 'string' ? duplicate.filename : '',
+                });
+            }
+        }
+        setDuplicateQueue(duplicates);
+        setDuplicateError('');
+
+        const snapshotStatus = normalizeStatus(snapshot.status);
+        const snapshotStats = normalizeStats(snapshot.stats);
+        const snapshotError = typeof snapshot.error === 'string' ? snapshot.error : '';
+        const snapshotExitCode = Number.isFinite(Number(snapshot.exitCode))
+            ? Math.trunc(Number(snapshot.exitCode))
+            : null;
+
+        const snapshotLastSeq = Number(snapshot.lastSeq);
+        if (Number.isFinite(snapshotLastSeq) && snapshotLastSeq > lastEventSeq) {
+            lastEventSeq = Math.trunc(snapshotLastSeq);
+        }
+
+        setJobStatus((prev) => {
+            const nextStatus = snapshotStatus || normalizeStatus(prev?.status) || 'running';
+            return {
+                ...(prev || {}),
+                jobId: snapshotJobId,
+                status: nextStatus,
+                message: getStatusMessage(nextStatus, '', snapshotError),
+                error: nextStatus === 'error' ? (snapshotError || prev?.error || statusDefaultMessage('error')) : '',
+                exitCode: resolveExitCode(nextStatus, snapshotExitCode, prev?.exitCode),
+                stats: snapshotStats || prev?.stats || null,
+            };
         });
+
+        if (snapshotStatus && isTerminalStatus(snapshotStatus)) {
+            setIsDownloading(false);
+            return;
+        }
+        setIsDownloading(true);
     };
 
     const handleStatusEvent = (evt, expectedJobId) => {
@@ -274,23 +270,23 @@ export function useDownloadManager() {
             ? Math.trunc(Number(evt.exitCode))
             : null;
 
-        batch(() => {
-            setJobStatus((prev) => ({
-                ...(prev || {}),
-                jobId: expectedJobId,
-                status,
-                message: getStatusMessage(status, evt.message, eventError),
-                error: status === 'error' ? (eventError || prev?.error || statusDefaultMessage('error')) : '',
-                exitCode: resolveExitCode(status, eventExitCode, prev?.exitCode),
-                stats: eventStats || prev?.stats || null,
-            }));
+        setJobStatus((prev) => ({
+            ...(prev || {}),
+            jobId: expectedJobId,
+            status,
+            message: getStatusMessage(status, evt.message, eventError),
+            error: status === 'error' ? (eventError || prev?.error || statusDefaultMessage('error')) : '',
+            exitCode: resolveExitCode(status, eventExitCode, prev?.exitCode),
+            stats: eventStats || prev?.stats || null,
+        }));
 
-            if (isTerminalStatus(status)) {
-                setIsDownloading(false);
-            } else {
-                setIsDownloading(true);
-            }
-        });
+        if (isTerminalStatus(status)) {
+            setIsDownloading(false);
+            setDuplicateQueue([]);
+            setDuplicateError('');
+            return;
+        }
+        setIsDownloading(true);
     };
 
     const handleDoneEvent = (evt, expectedJobId) => {
@@ -301,26 +297,20 @@ export function useDownloadManager() {
             ? Math.trunc(Number(evt.exitCode))
             : null;
 
-        batch(() => {
-            setJobStatus((prev) => ({
-                ...(prev || {}),
-                jobId: expectedJobId,
-                status,
-                message: getStatusMessage(status, evt.message, eventError),
-                error: status === 'error' ? (eventError || prev?.error || statusDefaultMessage('error')) : '',
-                exitCode: resolveExitCode(status, eventExitCode, prev?.exitCode),
-                stats: eventStats || prev?.stats || null,
-            }));
+        setJobStatus((prev) => ({
+            ...(prev || {}),
+            jobId: expectedJobId,
+            status,
+            message: getStatusMessage(status, evt.message, eventError),
+            error: status === 'error' ? (eventError || prev?.error || statusDefaultMessage('error')) : '',
+            exitCode: resolveExitCode(status, eventExitCode, prev?.exitCode),
+            stats: eventStats || prev?.stats || null,
+        }));
 
-            setIsDownloading(false);
-            setDuplicateQueue([]);
-            setDuplicateError('');
-        });
-        
-        // Stop the stream but don't clear the task/log state yet so user can see final results
-        closeProgressStream();
-        clearReconnectTimer();
-        activeJobId = '';
+        setIsDownloading(false);
+        setDuplicateQueue([]);
+        setDuplicateError('');
+        resetProgressStreamState();
     };
 
     const listenForProgress = (jobId) => {
@@ -338,26 +328,16 @@ export function useDownloadManager() {
                 query.set('since', String(lastEventSeq));
             }
 
-            console.debug(`[download-sse] connecting to /api/download/progress?${query.toString()}`);
             eventSource = new EventSource(`/api/download/progress?${query.toString()}`);
-
-            eventSource.onopen = () => {
-                console.debug('[download-sse] connection opened');
-            };
 
             eventSource.onmessage = (e) => {
                 if (activeJobId !== jobId) return;
                 try {
                     const evt = JSON.parse(e.data);
                     if (!evt || typeof evt !== 'object' || typeof evt.type !== 'string') return;
-                    
-                    console.debug(`[download-sse] event: ${evt.type}`, evt);
 
                     const eventJobId = typeof evt.jobId === 'string' && evt.jobId ? evt.jobId : jobId;
-                    if (eventJobId !== jobId) {
-                        console.warn(`[download-sse] jobId mismatch. expected=${jobId}, actual=${eventJobId}`);
-                        return;
-                    }
+                    if (eventJobId !== jobId) return;
 
                     if (evt.type !== 'snapshot') {
                         const seq = Number(evt.seq);
@@ -368,124 +348,121 @@ export function useDownloadManager() {
                         }
                     }
 
-                    batch(() => {
-                        markStreamConnected();
+                    markStreamConnected();
 
-                        switch (evt.type) {
-                            case 'snapshot':
-                                applySnapshot(evt.snapshot, jobId);
-                                break;
-                            case 'status':
-                                handleStatusEvent(evt, jobId);
-                                break;
-                            case 'register':
-                                if (typeof evt.id === 'string' && evt.id !== '') {
-                                    setProgressTasks((prev) => ({
+                    switch (evt.type) {
+                        case 'snapshot':
+                            applySnapshot(evt.snapshot, jobId);
+                            break;
+                        case 'status':
+                            handleStatusEvent(evt, jobId);
+                            break;
+                        case 'register':
+                            if (typeof evt.id === 'string' && evt.id !== '') {
+                                setProgressTasks((prev) => ({
+                                    ...prev,
+                                    [evt.id]: {
+                                        ...(prev[evt.id] || {}),
+                                        label: evt.label || prev[evt.id]?.label || evt.id,
+                                        total: toNonNegativeInteger(evt.total, prev[evt.id]?.total || 0),
+                                        current: toNonNegativeInteger(evt.current, 0),
+                                        percent: toFinitePercent(evt.percent),
+                                        done: false,
+                                    },
+                                }));
+                            }
+                            break;
+                        case 'progress':
+                            if (typeof evt.id === 'string' && evt.id !== '') {
+                                setProgressTasks((prev) => {
+                                    const existing = prev[evt.id] || {};
+                                    const total = toNonNegativeInteger(evt.total, existing.total || 0);
+                                    let current = toNonNegativeInteger(evt.current, existing.current || 0);
+                                    if (total > 0 && current > total) current = total;
+                                    const percent = toFinitePercent(
+                                        typeof evt.percent === 'number' && Number.isFinite(evt.percent)
+                                            ? evt.percent
+                                            : (total > 0 ? (current * 100) / total : existing.percent || 0),
+                                    );
+                                    return {
                                         ...prev,
                                         [evt.id]: {
-                                            ...(prev[evt.id] || {}),
-                                            label: evt.label || prev[evt.id]?.label || evt.id,
-                                            total: toNonNegativeInteger(evt.total, prev[evt.id]?.total || 0),
-                                            current: toNonNegativeInteger(evt.current, 0),
-                                            percent: toFinitePercent(evt.percent),
-                                            done: false,
+                                            ...existing,
+                                            label: evt.label || existing.label || evt.id,
+                                            total,
+                                            current,
+                                            percent,
+                                            done: percent >= 100,
                                         },
-                                    }));
-                                }
-                                break;
-                            case 'progress':
-                                if (typeof evt.id === 'string' && evt.id !== '') {
-                                    setProgressTasks((prev) => {
-                                        const existing = prev[evt.id] || {};
-                                        const total = toNonNegativeInteger(evt.total, existing.total || 0);
-                                        let current = toNonNegativeInteger(evt.current, existing.current || 0);
-                                        if (total > 0 && current > total) current = total;
-                                        const percent = toFinitePercent(
-                                            typeof evt.percent === 'number' && Number.isFinite(evt.percent)
-                                                ? evt.percent
-                                                : (total > 0 ? (current * 100) / total : existing.percent || 0),
-                                        );
-                                        return {
-                                            ...prev,
-                                            [evt.id]: {
-                                                ...existing,
-                                                label: evt.label || existing.label || evt.id,
-                                                total,
-                                                current,
-                                                percent,
-                                                done: percent >= 100,
-                                            },
-                                        };
-                                    });
-                                }
-                                break;
-                            case 'finish':
-                                if (typeof evt.id === 'string' && evt.id !== '') {
-                                    setProgressTasks((prev) => ({
-                                        ...prev,
-                                        [evt.id]: {
-                                            ...(prev[evt.id] || {}),
-                                            label: prev[evt.id]?.label || evt.id,
-                                            current: Math.max(
-                                                toNonNegativeInteger(prev[evt.id]?.current, 0),
-                                                toNonNegativeInteger(prev[evt.id]?.total, 0),
-                                            ),
-                                            total: toNonNegativeInteger(prev[evt.id]?.total, 0),
-                                            percent: 100,
-                                            done: true,
-                                        },
-                                    }));
-                                }
-                                break;
-                            case 'log':
-                                if (typeof evt.message === 'string' && evt.message !== '') {
-                                    setLogMessages((prev) => [
+                                    };
+                                });
+                            }
+                            break;
+                        case 'finish':
+                            if (typeof evt.id === 'string' && evt.id !== '') {
+                                setProgressTasks((prev) => ({
+                                    ...prev,
+                                    [evt.id]: {
+                                        ...(prev[evt.id] || {}),
+                                        label: prev[evt.id]?.label || evt.id,
+                                        current: Math.max(
+                                            toNonNegativeInteger(prev[evt.id]?.current, 0),
+                                            toNonNegativeInteger(prev[evt.id]?.total, 0),
+                                        ),
+                                        total: toNonNegativeInteger(prev[evt.id]?.total, 0),
+                                        percent: 100,
+                                        done: true,
+                                    },
+                                }));
+                            }
+                            break;
+                        case 'log':
+                            if (typeof evt.message === 'string' && evt.message !== '') {
+                                setLogMessages((prev) => [
+                                    ...prev,
+                                    {
+                                        level: normalizeLogLevel(evt.level),
+                                        message: evt.message,
+                                    },
+                                ].slice(-maxVisibleLogs));
+                            }
+                            break;
+                        case 'duplicate':
+                            if (typeof evt.promptId === 'string' && evt.promptId !== '') {
+                                setDuplicateQueue((prev) => {
+                                    if (prev.some((item) => item.promptId === evt.promptId)) return prev;
+                                    return [
                                         ...prev,
                                         {
-                                            level: normalizeLogLevel(evt.level),
-                                            message: evt.message,
+                                            jobId,
+                                            promptId: evt.promptId,
+                                            path: typeof evt.path === 'string' ? evt.path : '',
+                                            filename: typeof evt.filename === 'string' ? evt.filename : '', // Fix: use evt.filename
                                         },
-                                    ].slice(-maxVisibleLogs));
-                                }
-                                break;
-                            case 'duplicate':
-                                if (typeof evt.promptId === 'string' && evt.promptId !== '') {
-                                    setDuplicateQueue((prev) => {
-                                        if (prev.some((item) => item.promptId === evt.promptId)) return prev;
-                                        return [
-                                            ...prev,
-                                            {
-                                                jobId,
-                                                promptId: evt.promptId,
-                                                path: typeof evt.path === 'string' ? evt.path : '',
-                                                filename: typeof evt.filename === 'string' ? evt.filename : '',
-                                            },
-                                        ];
-                                    });
-                                    setDuplicateError('');
-                                }
-                                break;
-                            case 'duplicate-resolved':
-                                if (typeof evt.promptId === 'string' && evt.promptId !== '') {
-                                    setDuplicateQueue((prev) => prev.filter((item) => item.promptId !== evt.promptId));
-                                    setDuplicateError('');
-                                }
-                                break;
-                            case 'done':
-                                handleDoneEvent(evt, jobId);
-                                break;
-                            default:
-                                break;
-                        }
-                    });
+                                    ];
+                                });
+                                setDuplicateError('');
+                            }
+                            break;
+                        case 'duplicate-resolved':
+                            if (typeof evt.promptId === 'string' && evt.promptId !== '') {
+                                setDuplicateQueue((prev) => prev.filter((item) => item.promptId !== evt.promptId));
+                                setDuplicateError('');
+                            }
+                            break;
+                        case 'done':
+                            handleDoneEvent(evt, jobId);
+                            break;
+                        default:
+                            break;
+                    }
                 } catch (error) {
                     reportSseClientError('Failed to parse/process SSE payload', error);
                 }
             };
 
-            eventSource.onerror = (err) => {
+            eventSource.onerror = () => {
                 if (activeJobId !== jobId) return;
-                console.warn('[download-sse] error encountered', err);
                 closeProgressStream();
                 clearReconnectTimer();
 
@@ -537,4 +514,3 @@ export function useDownloadManager() {
         listenForProgress,
     };
 }
-

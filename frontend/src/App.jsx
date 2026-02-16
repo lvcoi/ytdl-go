@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, onMount, Show, createMemo, batch } from 'solid-js';
+import { createEffect, createSignal, onCleanup, onMount, Show, createMemo } from 'solid-js';
 import Icon from './components/Icon';
 import DownloadView from './components/DownloadView';
 import LibraryView from './components/LibraryView';
@@ -8,7 +8,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
 import { useAppStore } from './store/appStore';
-import { normalizeDownloadStatus, isTerminalDownloadStatus } from './utils/downloadStatus';
+import { normalizeDownloadStatus } from './utils/downloadStatus';
 import { detectMediaType } from './utils/mediaType';
 import { useSavedPlaylists } from './hooks/useSavedPlaylists';
 import { useDownloadManager } from './hooks/useDownloadManager';
@@ -188,24 +188,18 @@ function App() {
   // Keep library data fresh after terminal download outcomes
   createEffect(() => {
     const currentJobStatus = downloadJobStatus();
-    if (!currentJobStatus) return;
-    
-    const status = currentJobStatus.status;
-    const jobId = currentJobStatus.jobId;
-
+    const jobId = currentJobStatus?.jobId;
     if (typeof jobId !== 'string' || jobId === '') {
       return;
     }
-
-    // Trigger immediate sync on terminal status if not already syncing for THIS job
-    if (isTerminalDownloadStatus(status)) {
-        if (jobId !== lastSyncedLibraryJobId && jobId !== pendingLibrarySyncJobId) {
-            console.info(`[app] terminal status reached (${status}) for job ${jobId}, triggering library sync`);
-            // Optimistically mark as pending to prevent duplicate triggers
-            pendingLibrarySyncJobId = jobId; 
-            void syncLibraryForJob(jobId, 1);
-        }
+    if (jobId === lastSyncedLibraryJobId || jobId === pendingLibrarySyncJobId) {
+      return;
     }
+
+    if (!shouldSyncLibraryForTerminalDownload(currentJobStatus?.status, currentJobStatus?.stats)) {
+      return;
+    }
+    void syncLibraryForJob(jobId, 1);
   });
 
   onCleanup(() => {
@@ -267,6 +261,9 @@ function App() {
     const selected = state.player.selectedMedia;
     if (selected) {
       const mediaType = detectMediaType(selected);
+      // 'audio' and 'video' are mapped to 'Music' and 'YouTube Video' in UI but verify filter compatibility
+      // For now, setting typeFilter to 'all' or specific type might depend on LibraryView implementation
+      // Use 'all' safely or map if needed. LibraryView handles type mapping.
       setState('library', 'typeFilter', 'all');
     }
     setState('library', 'section', 'all_media');
@@ -296,67 +293,6 @@ function App() {
     setState('player', 'active', true);
   };
 
-  const handleDownload = async (urlsInput) => {
-    if (state.download.isDownloading) return;
-
-    const urls = Array.isArray(urlsInput) ? urlsInput : [urlsInput];
-    const validUrls = urls.filter(u => String(u || '').trim() !== '');
-    if (validUrls.length === 0) return;
-
-    batch(() => {
-      setState('download', 'jobStatus', {
-        status: 'queued',
-        message: 'Starting download job...',
-        error: '',
-      });
-      setState('download', 'isDownloading', true);
-      setState('download', 'progressTasks', {});
-      setState('download', 'logMessages', []);
-    });
-
-    try {
-      const res = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          urls: validUrls,
-          options: {
-            output: state.settings.output,
-            audio: state.settings.audioOnly,
-            quality: state.settings.quality,
-            format: state.settings.format,
-            jobs: state.settings.jobs,
-            timeout: state.settings.timeout,
-            'on-duplicate': state.settings.onDuplicate,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to start download');
-      }
-
-      if (data.jobId) {
-        listenForProgress(data.jobId);
-      } else {
-        throw new Error('No job ID received from server');
-      }
-    } catch (e) {
-      console.error('Download start failed:', e);
-      batch(() => {
-        setState('download', 'jobStatus', {
-          status: 'error',
-          message: 'Failed to start download.',
-          error: e.message,
-        });
-        setState('download', 'isDownloading', false);
-        setState('download', 'progressTasks', {});
-        setState('download', 'logMessages', []);
-      });
-    }
-  };
-
   return (
     <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
 
@@ -377,7 +313,6 @@ function App() {
               <DashboardView
                 libraryModel={libraryModel}
                 onTabChange={setActiveTab}
-                onDirectDownload={handleDownload}
               />
             </div>
           </Show>
@@ -386,7 +321,7 @@ function App() {
             <div class="max-w-4xl mx-auto">
               <DownloadView
                 onOpenLibrary={openLibrary}
-                onStartDownload={handleDownload}
+                onStartDownload={(jobId) => listenForProgress(jobId)}
               />
             </div>
           </Show>
@@ -450,4 +385,3 @@ function App() {
 }
 
 export default App;
-
