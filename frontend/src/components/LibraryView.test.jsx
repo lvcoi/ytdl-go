@@ -10,9 +10,10 @@ describe('LibraryView component', () => {
   };
 
         it('renders initial state correctly', () => {
-    const { getAllByText } = render(() => <LibraryView {...mockProps} />);
-    // Initial section is 'artists', which has title 'Artists'
-    expect(getAllByText('Artists').length).toBeGreaterThan(0);
+        const { getAllByText } = render(() => <LibraryView {...mockProps} />);
+    // Initial section is 'music', which has title 'Music'
+    expect(getAllByText('Music').length).toBeGreaterThan(0);
+
   });
 
 

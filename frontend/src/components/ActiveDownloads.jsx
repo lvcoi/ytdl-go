@@ -1,7 +1,7 @@
 import { For, Show, createMemo } from 'solid-js';
 import Icon from './Icon';
+
 import { useAppStore } from '../store/appStore';
-import { getStatusColor } from '../utils/theme';
 
 export default function ActiveDownloads() {
     const { state } = useAppStore();
@@ -46,13 +46,27 @@ export default function ActiveDownloads() {
 
             <Show when={hasActiveDownloads()} fallback={
                 <div class="flex flex-col items-center justify-center flex-1 py-12 text-gray-500 gap-3">
-                    <Icon name="check-circle-2" class="w-10 h-10 opacity-20" />
-                    <span class="text-xs font-bold uppercase tracking-widest">No active tasks</span>
+                    <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-1">
+                        <Icon 
+                            name={overallStatus() === 'running' ? "loader-2" : "check-circle-2"} 
+                            class={`w-6 h-6 ${overallStatus() === 'running' ? 'text-accent-primary animate-spin' : 'opacity-20'}`} 
+                        />
+                    </div>
+                    <span class="text-xs font-bold uppercase tracking-widest text-center px-4">
+                        {overallStatus() === 'running' ? 'Initializing Download...' : 'No active tasks'}
+                    </span>
+                    
+                    <Show when={jobStatus()?.error}>
+                        <div class="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-[10px] text-red-400 font-mono text-left w-full break-all">
+                            <span class="font-bold uppercase mr-1">[Error]</span>
+                            {jobStatus().error}
+                        </div>
+                    </Show>
                 </div>
             }>
                 <div class="space-y-3 overflow-y-auto custom-scrollbar flex-1 pr-2 max-h-[300px]">
                     <Show when={overallMessage()}>
-                        <div class="text-xs font-medium text-gray-400 px-1 truncate mb-2">
+                        <div class={`text-xs font-medium px-1 truncate mb-2 ${overallStatus() === 'error' ? 'text-red-400' : 'text-gray-400'}`}>
                             {overallMessage()}
                         </div>
                     </Show>
@@ -79,3 +93,4 @@ export default function ActiveDownloads() {
         </div>
     );
 }
+
