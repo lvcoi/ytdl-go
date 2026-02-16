@@ -19,14 +19,9 @@ export default function DashboardView(props) {
     return (
         <div class="space-y-8 transition-smooth animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
 
-            {/* Direct Download "Hot Input" */}
-            <section class="max-w-4xl mx-auto w-full">
-                <DirectDownload onDownload={props.onDirectDownload} />
-            </section>
-
             {/* Welcome & Quick Actions Section */}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 rounded-[2rem] border border-accent-primary/20 glass-vibrant p-8 relative overflow-hidden group">
+                <div class="lg:col-span-2 rounded-[2rem] border border-accent-primary/20 glass-vibrant p-8 relative overflow-hidden group flex flex-col justify-between min-h-[320px]">
                     <div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
                         <Icon name="layout-dashboard" class="w-48 h-48 rotate-12" />
                     </div>
@@ -38,22 +33,27 @@ export default function DashboardView(props) {
                             Your media library is ready. You have <span class="text-white font-bold">{stats().totalItems} items</span> across <span class="text-white font-bold">{stats().totalCreators} creators</span>.
                         </p>
 
-                        <div class="flex flex-wrap gap-3 pt-4">
-                            <button
-                                onClick={() => props.onTabChange('download')}
-                                class="px-6 py-3 rounded-xl bg-white text-black font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
-                            >
-                                <Icon name="plus-circle" class="w-4 h-4" />
-                                New Download
-                            </button>
-                            <button
-                                onClick={() => props.onTabChange('library')}
-                                class="px-6 py-3 rounded-xl bg-black/40 text-white border border-white/10 font-black uppercase tracking-widest hover:bg-black/60 transition-colors flex items-center gap-2"
-                            >
-                                <Icon name="layers" class="w-4 h-4" />
-                                Browse Library
-                            </button>
+                        {/* Less prominent, 1-line tall Direct Download */}
+                        <div class="pt-2 max-w-xl">
+                            <DirectDownload onDownload={props.onDirectDownload} />
                         </div>
+                    </div>
+
+                    <div class="relative z-10 flex flex-wrap gap-3 pt-6">
+                        <button
+                            onClick={() => props.onTabChange('download')}
+                            class="px-6 py-3 rounded-xl bg-white text-black font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+                        >
+                            <Icon name="plus-circle" class="w-4 h-4" />
+                            New Download
+                        </button>
+                        <button
+                            onClick={() => props.onTabChange('library')}
+                            class="px-6 py-3 rounded-xl bg-black/40 text-white border border-white/10 font-black uppercase tracking-widest hover:bg-black/60 transition-colors flex items-center gap-2"
+                        >
+                            <Icon name="layers" class="w-4 h-4" />
+                            Browse Library
+                        </button>
                     </div>
                 </div>
 
