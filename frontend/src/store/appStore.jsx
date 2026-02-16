@@ -52,7 +52,7 @@ const emptyLibraryFilters = {
 
 const createDefaultState = () => ({
   ui: {
-    activeTab: 'dashboard',
+    activeTab: 'download',
     isAdvanced: false,
   },
   settings: { ...defaultSettings },
