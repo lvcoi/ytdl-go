@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, onMount, Show, createMemo, batch } from 'solid-js';
+import { createEffect, createSignal, onCleanup, onMount, Show, createMemo } from 'solid-js';
 import Icon from './components/Icon';
 import DownloadView from './components/DownloadView';
 import LibraryView from './components/LibraryView';
@@ -293,14 +293,12 @@ function App() {
       setState('player', 'active', true);
     };
   
-  const handleDownload = async (urlsInput) => {
-    if (state.download.isDownloading) return;
-
-    const urls = Array.isArray(urlsInput) ? urlsInput : [urlsInput];
-    const validUrls = urls.filter(u => String(u || '').trim() !== '');
-    if (validUrls.length === 0) return;
-
-    batch(() => {
+    const handleDownload = async (urlsInput) => {
+      if (state.download.isDownloading) return;
+  
+      const urls = Array.isArray(urlsInput) ? urlsInput : [urlsInput];
+      if (urls.length === 0) return;
+  
       setState('download', 'jobStatus', {
         status: 'queued',
         message: 'Starting download job...',
@@ -309,50 +307,40 @@ function App() {
       setState('download', 'isDownloading', true);
       setState('download', 'progressTasks', {});
       setState('download', 'logMessages', []);
-    });
-
-    try {
-      const res = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          urls: validUrls,
-          options: {
-            output: state.settings.output,
-            audio: state.settings.audioOnly,
-            quality: state.settings.quality,
-            format: state.settings.format,
-            jobs: state.settings.jobs,
-            timeout: state.settings.timeout,
-            'on-duplicate': state.settings.onDuplicate,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to start download');
-      }
-
-      if (data.jobId) {
+  
+          try {
+            const res = await fetch('/api/download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                urls: urls,
+                options: {
+                  output: state.settings.output,
+                  audio: state.settings.audioOnly,
+                  quality: state.settings.quality,
+                  format: state.settings.format,
+                  jobs: state.settings.jobs,
+                  timeout: state.settings.timeout,
+                  'on-duplicate': state.settings.onDuplicate,
+                },
+              }),
+            });  
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to start download');
+        }
+  
         listenForProgress(data.jobId);
-      } else {
-        throw new Error('No job ID received from server');
-      }
-    } catch (e) {
-      console.error('Download start failed:', e);
-      batch(() => {
+      } catch (e) {
+        console.error('Download start failed:', e);
         setState('download', 'jobStatus', {
           status: 'error',
           message: 'Failed to start download.',
           error: e.message,
         });
         setState('download', 'isDownloading', false);
-        setState('download', 'progressTasks', {});
-        setState('download', 'logMessages', []);
-      });
-    }
-  };
+      }
+    };
   
     return (
       <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
