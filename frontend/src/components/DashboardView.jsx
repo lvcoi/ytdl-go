@@ -38,6 +38,10 @@ export default function DashboardView(props) {
                             Your media library is ready. You have <span class="text-white font-bold">{stats().totalItems} items</span> across <span class="text-white font-bold">{stats().totalCreators} creators</span>.
                         </p>
 
+                        <div class="pt-2">
+                            <DirectDownload onDownload={props.onDirectDownload} />
+                        </div>
+
                         <div class="flex flex-wrap gap-3 pt-4">
                             <button
                                 onClick={() => props.onTabChange('download')}

@@ -308,25 +308,23 @@ function App() {
       setState('download', 'progressTasks', {});
       setState('download', 'logMessages', []);
   
-      try {
-        const res = await fetch('/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            urls: urls,
-            options: {
-              format: state.settings.output,
-              quality: state.settings.quality,
-              maxJobs: state.settings.jobs,
-              timeout: state.settings.timeout,
-              audioOnly: state.settings.audioOnly,
-              onDuplicate: state.settings.onDuplicate,
-              useCookies: state.settings.useCookies,
-              poTokenExtension: state.settings.poTokenExtension,
-            },
-          }),
-        });
-  
+          try {
+            const res = await fetch('/api/download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                urls: urls,
+                options: {
+                  output: state.settings.output,
+                  audio: state.settings.audioOnly,
+                  quality: state.settings.quality,
+                  format: state.settings.format,
+                  jobs: state.settings.jobs,
+                  timeout: state.settings.timeout,
+                  'on-duplicate': state.settings.onDuplicate,
+                },
+              }),
+            });  
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.error || 'Failed to start download');
