@@ -2,9 +2,10 @@ import { createMemo, For } from 'solid-js';
 import Icon from './Icon';
 import ActiveDownloads from './ActiveDownloads';
 import Thumbnail from './Thumbnail';
+import DirectDownload from './DirectDownload';
 
 export default function DashboardView(props) {
-    const libraryModel = createMemo(() => (typeof props.libraryModel === 'function' ? props.libraryModel() : props.libraryModel));
+    const libraryModel = createMemo(() => (typeof props.libraryModel === 'function' ? props.libraryModel() : props.libraryModel()));
 
     const stats = createMemo(() => {
         const model = libraryModel();
@@ -16,7 +17,12 @@ export default function DashboardView(props) {
     });
 
     return (
-        <div class="space-y-6 transition-smooth animate-in fade-in slide-in-from-right-4 duration-500">
+        <div class="space-y-8 transition-smooth animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
+
+            {/* Direct Download "Hot Input" */}
+            <section class="max-w-4xl mx-auto w-full">
+                <DirectDownload onDownload={props.onDirectDownload} />
+            </section>
 
             {/* Welcome & Quick Actions Section */}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

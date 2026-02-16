@@ -268,51 +268,8 @@ export default function DownloadView(props = {}) {
       return;
     }
 
-    setJobStatus({
-      status: 'queued',
-      message: 'Starting download job...',
-      error: '',
-    });
-    setState('download', 'isDownloading', true);
-    setState('download', 'progressTasks', {});
-    setState('download', 'logMessages', []);
-
-    try {
-      const res = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          urls: validUrls,
-          options: {
-            format: settings().output,
-            quality: settings().quality,
-            maxJobs: settings().jobs,
-            timeout: settings().timeout,
-            audioOnly: settings().audioOnly,
-            onDuplicate: settings().onDuplicate,
-            useCookies: settings().useCookies,
-            poTokenExtension: settings().poTokenExtension,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to start download');
-      }
-
-      if (typeof props.onStartDownload === 'function') {
-        props.onStartDownload(data.jobId);
-      }
-
-    } catch (e) {
-      console.error('Download start failed:', e);
-      setJobStatus({
-        status: 'error',
-        message: 'Failed to start download.',
-        error: e.message,
-      });
-      setState('download', 'isDownloading', false);
+    if (typeof props.onStartDownload === 'function') {
+      props.onStartDownload(validUrls);
     }
   };
 

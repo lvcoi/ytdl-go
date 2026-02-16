@@ -12,10 +12,8 @@ describe('DownloadView component', () => {
       </AppStoreProvider>
     ));
     
-    expect(getByText('YTDL')).toBeInTheDocument();
-    expect(getByText(/-GO\./)).toBeInTheDocument();
-    expect(getByPlaceholderText('Paste YouTube URLs here (one per line)...')).toBeInTheDocument();
-    expect(getByText('Start Extraction')).toBeInTheDocument();
+    expect(getByText('Download Media')).toBeInTheDocument();
+    expect(getByPlaceholderText('https://www.youtube.com/watch?v=...')).toBeInTheDocument();
   });
 
 

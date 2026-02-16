@@ -277,55 +277,106 @@ function App() {
     setActiveTab('library');
   };
 
-  const playNextInQueue = () => {
-    const queue = playerQueue();
-    if (queue.length === 0) {
-      return;
-    }
-    const activeFilename = normalizeQueueKey(state.player.selectedMedia?.filename);
-    const currentIndex = queue.findIndex((entry) => normalizeQueueKey(entry.filename) === activeFilename);
-    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % queue.length;
-    const nextItem = queue[nextIndex];
-    if (!nextItem) {
-      return;
-    }
-    setState('player', 'selectedMedia', toPlayerMediaItem(nextItem));
-    setState('player', 'active', true);
-  };
-
-  return (
-    <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
-
-      <Sidebar activeTab={activeTab()} onTabChange={setActiveTab} />
-
-      {/* Main Content */}
-      <main class="flex-1 flex flex-col bg-transparent relative min-w-0">
-        <Header
-          activeTab={activeTab()}
-          isAdvanced={isAdvanced()}
-          onToggleAdvanced={toggleAdvanced}
-        />
-
-        <div class="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
-
-          <Show when={activeTab() === 'dashboard'}>
-            <div class="max-w-7xl mx-auto">
-              <DashboardView
-                libraryModel={libraryModel}
-                onTabChange={setActiveTab}
-              />
-            </div>
-          </Show>
-
-          <Show when={activeTab() === 'download'}>
-            <div class="max-w-4xl mx-auto">
-              <DownloadView
-                onOpenLibrary={openLibrary}
-                onStartDownload={(jobId) => listenForProgress(jobId)}
-              />
-            </div>
-          </Show>
-
+      const playNextInQueue = () => {
+      const queue = playerQueue();
+      if (queue.length === 0) {
+        return;
+      }
+      const activeFilename = normalizeQueueKey(state.player.selectedMedia?.filename);
+      const currentIndex = queue.findIndex((entry) => normalizeQueueKey(entry.filename) === activeFilename);
+      const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % queue.length;
+      const nextItem = queue[nextIndex];
+      if (!nextItem) {
+        return;
+      }
+      setState('player', 'selectedMedia', toPlayerMediaItem(nextItem));
+      setState('player', 'active', true);
+    };
+  
+    const handleDownload = async (urlsInput) => {
+      if (state.download.isDownloading) return;
+  
+      const urls = Array.isArray(urlsInput) ? urlsInput : [urlsInput];
+      if (urls.length === 0) return;
+  
+      setState('download', 'jobStatus', {
+        status: 'queued',
+        message: 'Starting download job...',
+        error: '',
+      });
+      setState('download', 'isDownloading', true);
+      setState('download', 'progressTasks', {});
+      setState('download', 'logMessages', []);
+  
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            urls: urls,
+            options: {
+              format: state.settings.output,
+              quality: state.settings.quality,
+              maxJobs: state.settings.jobs,
+              timeout: state.settings.timeout,
+              audioOnly: state.settings.audioOnly,
+              onDuplicate: state.settings.onDuplicate,
+              useCookies: state.settings.useCookies,
+              poTokenExtension: state.settings.poTokenExtension,
+            },
+          }),
+        });
+  
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to start download');
+        }
+  
+        listenForProgress(data.jobId);
+      } catch (e) {
+        console.error('Download start failed:', e);
+        setState('download', 'jobStatus', {
+          status: 'error',
+          message: 'Failed to start download.',
+          error: e.message,
+        });
+        setState('download', 'isDownloading', false);
+      }
+    };
+  
+    return (
+      <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
+  
+        <Sidebar activeTab={activeTab()} onTabChange={setActiveTab} />
+  
+        {/* Main Content */}
+        <main class="flex-1 flex flex-col bg-transparent relative min-w-0">
+          <Header
+            activeTab={activeTab()}
+            isAdvanced={isAdvanced()}
+            onToggleAdvanced={toggleAdvanced}
+          />
+  
+          <div class="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+  
+            <Show when={activeTab() === 'dashboard'}>
+              <div class="max-w-7xl mx-auto">
+                <DashboardView
+                  libraryModel={libraryModel}
+                  onTabChange={setActiveTab}
+                  onDirectDownload={handleDownload}
+                />
+              </div>
+            </Show>
+  
+            <Show when={activeTab() === 'download'}>
+              <div class="max-w-4xl mx-auto">
+                <DownloadView
+                  onOpenLibrary={openLibrary}
+                  onStartDownload={handleDownload}
+                />
+              </div>
+            </Show>
           <Show when={activeTab() === 'library'}>
             <div class="max-w-dynamic mx-auto h-full">
               <LibraryView
