@@ -188,24 +188,18 @@ function App() {
   // Keep library data fresh after terminal download outcomes
   createEffect(() => {
     const currentJobStatus = downloadJobStatus();
-    if (!currentJobStatus) return;
-    
-    const status = currentJobStatus.status;
-    const jobId = currentJobStatus.jobId;
-
+    const jobId = currentJobStatus?.jobId;
     if (typeof jobId !== 'string' || jobId === '') {
       return;
     }
-
-    // Trigger immediate sync on terminal status if not already syncing for THIS job
-    if (isTerminalDownloadStatus(status)) {
-        if (jobId !== lastSyncedLibraryJobId && jobId !== pendingLibrarySyncJobId) {
-            console.info(`[app] terminal status reached (${status}) for job ${jobId}, triggering library sync`);
-            // Optimistically mark as pending to prevent duplicate triggers while fetch is in flight
-            pendingLibrarySyncJobId = jobId; 
-            void syncLibraryForJob(jobId, 1);
-        }
+    if (jobId === lastSyncedLibraryJobId || jobId === pendingLibrarySyncJobId) {
+      return;
     }
+
+    if (!shouldSyncLibraryForTerminalDownload(currentJobStatus?.status, currentJobStatus?.stats)) {
+      return;
+    }
+    void syncLibraryForJob(jobId, 1);
   });
 
   onCleanup(() => {
