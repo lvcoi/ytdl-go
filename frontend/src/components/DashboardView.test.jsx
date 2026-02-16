@@ -23,7 +23,7 @@ describe('DashboardView component', () => {
         ));
         
         expect(getByText(/Welcome Back!/i)).toBeInTheDocument();
-        expect(getByPlaceholderText(/Quick Download: Paste URL/i)).toBeInTheDocument();
+        expect(getByPlaceholderText(/Paste URL to download immediately/i)).toBeInTheDocument();
     });
 
     it('triggers onDirectDownload when DirectDownload is used', () => {
@@ -38,9 +38,8 @@ describe('DashboardView component', () => {
             </AppStoreProvider>
         ));
         
-        const input = getByPlaceholderText(/Quick Download: Paste URL/i);
-        // Use exact match for "Download" to distinguish from "New Download"
-        const button = getByRole('button', { name: /^Download$/i });
+        const input = getByPlaceholderText(/Paste URL to download immediately/i);
+        const button = getByRole('button', { name: /Download Now/i });
         
         fireEvent.input(input, { target: { value: 'https://youtube.com/watch?v=123' } });
         fireEvent.click(button);
