@@ -11,8 +11,8 @@ describe('LibraryView component', () => {
 
         it('renders initial state correctly', () => {
     const { getAllByText } = render(() => <LibraryView {...mockProps} />);
-    // Initial section is 'artists', which has label 'Music' in the sidebar and title 'Music'
-    expect(getAllByText('Music').length).toBeGreaterThan(0);
+    // Initial section is 'artists', which has title 'Artists'
+    expect(getAllByText('Artists').length).toBeGreaterThan(0);
   });
 
 
