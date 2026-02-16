@@ -282,6 +282,8 @@ export function useDownloadManager() {
 
         if (isTerminalStatus(status)) {
             setIsDownloading(false);
+            setDuplicateQueue([]);
+            setDuplicateError('');
             return;
         }
         setIsDownloading(true);
@@ -308,11 +310,7 @@ export function useDownloadManager() {
         setIsDownloading(false);
         setDuplicateQueue([]);
         setDuplicateError('');
-        
-        // Stop the stream but don't clear the task/log state yet so user can see final results
-        closeProgressStream();
-        clearReconnectTimer();
-        activeJobId = '';
+        resetProgressStreamState();
     };
 
     const listenForProgress = (jobId) => {
