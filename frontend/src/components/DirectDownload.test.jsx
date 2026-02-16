@@ -8,8 +8,8 @@ describe('DirectDownload component', () => {
             <DirectDownload onDownload={() => {}} />
         ));
         
-        expect(getByPlaceholderText(/Paste URL/i)).toBeInTheDocument();
-        expect(getByRole('button', { name: /Download Now/i })).toBeInTheDocument();
+        expect(getByPlaceholderText(/Quick Download/i)).toBeInTheDocument();
+        expect(getByRole('button', { name: /Download/i })).toBeInTheDocument();
     });
 
     it('updates input value on change', () => {
@@ -17,7 +17,7 @@ describe('DirectDownload component', () => {
             <DirectDownload onDownload={() => {}} />
         ));
         
-        const input = getByPlaceholderText(/Paste URL/i);
+        const input = getByPlaceholderText(/Quick Download/i);
         fireEvent.input(input, { target: { value: 'https://youtube.com/watch?v=123' } });
         expect(input.value).toBe('https://youtube.com/watch?v=123');
     });
@@ -28,8 +28,8 @@ describe('DirectDownload component', () => {
             <DirectDownload onDownload={onDownload} />
         ));
         
-        const input = getByPlaceholderText(/Paste URL/i);
-        const button = getByRole('button', { name: /Download Now/i });
+        const input = getByPlaceholderText(/Quick Download/i);
+        const button = getByRole('button', { name: /Download/i });
         
         fireEvent.input(input, { target: { value: 'https://youtube.com/watch?v=456' } });
         fireEvent.click(button);
@@ -42,8 +42,8 @@ describe('DirectDownload component', () => {
             <DirectDownload onDownload={() => {}} />
         ));
         
-        const input = getByPlaceholderText(/Paste URL/i);
-        const button = getByRole('button', { name: /Download Now/i });
+        const input = getByPlaceholderText(/Quick Download/i);
+        const button = getByRole('button', { name: /Download/i });
         
         fireEvent.input(input, { target: { value: 'test-url' } });
         fireEvent.click(button);
