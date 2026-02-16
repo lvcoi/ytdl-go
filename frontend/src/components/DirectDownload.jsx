@@ -14,29 +14,29 @@ export default function DirectDownload(props) {
     };
 
     return (
-        <div class="rounded-2xl border border-accent-primary/20 bg-accent-primary/5 p-0.5 transition-all duration-500 focus-within:border-accent-primary/40 focus-within:bg-accent-primary/10 group shadow-lg shadow-accent-primary/5 h-12 flex items-center">
-            <form onSubmit={handleDownload} class="flex items-center gap-2 w-full h-full">
-                <div class="flex-1 flex items-center gap-2 px-4 h-full">
-                    <Icon name="link-2" class="w-4 h-4 text-accent-primary opacity-60 group-focus-within:opacity-100 transition-opacity" />
+        <div class="rounded-[2rem] border-2 border-accent-primary/30 bg-accent-primary/5 p-1 transition-all duration-500 focus-within:border-accent-primary focus-within:bg-accent-primary/10 group shadow-2xl shadow-accent-primary/10">
+            <form onSubmit={handleDownload} class="flex items-center gap-2">
+                <div class="flex-1 flex items-center gap-3 px-6 py-4">
+                    <Icon name="link-2" class="w-5 h-5 text-accent-primary animate-pulse" />
                     <input
                         type="text"
                         value={url()}
                         onInput={(e) => setUrl(e.target.value)}
-                        placeholder="Quick Download: Paste URL..."
-                        class="w-full bg-transparent border-none outline-none text-white text-sm placeholder:text-gray-500 placeholder:font-normal"
+                        placeholder="Paste URL to download immediately..."
+                        class="w-full bg-transparent border-none outline-none text-white font-medium placeholder:text-gray-500 placeholder:font-normal"
                     />
                 </div>
                 <button
                     type="submit"
                     disabled={!url().trim()}
-                    class={`px-4 h-[calc(100%-4px)] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 flex items-center gap-2 mr-0.5 ${
+                    class={`px-8 py-4 rounded-[1.7rem] font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2 m-1 ${
                         url().trim() 
-                        ? 'bg-accent-primary text-white hover:scale-[1.02] active:scale-95 shadow-md shadow-accent-primary/30' 
+                        ? 'bg-accent-primary text-white hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent-primary/40' 
                         : 'bg-white/5 text-gray-500 cursor-not-allowed'
                     }`}
                 >
-                    <Icon name="download" class="w-3 h-3" />
-                    Download
+                    <Icon name="download" class={`w-4 h-4 ${url().trim() ? 'animate-bounce' : ''}`} />
+                    Download Now
                 </button>
             </form>
         </div>

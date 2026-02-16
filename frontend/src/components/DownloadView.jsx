@@ -498,6 +498,15 @@ export default function DownloadView(props = {}) {
               </Show>
             </div>
           </Show>
+
+          <Show when={!jobStatus()}>
+            <div class="h-64 rounded-[2rem] border border-white/5 bg-white/5 flex flex-col items-center justify-center text-gray-500 gap-4">
+              <div class="w-16 h-16 rounded-3xl bg-black/40 flex items-center justify-center">
+                <Icon name="download-cloud" class="w-8 h-8 opacity-50" />
+              </div>
+              <p class="font-medium">Ready to download</p>
+            </div>
+          </Show>
         </GridItem>
       </Grid>
 
