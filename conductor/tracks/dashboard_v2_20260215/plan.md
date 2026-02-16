@@ -4,10 +4,10 @@
 - [x] Task: Fix Header Alignment for YT Auth Status and Advanced Mode. d38f05f
     - [x] Write tests for Header component alignment.
     - [x] Adjust CSS/Layout in `Header.jsx` to ensure vertical alignment.
-- [x] Task: Implement Direct Download Component. a8b71ed
-    - [x] Write tests for `DirectDownload` component (URL input, button click, validation).
-    - [x] Create `DirectDownload.jsx` component with "Hot Input" styling.
-    - [x] Integrate `DirectDownload` into `DashboardView.jsx`.
+- [ ] Task: Implement Direct Download Component.
+    - [ ] Write tests for `DirectDownload` component (URL input, button click, validation).
+    - [ ] Create `DirectDownload.jsx` component with "Hot Input" styling.
+    - [ ] Integrate `DirectDownload` into `DashboardView.jsx`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Header Alignment and Direct Download Module' (Protocol in workflow.md)
 
 ## Phase 2: Modular Grid and Edit Mode
