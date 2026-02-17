@@ -1,7 +1,6 @@
 import { For, Show, createMemo } from 'solid-js';
 import Icon from './Icon';
 import { useAppStore } from '../store/appStore';
-import { getStatusColor } from '../utils/theme';
 
 export default function ActiveDownloads() {
     const { state } = useAppStore();
@@ -19,10 +18,19 @@ export default function ActiveDownloads() {
         });
     });
 
-    const hasActiveDownloads = createMemo(() => sortedTasks().length > 0);
-
     const overallStatus = createMemo(() => jobStatus()?.status || 'idle');
     const overallMessage = createMemo(() => jobStatus()?.message || '');
+
+    const hasActiveDownloads = createMemo(() => {
+        const tasks = sortedTasks();
+        if (tasks.length > 0) return true;
+        const status = overallStatus();
+        return ['queued', 'running', 'reconnecting'].includes(status);
+    });
+
+    const isLoading = createMemo(() => {
+        return hasActiveDownloads() && sortedTasks().length === 0;
+    });
 
     const statusColor = createMemo(() => {
         const status = overallStatus();
@@ -56,6 +64,14 @@ export default function ActiveDownloads() {
                             {overallMessage()}
                         </div>
                     </Show>
+
+                    <Show when={isLoading()}>
+                        <div class="flex flex-col items-center justify-center py-8 text-gray-500 gap-3 animate-pulse">
+                            <Icon name="loader" class="w-8 h-8 animate-spin opacity-50" />
+                            <span class="text-xs font-bold uppercase tracking-widest">Initializing...</span>
+                        </div>
+                    </Show>
+
                     <For each={sortedTasks()}>
                         {([id, task]) => (
                             <div class="rounded-xl border border-white/5 bg-white/5 p-3 space-y-2">

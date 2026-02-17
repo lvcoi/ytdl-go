@@ -87,6 +87,36 @@ const humanBytes = (bytes) => {
   return `${value.toFixed(precision)} ${units[index]}`;
 };
 
+const statusIconName = (status) => {
+  const s = normalizeStatus(status);
+  if (s === 'error') return 'alert-circle';
+  if (s === 'complete') return 'check-circle-2';
+  if (s === 'reconnecting') return 'loader';
+  if (s === 'running') return 'loader';
+  if (s === 'queued') return 'loader';
+  return 'download-cloud';
+};
+
+const statusTitle = (status) => {
+  const s = normalizeStatus(status);
+  if (s === 'error') return 'Download Failed';
+  if (s === 'complete') return 'Download Complete';
+  if (s === 'reconnecting') return 'Reconnecting...';
+  if (s === 'running') return 'Downloading...';
+  if (s === 'queued') return 'Queued';
+  return 'Ready';
+};
+
+const statusDefaultMessage = (status) => {
+  const s = normalizeStatus(status);
+  if (s === 'error') return 'An unexpected error occurred.';
+  if (s === 'complete') return 'All tasks finished successfully.';
+  if (s === 'reconnecting') return 'Connection interrupted, attempting to resume...';
+  if (s === 'running') return 'Processing download tasks...';
+  if (s === 'queued') return 'Waiting for available worker slot...';
+  return 'Ready to start.';
+};
+
 export default function DownloadView(props = {}) {
   const { state, setState } = useAppStore();
 
