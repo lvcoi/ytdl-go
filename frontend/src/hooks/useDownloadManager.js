@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from 'solid-js';
+import { createEffect, onCleanup, batch } from 'solid-js';
 import { useAppStore } from '../store/appStore';
 import {
     isActiveDownloadStreamStatus,
@@ -348,114 +348,115 @@ export function useDownloadManager() {
                         }
                     }
 
-                    markStreamConnected();
-
-                    switch (evt.type) {
-                        case 'snapshot':
-                            applySnapshot(evt.snapshot, jobId);
-                            break;
-                        case 'status':
-                            handleStatusEvent(evt, jobId);
-                            break;
-                        case 'register':
-                            if (typeof evt.id === 'string' && evt.id !== '') {
-                                setProgressTasks((prev) => ({
-                                    ...prev,
-                                    [evt.id]: {
-                                        ...(prev[evt.id] || {}),
-                                        label: evt.label || prev[evt.id]?.label || evt.id,
-                                        total: toNonNegativeInteger(evt.total, prev[evt.id]?.total || 0),
-                                        current: toNonNegativeInteger(evt.current, 0),
-                                        percent: toFinitePercent(evt.percent),
-                                        done: false,
-                                    },
-                                }));
-                            }
-                            break;
-                        case 'progress':
-                            if (typeof evt.id === 'string' && evt.id !== '') {
-                                setProgressTasks((prev) => {
-                                    const existing = prev[evt.id] || {};
-                                    const total = toNonNegativeInteger(evt.total, existing.total || 0);
-                                    let current = toNonNegativeInteger(evt.current, existing.current || 0);
-                                    if (total > 0 && current > total) current = total;
-                                    const percent = toFinitePercent(
-                                        typeof evt.percent === 'number' && Number.isFinite(evt.percent)
-                                            ? evt.percent
-                                            : (total > 0 ? (current * 100) / total : existing.percent || 0),
-                                    );
-                                    return {
+                    batch(() => {
+                        markStreamConnected();
+                        switch (evt.type) {
+                            case 'snapshot':
+                                applySnapshot(evt.snapshot, jobId);
+                                break;
+                            case 'status':
+                                handleStatusEvent(evt, jobId);
+                                break;
+                            case 'register':
+                                if (typeof evt.id === 'string' && evt.id !== '') {
+                                    setProgressTasks((prev) => ({
                                         ...prev,
                                         [evt.id]: {
-                                            ...existing,
-                                            label: evt.label || existing.label || evt.id,
-                                            total,
-                                            current,
-                                            percent,
-                                            done: percent >= 100,
+                                            ...(prev[evt.id] || {}),
+                                            label: evt.label || prev[evt.id]?.label || evt.id,
+                                            total: toNonNegativeInteger(evt.total, prev[evt.id]?.total || 0),
+                                            current: toNonNegativeInteger(evt.current, 0),
+                                            percent: toFinitePercent(evt.percent),
+                                            done: false,
                                         },
-                                    };
-                                });
-                            }
-                            break;
-                        case 'finish':
-                            if (typeof evt.id === 'string' && evt.id !== '') {
-                                setProgressTasks((prev) => ({
-                                    ...prev,
-                                    [evt.id]: {
-                                        ...(prev[evt.id] || {}),
-                                        label: prev[evt.id]?.label || evt.id,
-                                        current: Math.max(
-                                            toNonNegativeInteger(prev[evt.id]?.current, 0),
-                                            toNonNegativeInteger(prev[evt.id]?.total, 0),
-                                        ),
-                                        total: toNonNegativeInteger(prev[evt.id]?.total, 0),
-                                        percent: 100,
-                                        done: true,
-                                    },
-                                }));
-                            }
-                            break;
-                        case 'log':
-                            if (typeof evt.message === 'string' && evt.message !== '') {
-                                setLogMessages((prev) => [
-                                    ...prev,
-                                    {
-                                        level: normalizeLogLevel(evt.level),
-                                        message: evt.message,
-                                    },
-                                ].slice(-maxVisibleLogs));
-                            }
-                            break;
-                        case 'duplicate':
-                            if (typeof evt.promptId === 'string' && evt.promptId !== '') {
-                                setDuplicateQueue((prev) => {
-                                    if (prev.some((item) => item.promptId === evt.promptId)) return prev;
-                                    return [
+                                    }));
+                                }
+                                break;
+                            case 'progress':
+                                if (typeof evt.id === 'string' && evt.id !== '') {
+                                    setProgressTasks((prev) => {
+                                        const existing = prev[evt.id] || {};
+                                        const total = toNonNegativeInteger(evt.total, existing.total || 0);
+                                        let current = toNonNegativeInteger(evt.current, existing.current || 0);
+                                        if (total > 0 && current > total) current = total;
+                                        const percent = toFinitePercent(
+                                            typeof evt.percent === 'number' && Number.isFinite(evt.percent)
+                                                ? evt.percent
+                                                : (total > 0 ? (current * 100) / total : existing.percent || 0),
+                                        );
+                                        return {
+                                            ...prev,
+                                            [evt.id]: {
+                                                ...existing,
+                                                label: evt.label || existing.label || evt.id,
+                                                total,
+                                                current,
+                                                percent,
+                                                done: percent >= 100,
+                                            },
+                                        };
+                                    });
+                                }
+                                break;
+                            case 'finish':
+                                if (typeof evt.id === 'string' && evt.id !== '') {
+                                    setProgressTasks((prev) => ({
+                                        ...prev,
+                                        [evt.id]: {
+                                            ...(prev[evt.id] || {}),
+                                            label: prev[evt.id]?.label || evt.id,
+                                            current: Math.max(
+                                                toNonNegativeInteger(prev[evt.id]?.current, 0),
+                                                toNonNegativeInteger(prev[evt.id]?.total, 0),
+                                            ),
+                                            total: toNonNegativeInteger(prev[evt.id]?.total, 0),
+                                            percent: 100,
+                                            done: true,
+                                        },
+                                    }));
+                                }
+                                break;
+                            case 'log':
+                                if (typeof evt.message === 'string' && evt.message !== '') {
+                                    setLogMessages((prev) => [
                                         ...prev,
                                         {
-                                            jobId,
-                                            promptId: evt.promptId,
-                                            path: typeof evt.path === 'string' ? evt.path : '',
-                                            filename: typeof evt.filename === 'string' ? evt.filename : '', // Fix: use evt.filename
+                                            level: normalizeLogLevel(evt.level),
+                                            message: evt.message,
                                         },
-                                    ];
-                                });
-                                setDuplicateError('');
-                            }
-                            break;
-                        case 'duplicate-resolved':
-                            if (typeof evt.promptId === 'string' && evt.promptId !== '') {
-                                setDuplicateQueue((prev) => prev.filter((item) => item.promptId !== evt.promptId));
-                                setDuplicateError('');
-                            }
-                            break;
-                        case 'done':
-                            handleDoneEvent(evt, jobId);
-                            break;
-                        default:
-                            break;
-                    }
+                                    ].slice(-maxVisibleLogs));
+                                }
+                                break;
+                            case 'duplicate':
+                                if (typeof evt.promptId === 'string' && evt.promptId !== '') {
+                                    setDuplicateQueue((prev) => {
+                                        if (prev.some((item) => item.promptId === evt.promptId)) return prev;
+                                        return [
+                                            ...prev,
+                                            {
+                                                jobId,
+                                                promptId: evt.promptId,
+                                                path: typeof evt.path === 'string' ? evt.path : '',
+                                                filename: typeof evt.filename === 'string' ? evt.filename : '', // Fix: use evt.filename
+                                            },
+                                        ];
+                                    });
+                                    setDuplicateError('');
+                                }
+                                break;
+                            case 'duplicate-resolved':
+                                if (typeof evt.promptId === 'string' && evt.promptId !== '') {
+                                    setDuplicateQueue((prev) => prev.filter((item) => item.promptId !== evt.promptId));
+                                    setDuplicateError('');
+                                }
+                                break;
+                            case 'done':
+                                handleDoneEvent(evt, jobId);
+                                break;
+                            default:
+                                break;
+                        }
+                    });
                 } catch (error) {
                     reportSseClientError('Failed to parse/process SSE payload', error);
                 }
