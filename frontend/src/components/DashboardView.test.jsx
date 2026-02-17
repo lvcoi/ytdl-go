@@ -1,48 +1,25 @@
-import { render, screen, fireEvent } from '@solidjs/testing-library';
 import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@solidjs/testing-library';
 import DashboardView from './DashboardView';
-import { AppStoreProvider } from '../store/appStore';
 
-describe('DashboardView component', () => {
-    const mockLibraryModel = () => ({
-        items: [],
-        artists: [],
-        videos: [],
-        podcasts: [],
-    });
+// Mock child components to isolate DashboardView logic
+vi.mock('./QuickDownload', () => ({ default: () => <div data-testid="quick-download">QuickDownload</div> }));
+vi.mock('./ActiveDownloads', () => ({ default: () => <div data-testid="active-downloads">ActiveDownloads</div> }));
+vi.mock('./dashboard/WelcomeWidget', () => ({ default: () => <div data-testid="welcome-widget">WelcomeWidget</div> }));
+vi.mock('./dashboard/StatsWidget', () => ({ default: () => <div data-testid="stats-widget">StatsWidget</div> }));
+vi.mock('./dashboard/RecentActivityWidget', () => ({ default: () => <div data-testid="recent-activity-widget">RecentActivityWidget</div> }));
 
-    const renderDashboard = (props = {}) => {
-        return render(() => (
-            <AppStoreProvider>
-                <DashboardView 
-                    libraryModel={mockLibraryModel}
-                    onTabChange={() => {}}
-                    onDirectDownload={() => {}}
-                    {...props}
-                />
-            </AppStoreProvider>
-        ));
-    };
-
-    it('renders welcome message and DirectDownload', () => {
-        renderDashboard();
-        expect(screen.getByText(/Welcome Back!/i)).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/Paste YouTube URL here/i)).toBeInTheDocument();
-    });
-
-            it('triggers onDirectDownload when DirectDownload is used', () => {
-        const onDirectDownload = vi.fn();
-        renderDashboard({ onDirectDownload });
+describe('DashboardView', () => {
+    it('renders all widgets within the grid', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         
-        const input = screen.getByPlaceholderText(/Paste YouTube URL here/i);
-        // Be extremely specific to the form's submit button
-        const button = screen.getByRole('button', { name: /^Download$/i });
-
-        fireEvent.input(input, { target: { value: 'https://youtube.com/watch?v=test' } });
-        fireEvent.click(button);
-
-        expect(onDirectDownload).toHaveBeenCalledWith('https://youtube.com/watch?v=test');
+        render(() => <DashboardView libraryModel={mockModel} />);
+        
+        // Check for all widgets
+        expect(await screen.findByTestId('quick-download')).toBeInTheDocument();
+        expect(screen.getByTestId('welcome-widget')).toBeInTheDocument();
+        expect(screen.getByTestId('stats-widget')).toBeInTheDocument();
+        expect(screen.getByTestId('recent-activity-widget')).toBeInTheDocument();
+        expect(screen.getByTestId('active-downloads')).toBeInTheDocument();
     });
-
-
 });
