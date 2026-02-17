@@ -14,7 +14,7 @@ export default function Header(props) {
 
     return (
         <header class="h-24 px-10 flex items-center justify-between border-b border-white/5 bg-transparent backdrop-blur-sm z-20">
-            <div class="flex items-center gap-4 h-9">
+            <div class="flex items-center gap-4">
                 <h2 class="text-2xl font-black text-white tracking-tighter uppercase leading-none">{title()}</h2>
                 <div class="h-4 w-px bg-white/10 mx-2" />
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -23,7 +23,7 @@ export default function Header(props) {
                 </div>
             </div>
 
-            <div class="flex items-center gap-3 h-9">
+            <div class="flex items-center gap-3">
                 <button
                     onClick={props.onToggleAdvanced}
                     class={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${isAdvanced()
