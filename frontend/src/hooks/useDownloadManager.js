@@ -99,27 +99,37 @@ export function useDownloadManager() {
 
     const { state, setState } = useAppStore();
 
-    const handleWsEvent = (evt) => {
+        const handleWsEvent = (evt) => {
         if (!evt || typeof evt !== 'object' || typeof evt.type !== 'string') return;
+        
+        // Unwrap payload if it exists (legacy support vs new structure)
+        // The new service sends { type, payload }
+        // Some parts of this function seem to expect properties directly on evt
+        const data = evt.payload || evt;
 
         batch(() => {
             switch (evt.type) {
                 case 'snapshot':
-                    if (evt.snapshot) {
-                        applySnapshot(evt.snapshot);
+                    // snapshot is usually in the payload or top level?
+                    // Let's assume payload for now based on service structure
+                    if (data.snapshot) {
+                        applySnapshot(data.snapshot);
+                    } else if (evt.snapshot) {
+                         applySnapshot(evt.snapshot);
                     }
                     break;
                 case 'status':
-                    setDownloadStore('jobStatuses', evt.jobId, (prev) => {
-                        const nextStatus = normalizeDownloadStatus(evt.status);
+                     // status events might be top level or in payload
+                    setDownloadStore('jobStatuses', data.jobId, (prev) => {
+                        const nextStatus = normalizeDownloadStatus(data.status);
                         const next = {
                             ...(prev || {}),
-                            jobId: evt.jobId,
+                            jobId: data.jobId,
                             status: nextStatus,
-                            message: getStatusMessage(evt.status, evt.message, evt.error),
-                            error: evt.error,
-                            stats: normalizeStats(evt.stats) || prev?.stats,
-                            exitCode: evt.exitCode
+                            message: getStatusMessage(data.status, data.message, data.error),
+                            error: data.error,
+                            stats: normalizeStats(data.stats) || prev?.stats,
+                            exitCode: data.exitCode
                         };
                         
                         // Notify on terminal state change
@@ -131,64 +141,65 @@ export function useDownloadManager() {
                     });
                     break;
 
-                                                case 'register':
+                case 'register':
                 case 'progress':
                     // If it's the new payload format, id might be missing from top level but present in payload
                     // But our wsService already merged them: { ...payload, type }
-                    setDownloadStore('activeDownloads', evt.id, (prev) => ({
-                        id: evt.id,
-                        jobId: evt.jobId,
-                        label: evt.label || prev?.label || evt.id,
-                        total: toNonNegativeInteger(evt.total, prev?.total || 0),
-                        current: toNonNegativeInteger(evt.current, prev?.current || 0),
-                        percent: toFinitePercent(evt.percent),
-                        done: evt.percent >= 100
+                    // Actually, wsService dispatches { type, payload }
+                    // So we must use data.id
+                    if (!data.id) return;
+
+                    setDownloadStore('activeDownloads', data.id, (prev) => ({
+                        id: data.id,
+                        jobId: data.jobId,
+                        label: data.label || prev?.label || data.id,
+                        total: toNonNegativeInteger(data.total, prev?.total || 0),
+                        current: toNonNegativeInteger(data.current, prev?.current || 0),
+                        percent: toFinitePercent(data.percent),
+                        done: data.percent >= 100
                     }));
                     break;
 
-
-
-                                case 'finish':
-                    setDownloadStore('activeDownloads', evt.id, 'done', true);
-                    setDownloadStore('activeDownloads', evt.id, 'percent', 100);
+                case 'finish':
+                    if (data.id) {
+                        setDownloadStore('activeDownloads', data.id, 'done', true);
+                        setDownloadStore('activeDownloads', data.id, 'percent', 100);
+                    }
                     break;
-                                                case 'duplicate':
-                    if (typeof evt.promptId === 'string' && evt.promptId !== '') {
+                case 'duplicate':
+                    if (typeof data.promptId === 'string' && data.promptId !== '') {
                         setState('download', 'duplicateQueue', (prev) => {
-                            if (prev.some((item) => item.promptId === evt.promptId)) return prev;
+                            if (prev.some((item) => item.promptId === data.promptId)) return prev;
                             return [
                                 ...prev,
                                 {
-                                    jobId: evt.jobId,
-                                    promptId: evt.promptId,
-                                    path: evt.path || '',
-                                    filename: evt.filename || '', 
+                                    jobId: data.jobId,
+                                    promptId: data.promptId,
+                                    path: data.path || '',
+                                    filename: data.filename || '', 
                                 },
                             ];
                         });
                         setState('download', 'duplicateError', '');
-                        // Force a switch to the download tab to see the prompt?
-                        // Actually, the user wants it visible everywhere, so we keep it global.
-                        if (import.meta.env?.DEV) console.debug('[ws] Duplicate detected:', evt.filename);
+                        if (import.meta.env?.DEV) console.debug('[ws] Duplicate detected:', data.filename);
                     }
                     break;
                 case 'duplicate-resolved':
-                    if (typeof evt.promptId === 'string' && evt.promptId !== '') {
-                        setState('download', 'duplicateQueue', (prev) => prev.filter((item) => item.promptId !== evt.promptId));
+                    if (typeof data.promptId === 'string' && data.promptId !== '') {
+                        setState('download', 'duplicateQueue', (prev) => prev.filter((item) => item.promptId !== data.promptId));
                         setState('download', 'duplicateError', '');
-                        if (import.meta.env?.DEV) console.debug('[ws] Duplicate resolved:', evt.promptId);
+                        if (import.meta.env?.DEV) console.debug('[ws] Duplicate resolved:', data.promptId);
                     }
                     break;
 
                 case 'log':
-
                     setDownloadStore('logs', (prev) => [
                         ...prev, 
-                        { level: normalizeLogLevel(evt.level), message: evt.message }
+                        { level: normalizeLogLevel(data.level), message: data.message }
                     ].slice(-maxVisibleLogs));
                     break;
                 case 'done':
-                    setDownloadStore('jobStatuses', evt.jobId, 'status', normalizeStatus(evt.status));
+                    setDownloadStore('jobStatuses', data.jobId, 'status', normalizeStatus(data.status));
                     break;
                 default:
                     break;

@@ -5,15 +5,20 @@ class WebSocketService {
         this.socket = null;
         this.reconnectInterval = 3000;
         this.shouldReconnect = true;
+        this.listeners = new Set();
     }
 
-        connect() {
+    addListener(callback) {
+        this.listeners.add(callback);
+        return () => this.listeners.delete(callback);
+    }
+
+    connect() {
         if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
             return;
         }
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
         const host = window.location.host;
         const url = `${protocol}//${host}/ws`;
 
@@ -51,6 +56,7 @@ class WebSocketService {
     dispatch(message) {
         const { type, payload } = message;
 
+        // 1. Update Global Store (Single Source of Truth)
         switch (type) {
             case 'progress':
                 upsertDownload(payload);
@@ -59,8 +65,18 @@ class WebSocketService {
                 setDownloadError(payload);
                 break;
             default:
-                console.warn('Unknown message type:', type);
+                // Other types handled by listeners
+                break;
         }
+
+        // 2. Notify Listeners (e.g., useDownloadManager for logs/toasts)
+        this.listeners.forEach((listener) => {
+            try {
+                listener(message);
+            } catch (err) {
+                console.error('Error in WebSocket listener:', err);
+            }
+        });
     }
 
     close() {
