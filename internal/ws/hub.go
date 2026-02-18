@@ -42,7 +42,7 @@ type ErrorPayload struct {
 type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
-	send chan WSMessage // Unbuffered for strict backpressure
+	send chan WSMessage // Buffered to prevent aggressive disconnects
 }
 
 // Hub maintains the set of active clients and broadcasts messages to them.
@@ -100,7 +100,13 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 		log.Println("ws upgrade error:", err)
 		return
 	}
-	client := &Client{hub: h, conn: conn, send: make(chan WSMessage)}
+	// Added a buffer of 256 to handle rapid bursts of progress events
+	// Added a buffer of 256 to handle rapid bursts of progress events
+	// Added a buffer of 256 to handle rapid bursts of progress events
+	// Added a buffer of 256 to handle rapid bursts of progress events
+	// Added a buffer of 256 to handle rapid bursts of progress events
+	// Added a buffer of 256 to handle rapid bursts of progress events
+	client := &Client{hub: h, conn: conn, send: make(chan WSMessage, 256)}
 	h.register <- client
 
 	go client.writePump()

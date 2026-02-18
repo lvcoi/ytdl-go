@@ -141,7 +141,7 @@ export function useDownloadManager() {
                     });
                     break;
 
-                case 'register':
+                                case 'register':
                 case 'progress':
                     // If it's the new payload format, id might be missing from top level but present in payload
                     // But our wsService already merged them: { ...payload, type }
@@ -152,11 +152,17 @@ export function useDownloadManager() {
                     setDownloadStore('activeDownloads', data.id, (prev) => ({
                         id: data.id,
                         jobId: data.jobId,
-                        label: data.label || prev?.label || data.id,
+                        // Map filename correctly and persist it
+                        filename: data.filename || prev?.filename,
+                        label: data.label || data.filename || prev?.label || data.id,
+                        
                         total: toNonNegativeInteger(data.total, prev?.total || 0),
                         current: toNonNegativeInteger(data.current, prev?.current || 0),
                         percent: toFinitePercent(data.percent),
-                        done: data.percent >= 100
+                        status: data.status || prev?.status || 'downloading',
+                        eta: data.eta || prev?.eta,
+                        
+                        done: (data.status === 'complete') || (data.percent >= 100)
                     }));
                     break;
 

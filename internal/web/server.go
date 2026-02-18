@@ -372,6 +372,8 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 		}
 		opts.OutputDir = mediaDir
 		opts.Quiet = true
+		// Force progress reporting for the WebSocket renderer even in quiet mode
+		// We rely on the downloader checking opts.Renderer != nil as well
 
 		// Enqueue each URL as a separate task to the pool
 		for _, u := range req.URLs {

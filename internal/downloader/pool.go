@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/lvcoi/ytdl-go/internal/ws"
 )
@@ -131,11 +132,13 @@ func (p *Pool) Stop() {
 }
 
 type poolRenderer struct {
-	id  string
-	hub WSBroadcaster
+	id    string
+	hub   WSBroadcaster
+	start time.Time
 }
 
 func (r *poolRenderer) Register(prefix string, size int64) string {
+	r.start = time.Now()
 	// Emit a progress update with the filename (prefix)
 	r.hub.Broadcast(ws.WSMessage{
 		Type: "progress",
@@ -151,8 +154,26 @@ func (r *poolRenderer) Register(prefix string, size int64) string {
 
 func (r *poolRenderer) Update(id string, current, total int64) {
 	percent := 0.0
+	eta := ""
 	if total > 0 {
 		percent = float64(current) * 100 / float64(total)
+		if !r.start.IsZero() {
+			elapsed := time.Since(r.start).Seconds()
+			if elapsed > 0 {
+				rate := float64(current) / elapsed
+				if rate > 0 {
+					remainingBytes := float64(total - current)
+					remainingSeconds := remainingBytes / rate
+					if remainingSeconds < 60 {
+						eta = fmt.Sprintf("%.0fs", remainingSeconds)
+					} else {
+						minutes := int(remainingSeconds) / 60
+						seconds := int(remainingSeconds) % 60
+						eta = fmt.Sprintf("%dm%ds", minutes, seconds)
+					}
+				}
+			}
+		}
 	}
 	r.hub.Broadcast(ws.WSMessage{
 		Type: "progress",
@@ -160,6 +181,7 @@ func (r *poolRenderer) Update(id string, current, total int64) {
 			ID:      r.id,
 			Percent: percent,
 			Status:  "downloading",
+			ETA:     eta,
 		},
 	})
 }

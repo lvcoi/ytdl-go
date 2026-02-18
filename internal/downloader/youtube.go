@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lvcoi/ytdl-lib/v2"
+	youtube "github.com/lvcoi/ytdl-lib/v2"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -95,7 +95,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video
 	}
 
 	var writer io.Writer = tempFile
-	if !opts.Quiet {
+	if !opts.Quiet || opts.Renderer != nil {
 		if progress != nil {
 			progress.Reset(size)
 		} else {
@@ -235,7 +235,7 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 
 	var writer io.Writer = file
 	var progress *progressWriter
-	if !opts.Quiet {
+	if !opts.Quiet || opts.Renderer != nil {
 		progress = newProgressWriter(size, printer, prefix)
 		writer = io.MultiWriter(file, progress)
 	}
@@ -266,7 +266,7 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 			}
 
 			writer = file
-			if !opts.Quiet {
+			if !opts.Quiet || opts.Renderer != nil {
 				if progress != nil {
 					progress.Reset(size)
 				} else {
