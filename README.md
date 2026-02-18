@@ -1,8 +1,9 @@
 <div align="center">
+<img src="img/ytdl-Gopher.png" alt="ytdl-gopher">
 
 # ytdl-go
 
-**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive, and dependency-free._
+**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive._
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
@@ -84,10 +85,13 @@ Use `build.sh` for an integrated repository build (Go binary + frontend assets).
 # Build backend + frontend, then prompt to launch the UI
 ./build.sh
 
-# Build and automatically launch the UI
+# Build and automatically launch backend + frontend UI
 ./build.sh --web
 
-# Build and launch UI against a backend running on a different port
+# Build and launch against a backend on a custom requested web address
+YTDL_WEB_ADDR=127.0.0.1:9090 ./build.sh --web
+
+# Build and launch UI against an explicit API proxy target
 VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
 
 # Show script options
@@ -98,8 +102,10 @@ What it does:
 
 - Builds the Go binary to `./bin/yt`
 - Builds frontend assets into `internal/web/assets/`
-- Prompts to launch the UI unless `--web` is passed
-- Uses `VITE_API_PROXY_TARGET` for frontend API proxy target (default `http://127.0.0.1:8080`)
+- Prompts to launch backend + frontend dev UI unless `--web` is passed
+- Launches backend via `yt -web --web-addr "${YTDL_WEB_ADDR:-127.0.0.1:8080}"`
+- Uses `VITE_API_PROXY_TARGET` only when explicitly set; otherwise Vite auto-detects backend from `http://127.0.0.1:8080` + fallback ports
+- `ytdl-go -web` auto-falls back to the next available port if the requested port is already in use, and logs the final URL
 
 Options:
 
@@ -176,9 +182,6 @@ ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
 ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
-**Supported Placeholders:**
-`{title}`, `{artist}`, `{album}`, `{id}`, `{ext}`, `{quality}`, `{playlist-title}`, `{playlist-id}`, `{index}`, `{count}`
-
 ---
 
 ## ⚙️ Advanced Usage
@@ -226,17 +229,7 @@ ytdl-go -quiet URL
 
 ## 📊 Command Line Options
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-o` | `{title}.{ext}` | Output template. |
-| `-audio` | `false` | Download best audio-only format. |
-| `-list-formats` | `false` | Launch interactive format selector. |
-| `-quality` | `best` | Target quality (`1080p`, `720p`, `worst`). |
-| `-format` | `` | Preferred container (`mp4`, `webm`, `m4a`). |
-| `-jobs` | `1` | Concurrent download jobs. |
-| `-json` | `false` | Output logs/status as JSON lines. |
-| `-quiet` | `false` | Suppress progress and other non-error output (errors are still printed). |
-| `-meta` | `` | Override metadata field (`key=value`). |
+For a comprehensive reference of all command-line flags, see the [Command-Line Flags Reference](./docs/FLAGS.md).
 
 ---
 
@@ -248,6 +241,8 @@ ytdl-go -quiet URL
 - **403 Forbidden Errors:** The tool automatically retries with different methods. If persistent, check your IP reputation or try `-timeout 10m`.
 - **Restricted Content:** Private, age-gated, or member-only videos require authentication which is currently **not supported**.
 - **Playlists:** Empty videos or deleted entries in playlists are automatically skipped.
+- **Library Metadata/Thumbnails:** New downloads write sidecar metadata (`<media-file>.json`) used by the web UI for artist/album/thumbnail grouping. Legacy files without sidecars still load, but may appear under Unknown buckets until re-downloaded.
+- **Web Port Already in Use:** `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL and point Vite with `VITE_API_PROXY_TARGET=http://127.0.0.1:<port>`.
 
 </details>
 

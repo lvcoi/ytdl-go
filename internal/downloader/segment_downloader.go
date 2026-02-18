@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/kkdai/youtube/v2"
 )
 
 type segmentDownloadPlan struct {
@@ -44,7 +42,7 @@ func defaultSegmentConcurrency(value int) int {
 	return cpu * ioMultiplier
 }
 
-func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
+func downloadSegmentsParallel(ctx context.Context, client YouTubeClient, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
 	concurrency := defaultSegmentConcurrency(plan.Concurrency)
 	if concurrency < 2 || len(plan.URLs) < 2 {
 		return downloadSegmentsSequential(ctx, client, plan, writer, printer)
@@ -287,7 +285,7 @@ func validateSegmentTempDir(tempDir string) (string, error) {
 	return evalTemp, nil
 }
 
-func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
+func downloadSegmentsSequential(ctx context.Context, client YouTubeClient, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
 	progress := (*progressWriter)(nil)
 	if printer != nil {
 		progress = newProgressWriter(0, printer, plan.Prefix)

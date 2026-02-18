@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 	partSuffix        = ".part"
 )
 
-func downloadAdaptive(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, formatErr error) (downloadResult, error) {
+func downloadAdaptive(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string, formatErr error) (downloadResult, error) {
 	if opts.AudioOnly {
 		return downloadResult{}, wrapCategory(CategoryUnsupported, fmt.Errorf("audio-only adaptive downloads are not supported yet (use --list-formats): %w", formatErr))
 	}
@@ -36,7 +36,7 @@ func downloadAdaptive(ctx context.Context, client *youtube.Client, video *youtub
 	return downloadResult{}, formatErr
 }
 
-func downloadHLS(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (downloadResult, error) {
+func downloadHLS(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (downloadResult, error) {
 	manifestURL := video.HLSManifestURL
 	data, err := fetchManifest(ctx, client, manifestURL)
 	if err != nil {
@@ -199,12 +199,12 @@ func hlsFormatFromSegments(segments []HLSSegment, quality string, variant HLSVar
 	return format
 }
 
-func fetchManifest(ctx context.Context, client *youtube.Client, manifestURL string) ([]byte, error) {
+func fetchManifest(ctx context.Context, client YouTubeClient, manifestURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.HTTPClient.Do(req)
+	resp, err := client.HTTP().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ type hlsResumeState struct {
 	BytesWritten int64  `json:"bytes_written"`
 }
 
-func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistURL string, segments []HLSSegment, outputPath, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+func downloadHLSSegments(ctx context.Context, client YouTubeClient, playlistURL string, segments []HLSSegment, outputPath, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
 	partPath, err := artifactPath(outputPath, partSuffix, baseDir)
 	if err != nil {
 		return downloadResult{}, err
@@ -347,14 +347,14 @@ func downloadHLSSegments(ctx context.Context, client *youtube.Client, playlistUR
 	return downloadResult{bytes: state.BytesWritten, outputPath: outputPath}, nil
 }
 
-func downloadSegmentWithRetry(ctx context.Context, client *youtube.Client, segmentURL string, writer io.Writer) error {
+func downloadSegmentWithRetry(ctx context.Context, client YouTubeClient, segmentURL string, writer io.Writer) error {
 	var lastErr error
 	for attempt := 1; attempt <= maxSegmentRetries; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, segmentURL, nil)
 		if err != nil {
 			return err
 		}
-		resp, err := client.HTTPClient.Do(req)
+		resp, err := client.HTTP().Do(req)
 		if err == nil && resp != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			_, copyErr := io.Copy(writer, resp.Body)
 			resp.Body.Close()

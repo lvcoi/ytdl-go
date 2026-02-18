@@ -1,0 +1,78 @@
+# Frontend Architecture
+
+This document describes the high-level architecture of the `ytdl-go` web frontend.
+
+## Overview
+
+The frontend is a **Single Page Application (SPA)** built with [SolidJS](https://www.solidjs.com/). It compiles to static assets (`index.html`, `app.js`, `styles.css`) that are embedded directly into the Go binary at build time via `//go:embed`. This means the final distributed artifact is a single, self-contained executable.
+
+## Tech Stack
+
+| Layer | Technology |
+| ----- | ---------- |
+| UI Framework | SolidJS |
+| Build Tool | Vite |
+| Styling | Tailwind CSS |
+| Icons | lucide-solid |
+| Language | JavaScript (JSX) |
+
+## Component Structure
+
+```text
+src/
+├── App.jsx              # Root component and top-level layout
+├── index.jsx            # Entry point, mounts App + store provider
+├── utils/
+│   └── libraryModel.js  # Normalized library grouping/filtering model
+├── store/
+│   └── appStore.jsx     # Central app state + localStorage persistence
+└── components/
+    ├── DownloadView.jsx  # URL input, download options, result display
+    ├── LibraryView.jsx   # Explorer-style library (gallery/list/detail)
+    ├── SettingsView.jsx  # Configuration (cookies, extensions)
+    └── Player.jsx        # Media playback
+```
+
+## State Management
+
+State is centralized in `store/appStore.jsx` using Solid's context + store primitives. The app persists key UI fields in localStorage so layout and form choices survive reloads:
+
+- **`ui.activeTab`** — Current view (download, library, settings)
+- **`ui.isAdvanced`** — Power-user toggle state
+- **`settings`** — Download options (output template, quality, jobs, audio-only, duplicate policy)
+- **`library.section`** — Active library section (`artists`, `channels`, `playlists`, `all_media`)
+- **`library.viewMode`** — Explorer presentation (`gallery`, `list`, `detail`)
+- **`library.typeFilter`** — Type filter (`all`, `audio`, `video`)
+- **`library.navPath`** — Drill-down path (creator/album/playlist context + breadcrumbs)
+- **`library.filters`** — Query + advanced filters (creator/collection/source playlist/saved playlist)
+- **`library.ui`** — Library-specific UI flags (advanced filters panel + metadata anomaly banner dismiss state)
+- **`download.urlInput`** — Current URL draft in the download textarea
+
+Runtime download progress state is also centralized so tab navigation does not reset active download progress UI.
+Saved playlists and media-to-playlist assignments are persisted on the backend (`media/data/saved_playlists.json`) and synced through `/api/library/playlists`.
+A one-time frontend migration path (`/api/library/playlists/migrate`) seeds backend data from legacy localStorage state.
+Library grouping and metadata anomaly detection are derived client-side by `utils/libraryModel.js` from `/api/media/` responses plus saved-playlist assignments.
+Only durable state is persisted to localStorage. Transient runtime state (active job status/progress/logs/prompts) is intentionally not persisted.
+
+## Build & Integration Pipeline
+
+1. **Development:** `npm run dev` starts Vite dev server with hot reload. API calls proxy to the Go backend via `vite.config.js` proxy (`/api` → `VITE_API_PROXY_TARGET`, default `http://127.0.0.1:8080`). If `ytdl-go -web` auto-switches to a fallback port, update `VITE_API_PROXY_TARGET` to match the logged backend URL.
+2. **Production build:** `npm run build` compiles assets into `../internal/web/assets/`.
+3. **Go embed:** The Go server uses `//go:embed assets/*` to bundle the compiled frontend into the binary.
+4. **Runtime:** The Go server serves the SPA at `/` and API endpoints at `/api/*`.
+
+## API Communication
+
+The frontend communicates with the Go backend via JSON over HTTP:
+
+- **`POST /api/download`** — Submit URLs for download (synchronous, returns results).
+- **`GET /api/download/progress`** — Receive job progress events (SSE stream).
+- **`POST /api/download/duplicate-response`** — Resolve duplicate-file prompts.
+- **`GET /api/media/`** — Fetch downloaded media list.
+- **`GET /api/media/{filename}`** — Serve a specific media file.
+- **`GET /api/library/playlists`** — Load saved playlists + assignments.
+- **`PUT /api/library/playlists`** — Persist saved playlists + assignments.
+- **`POST /api/library/playlists/migrate`** — One-time migration from legacy local state.
+- **`GET /api/status`** — Server health and active job count.
+
+See [API.md](API.md) for the full contract.

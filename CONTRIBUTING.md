@@ -320,6 +320,41 @@ Then open a pull request on GitHub with:
 - Any related issues
 - Screenshots/examples if applicable
 
+## Frontend Development
+
+This section covers contributions to the web UI under `frontend/`.
+
+### Frontend Workflow
+
+1.  Install frontend dependencies:
+    ```sh
+    cd frontend
+    npm install
+    ```
+2.  Start the development server:
+    ```sh
+    npm run dev
+    ```
+3.  Implement your change in `frontend/src/`.
+4.  Validate the frontend build:
+    ```sh
+    npm run build
+    ```
+
+### Frontend Conventions
+
+*   **Components**: keep components focused and colocate related logic where practical.
+*   **Naming**: PascalCase for component files, camelCase for helpers/utilities.
+*   **Styling**: prefer Tailwind utility classes, keeping global CSS in `frontend/index.css` minimal.
+*   **Icons**: use `lucide-solid` through `frontend/src/components/Icon.jsx`; add icons by importing them there and extending `iconMap`.
+
+### Dependency Policy
+
+Keep dependencies lean.
+
+*   **Preferred**: small focused libraries.
+*   **Avoid by default**: large UI frameworks and heavy libraries that increase bundle size significantly.
+
 ## Submitting Changes
 
 ### Pull Request Guidelines
