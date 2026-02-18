@@ -12,9 +12,6 @@ import wsService from '../services/websocket';
 // Let's add a check in the service or just call connect().
 // The provided service code blindly connects. I should probably have added a check.
 // But for now, let's assume this component mounts once.
-if (!wsService.socket || wsService.socket.readyState === WebSocket.CLOSED) {
-    wsService.connect();
-}
 
 export default function ActiveDownloads() {
     // Sorted tasks from global store

@@ -40,10 +40,21 @@ fi
 
 # Flag handling
 AUTO_LAUNCH=false
+WEB_HOST="127.0.0.1"
+WEB_PORT="8080"
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -w|--web) 
             AUTO_LAUNCH=true 
+            ;;
+        -p|--port)
+            WEB_PORT="$2"
+            shift
+            ;;
+        -H|--host)
+            WEB_HOST="$2"
+            shift
             ;;
         -h|--help)
             usage
@@ -55,6 +66,7 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
 
 # Spinner/Progress Function
 run_with_feedback() {
@@ -132,7 +144,7 @@ fi
 
 # 5. Launch Logic
 launch_ui() {
-    local requested_web_addr="${YTDL_WEB_ADDR:-$DEFAULT_WEB_ADDR}"
+    local requested_web_addr="${WEB_HOST}:${WEB_PORT}"
     local backend_pid=""
     local ui_exit_code=0
 
@@ -162,20 +174,22 @@ launch_ui() {
 
     # Respect explicit override when provided; otherwise let Vite auto-detect
     # backend fallback ports from the default base target.
+    # We always set VITE_API_PROXY_TARGET to match the requested backend address
+    # unless specifically overridden.
+    local target="http://${requested_web_addr}"
     if [ -n "${VITE_API_PROXY_TARGET:-}" ]; then
-        echo -e "${GREEN}Launching UI (API proxy override: ${VITE_API_PROXY_TARGET})...${NC}"
-        env VITE_API_PROXY_TARGET="$VITE_API_PROXY_TARGET" npm run dev
-        ui_exit_code=$?
-    else
-        echo -e "${GREEN}Launching UI (API proxy: auto-detect from ${DEFAULT_WEB_ADDR} + fallback ports)...${NC}"
-        npm run dev
-        ui_exit_code=$?
+        target="$VITE_API_PROXY_TARGET"
     fi
+
+    echo -e "${GREEN}Launching UI (API proxy: ${target})...${NC}"
+    env VITE_API_PROXY_TARGET="$target" npm run dev
+    ui_exit_code=$?
 
     cleanup_backend
     trap - EXIT INT TERM
     return "$ui_exit_code"
 }
+
 
 if [ "$AUTO_LAUNCH" = true ]; then
     launch_ui
