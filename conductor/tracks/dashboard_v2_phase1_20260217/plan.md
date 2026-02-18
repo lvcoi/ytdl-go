@@ -1,18 +1,18 @@
 # Implementation Plan: Dashboard Evolution v2 P0
 
 ## Phase 1: Header Alignment and Quick Download Module
-- [ ] Task: Fix Header Alignment for YT Auth Status and Advanced Mode.
-    - [ ] Write tests for Header component alignment.
-    - [ ] Adjust CSS/Layout in `Header.jsx` to ensure vertical alignment.
-- [ ] Task: Implement Quick Download Component with Robust State Management.
-    - [ ] Write tests for `QuickDownload` component (simulating inputs and backend calls).
-    - [ ] Create `QuickDownload.jsx` component using `solid-component-builder` principles.
-    - [ ] Integrate into `DashboardView.jsx` using `batch()` for all status updates.
-- [ ] Task: Ensure Library Sync and Navigation Stability.
-    - [ ] Optimize `useDownloadManager.js` with `batch()` for SSE updates.
-    - [ ] Refine terminal status mapping ('done' -> 'complete').
-    - [ ] Verify library sync triggers on terminal job completion.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Header Alignment and Quick Download Module' (Protocol in workflow.md)
+- [x] Task: Fix Header Alignment for YT Auth Status and Advanced Mode. [commit: ff325dd]
+    - [x] Write tests for Header component alignment.
+    - [x] Adjust CSS/Layout in `Header.jsx` to ensure vertical alignment.
+- [x] Task: Implement Quick Download Component with Robust State Management. [commit: 4208ded]
+    - [x] Write tests for `QuickDownload` component (simulating inputs and backend calls).
+    - [x] Create `QuickDownload.jsx` component using `solid-component-builder` principles.
+    - [x] Integrate into `DashboardView.jsx` using `batch()` for all status updates.
+- [x] Task: Ensure Library Sync and Navigation Stability. [commit: c50e22d]
+    - [x] Optimize `useDownloadManager.js` with `batch()` for SSE updates.
+    - [x] Refine terminal status mapping ('done' -> 'complete').
+    - [x] Verify library sync triggers on terminal job completion.
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Header Alignment and Quick Download Module' (Protocol in workflow.md)
 
 ## Phase 2: Modular Grid and Edit Mode
 - [ ] Task: Refactor Dashboard into Modular Grid.

@@ -1,15 +1,14 @@
-import { For, Show, onCleanup, onMount } from 'solid-js';
+import { For, Show, onCleanup, onMount, createMemo } from 'solid-js';
 import Icon from './Icon';
 import Thumbnail from './Thumbnail';
 import { Grid, GridItem } from './Grid';
 import DuplicateModal from './DuplicateModal';
 import { MAX_JOBS, MAX_TIMEOUT_SECONDS, useAppStore } from '../store/appStore';
+import { downloadStore, setDownloadStore } from '../store/downloadStore';
+import { useDownloadManager } from '../hooks/useDownloadManager';
 import {
-  isActiveDownloadStreamStatus,
-  isTerminalDownloadStatus,
   normalizeDownloadStatus,
 } from '../utils/downloadStatus';
-import { getStatusColor } from '../utils/theme';
 import ActiveDownloads from './ActiveDownloads';
 
 const normalizeStatus = normalizeDownloadStatus;
@@ -46,18 +45,6 @@ const statusTone = (status) => {
   };
 };
 
-const toBoundedPositiveInteger = (value, fallback, max) => {
-  const parsed = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  const normalized = Math.trunc(parsed);
-  if (normalized <= 0) {
-    return fallback;
-  }
-  return Math.min(normalized, max);
-};
-
 const toNonNegativeInteger = (value, fallback = 0) => {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -75,16 +62,6 @@ const normalizeStats = (value) => {
     return null;
   }
   return stats;
-};
-
-const humanBytes = (bytes) => {
-  const normalized = toNonNegativeInteger(bytes, 0);
-  if (normalized <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(Math.floor(Math.log(normalized) / Math.log(1024)), units.length - 1);
-  const value = normalized / (1024 ** index);
-  const precision = index === 0 ? 0 : 1;
-  return `${value.toFixed(precision)} ${units[index]}`;
 };
 
 const statusIconName = (status) => {
@@ -119,38 +96,27 @@ const statusDefaultMessage = (status) => {
 
 export default function DownloadView(props = {}) {
   const { state, setState } = useAppStore();
+  const { startDownload, cancelDownload } = useDownloadManager();
 
   const urlInput = () => state.download.urlInput;
+
   const setUrlInput = (nextValue) => {
     setState('download', 'urlInput', nextValue);
   };
 
-  const isDownloading = () => state.download.isDownloading;
-
-  const jobStatus = () => state.download.jobStatus;
-  const setJobStatus = (nextValue) => {
-    setState('download', 'jobStatus', (prev) => (
-      typeof nextValue === 'function' ? nextValue(prev) : nextValue
-    ));
+  const currentJobId = () => downloadStore.lastJobId;
+  const jobStatus = () => currentJobId() ? downloadStore.jobStatuses[currentJobId()] : null;
+  
+  const isDownloading = () => {
+      const status = jobStatus()?.status;
+      return status === 'queued' || status === 'running' || status === 'reconnecting';
   };
 
-  const progressTasks = () => state.download.progressTasks;
-  const logMessages = () => state.download.logMessages;
-
-  const duplicateQueue = () => state.download.duplicateQueue;
-  const setDuplicateQueue = (nextValue) => {
-    setState('download', 'duplicateQueue', (prev) => (
-      typeof nextValue === 'function' ? nextValue(prev) : nextValue
-    ));
-  };
-
-  const duplicateError = () => state.download.duplicateError;
-  const setDuplicateError = (nextValue) => {
-    setState('download', 'duplicateError', nextValue);
-  };
+    const logMessages = () => downloadStore.logs;
 
   const settings = () => state.settings;
   const isAdvanced = () => state.ui.isAdvanced;
+
   const setSettings = (nextSettings) => {
     if (typeof nextSettings === 'function') {
       setState('settings', (prev) => {
@@ -158,208 +124,33 @@ export default function DownloadView(props = {}) {
         if (!resolved || typeof resolved !== 'object') {
           return prev;
         }
-        return {
-          ...prev,
-          ...resolved,
-        };
+        return { ...prev, ...resolved };
       });
       return;
     }
-
-    if (!nextSettings || typeof nextSettings !== 'object') {
-      return;
-    }
-
-    setState('settings', (prev) => ({
-      ...prev,
-      ...nextSettings,
-    }));
+    setState('settings', (prev) => ({ ...prev, ...nextSettings }));
   };
 
-  const activeDuplicate = () => duplicateQueue()[0] ?? null;
-
   const currentStats = () => normalizeStats(jobStatus()?.stats);
-  const currentStatus = () => normalizeStatus(jobStatus()?.status);
-  const currentStatusTone = () => statusTone(normalizeStatus(jobStatus()?.status));
 
-  const openLibrary = () => {
+  const currentStatus = () => normalizeStatus(jobStatus()?.status);
+  const currentStatusTone = () => statusTone(currentStatus());
+
+    const openLibrary = () => {
     if (typeof props.onOpenLibrary === 'function') {
       props.onOpenLibrary();
     }
   };
 
-  const parseInputUrls = (rawInput) => {
-    const lines = rawInput
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    const validUrls = [];
-    const invalidUrls = [];
-
-    for (const value of lines) {
-      try {
-        const parsed = new URL(value);
-        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-          validUrls.push(value);
-          continue;
-        }
-      } catch (_) { }
-      invalidUrls.push(value);
-    }
-
-    return { validUrls, invalidUrls };
-  };
-
-  const removeDuplicatePrompt = (promptId) => {
-    if (!promptId) return;
-    setDuplicateQueue((prev) => prev.filter((item) => item.promptId !== promptId));
-  };
-
-  const submitDuplicateChoice = async (choice) => {
-    const prompt = activeDuplicate();
-    if (!prompt) return;
-    setDuplicateError('');
-    try {
-      const res = await fetch('/api/download/duplicate-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: prompt.jobId,
-          promptId: prompt.promptId,
-          choice,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.error) {
-        if (res.status === 404 || res.status === 409) {
-          removeDuplicatePrompt(prompt.promptId);
-          setDuplicateError('');
-          return;
-        }
-        setDuplicateError(data.error || 'Failed to submit duplicate choice');
-        return;
-      }
-      removeDuplicatePrompt(prompt.promptId);
-      setDuplicateError('');
-    } catch (e) {
-      setDuplicateError(e.message || 'Failed to submit duplicate choice');
-    }
-  };
-
-  const handleDuplicateShortcut = (e) => {
-    if (!activeDuplicate()) return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-    switch (e.key) {
-      case 'o':
-        e.preventDefault();
-        submitDuplicateChoice('overwrite');
-        break;
-      case 'O':
-        e.preventDefault();
-        submitDuplicateChoice('overwrite_all');
-        break;
-      case 's':
-        e.preventDefault();
-        submitDuplicateChoice('skip');
-        break;
-      case 'S':
-        e.preventDefault();
-        submitDuplicateChoice('skip_all');
-        break;
-      case 'r':
-        e.preventDefault();
-        submitDuplicateChoice('rename');
-        break;
-      case 'R':
-        e.preventDefault();
-        submitDuplicateChoice('rename_all');
-        break;
-      case 'q':
-        e.preventDefault();
-        submitDuplicateChoice('cancel');
-        break;
-      default:
-        break;
-    }
-  };
-
   const handleDownload = async () => {
+
     if (isDownloading()) return;
-
-    const { validUrls, invalidUrls } = parseInputUrls(urlInput());
-    if (validUrls.length === 0) {
-      setJobStatus({
-        status: 'error',
-        message: 'Please enter at least one valid URL.',
-        error: invalidUrls.length > 0 ? 'Invalid URL format detected.' : 'No URL provided.',
-      });
-      return;
-    }
-
-    setJobStatus({
-      status: 'queued',
-      message: 'Starting download job...',
-      error: '',
-    });
-    setState('download', 'isDownloading', true);
-    setState('download', 'progressTasks', {});
-    setState('download', 'logMessages', []);
-
-    try {
-      const res = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          urls: validUrls,
-          options: {
-            format: settings().output,
-            quality: settings().quality,
-            maxJobs: settings().jobs,
-            timeout: settings().timeout,
-            audioOnly: settings().audioOnly,
-            onDuplicate: settings().onDuplicate,
-            useCookies: settings().useCookies,
-            poTokenExtension: settings().poTokenExtension,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to start download');
-      }
-
-      if (typeof props.onStartDownload === 'function') {
-        props.onStartDownload(data.jobId);
-      }
-
-    } catch (e) {
-      console.error('Download start failed:', e);
-      setJobStatus({
-        status: 'error',
-        message: 'Failed to start download.',
-        error: e.message,
-      });
-      setState('download', 'isDownloading', false);
-    }
+    await startDownload(urlInput());
   };
-
-  onMount(() => {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('keydown', handleDuplicateShortcut);
-    }
-  });
-
-  onCleanup(() => {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('keydown', handleDuplicateShortcut);
-    }
-  });
 
   return (
     <div class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
       {/* Hero Section / Input */}
       <div class="space-y-6">
         <div class="flex flex-col gap-2">
@@ -500,17 +291,32 @@ export default function DownloadView(props = {}) {
             <div class={`p-8 rounded-[2rem] border min-h-[400px] flex flex-col gap-6 transition-all duration-500 ${currentStatusTone().card}`}>
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                  <div class={`p-3 rounded-xl ${currentStatusTone().icon}`}>
-                    <Icon name={statusIconName()} class="w-6 h-6 animate-pulse" />
+                                    <div class={`p-3 rounded-xl ${currentStatusTone().icon}`}>
+                    <Show when={!downloadStore.isDisconnected} fallback={<Icon name="wifi-off" class="w-6 h-6 text-red-400 animate-pulse" />}>
+                      <Icon name={statusIconName(currentStatus())} class="w-6 h-6 animate-pulse" />
+                    </Show>
                   </div>
-                  <div>
+
+                                    <div>
                     <div class={`text-lg font-bold ${currentStatusTone().accent}`}>
-                      {statusTitle(jobStatus()?.status)}
+                      {statusTitle(currentStatus())}
                     </div>
-                    <div class="text-sm text-gray-400 max-w-md truncate">
-                      {jobStatus()?.message || statusDefaultMessage(jobStatus()?.status)}
+                    <div class="flex items-center gap-2">
+                      <div class="text-sm text-gray-400 max-w-md truncate">
+                        {jobStatus()?.message || statusDefaultMessage(currentStatus())}
+                      </div>
+                      <Show when={isDownloading()}>
+                        <button 
+                          onClick={() => cancelDownload(currentJobId())}
+                          class="p-1 hover:bg-red-500/10 rounded-lg text-red-400/60 hover:text-red-400 transition-colors"
+                          title="Stop Download"
+                        >
+                          <Icon name="x" class="w-3.5 h-3.5" />
+                        </button>
+                      </Show>
                     </div>
                   </div>
+
                 </div>
 
                 <Show when={currentStats()}>
@@ -531,10 +337,6 @@ export default function DownloadView(props = {}) {
                 </Show>
               </div>
 
-              {/* Active tasks visualization using the new component logic, or reusing ActiveDownloads if pertinent. 
-                        Since ActiveDownloads provides a summary view, we might want a detailed view here. 
-                        But reusing ActiveDownloads is easier for now to get visual consistency. 
-                    */}
               <div class="flex-1 min-h-0 border-t border-white/5 pt-6">
                 <ActiveDownloads />
               </div>
@@ -559,7 +361,7 @@ export default function DownloadView(props = {}) {
                 </div>
               </Show>
 
-              <Show when={jobStatus()?.status === 'complete' || jobStatus()?.status === 'error'}>
+              <Show when={currentStatus() === 'complete' || currentStatus() === 'error'}>
                 <div class="flex justify-center pt-2">
                   <button
                     onClick={openLibrary}
@@ -581,15 +383,8 @@ export default function DownloadView(props = {}) {
             </div>
           </Show>
         </GridItem>
-      </Grid>
-
-      <Show when={activeDuplicate()}>
-        <DuplicateModal
-          duplicate={activeDuplicate()}
-          onSubmit={submitDuplicateChoice}
-          error={duplicateError()}
-        />
-      </Show>
+            </Grid>
     </div>
   );
 }
+

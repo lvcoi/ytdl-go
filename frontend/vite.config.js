@@ -1,7 +1,9 @@
 import { defineConfig, loadEnv } from 'vite';
 import solidPlugin from 'vite-plugin-solid';
+import tailwindcss from '@tailwindcss/vite';
 
 const DEFAULT_API_PROXY_TARGET = 'http://127.0.0.1:8080';
+
 const API_PROXY_PROBE_TIMEOUT_MS = 250;
 const API_PROXY_MAX_FALLBACKS = 20;
 const MAX_TCP_PORT = 65535;
@@ -148,10 +150,12 @@ export default defineConfig(async ({ mode }) => {
   }
 
   return {
-    plugins: [
+        plugins: [
       solidPlugin(),
+      tailwindcss(),
       {
         name: 'dynamic-api-proxy-refresh-cleanup',
+
         configureServer(server) {
           const stopRefresh = () => {
             clearRefreshTimer();
@@ -164,7 +168,7 @@ export default defineConfig(async ({ mode }) => {
         },
       },
     ],
-    server: {
+        server: {
       proxy: {
         '/api': {
           target: dynamicApiProxyTarget,
@@ -203,8 +207,14 @@ export default defineConfig(async ({ mode }) => {
             }
           },
         },
+        '/ws': {
+          target: dynamicApiProxyTarget,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
+
     build: {
       // Output directly to the Go backend's asset folder
       outDir: '../internal/web/assets',

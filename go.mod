@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.26.4
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
+	github.com/gorilla/websocket v1.5.3
 	github.com/lvcoi/ytdl-lib/v2 v2.10.5-fork.3
 	github.com/u2takey/ffmpeg-go v0.5.0
 )

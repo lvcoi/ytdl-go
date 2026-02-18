@@ -52,7 +52,7 @@ const emptyLibraryFilters = {
 
 const createDefaultState = () => ({
   ui: {
-    activeTab: 'download',
+    activeTab: 'dashboard',
     isAdvanced: false,
   },
   settings: { ...defaultSettings },
@@ -122,6 +122,7 @@ const getPersistedState = (state) => ({
   },
   download: {
     urlInput: state.download.urlInput,
+    activeJobId: state.download.activeJobId,
   },
 });
 
@@ -306,6 +307,9 @@ const getInitialState = () => {
   const persistedUrlInput = typeof persisted?.download?.urlInput === 'string'
     ? persisted.download.urlInput
     : baseState.download.urlInput;
+  const persistedActiveJobId = typeof persisted?.download?.activeJobId === 'string'
+    ? persisted.download.activeJobId
+    : '';
 
   return {
     ...baseState,
@@ -331,6 +335,7 @@ const getInitialState = () => {
     download: {
       ...baseState.download,
       urlInput: persistedUrlInput,
+      activeJobId: persistedActiveJobId,
     },
   };
 };

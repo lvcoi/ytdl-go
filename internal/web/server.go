@@ -23,6 +23,12 @@ import (
 
 	"github.com/lvcoi/ytdl-go/internal/app"
 	"github.com/lvcoi/ytdl-go/internal/downloader"
+	"github.com/lvcoi/ytdl-go/internal/ws"
+)
+
+var (
+	globalHub  *ws.Hub
+	globalPool *downloader.Pool
 )
 
 //go:embed assets/*
@@ -311,10 +317,11 @@ func hasKnownMediaRootPrefix(template string) bool {
 	return ok
 }
 
-func ListenAndServe(ctx context.Context, addr string) error {
+func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	startedAt := time.Now()
 
 	// Resolve media directory for downloads and library data.
+
 	mediaDir, err := resolveWebMediaDir()
 	if err != nil {
 		return err
@@ -341,7 +348,19 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	fileServer := http.FileServer(http.FS(assets))
 
 	mux := http.NewServeMux()
+	globalHub = ws.NewHub()
+	go globalHub.Run()
+
+	if jobs < 1 {
+		jobs = 1
+	}
+	globalPool = downloader.NewPool(jobs, globalHub)
+	globalPool.Start(ctx)
+
+	mux.HandleFunc("/ws", globalHub.HandleWS)
+
 	mux.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
@@ -354,36 +373,30 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		opts.OutputDir = mediaDir
 		opts.Quiet = true
 
-		job := tracker.Create(req.URLs)
-		renderer := &webRenderer{events: job.Events}
-		opts.Renderer = renderer
-		opts.DuplicatePrompter = newWebDuplicatePrompter(ctx, job)
+		// Enqueue each URL as a separate task to the pool
+		for _, u := range req.URLs {
+			url := u
+			taskID := fmt.Sprintf("dl_%d", time.Now().UnixNano()) // Simple ID
 
-		go func() {
-			job.SetStatus("running")
-			results, exitCode := app.Run(ctx, req.URLs, opts, jobs)
-			job.closeDuplicatePrompts(downloader.DuplicateDecisionSkip)
-			status := job.SetOutcome(results, exitCode)
-			snapshot := job.progressSnapshot()
-			doneEvt := ProgressEvent{
-				Type:     "done",
-				Status:   status,
-				Message:  status,
-				ExitCode: snapshot.ExitCode,
-				Error:    snapshot.Error,
-			}
-			if snapshot.Stats.Total > 0 {
-				stats := snapshot.Stats
-				doneEvt.Stats = &stats
-			}
-			_ = job.enqueueCriticalEvent(doneEvt, criticalEventTimeout)
-			job.CloseEvents()
-		}()
+			globalPool.AddTask(downloader.Task{
+				ID:      taskID,
+				URLs:    []string{url},
+				Options: opts,
+				Jobs:    jobs,
+				Execute: func(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]any, int) {
+					results, exitCode := app.Run(ctx, urls, opts, jobs)
+					anyResults := make([]any, len(results))
+					for i, res := range results {
+						anyResults[i] = res
+					}
+					return anyResults, exitCode
+				},
+			})
+		}
 
 		writeJSON(w, http.StatusOK, map[string]string{
 			"status":  "queued",
-			"jobId":   job.ID,
-			"message": fmt.Sprintf("Download started for %d item(s).", len(req.URLs)),
+			"message": fmt.Sprintf("Enqueued %d item(s) to the download pool.", len(req.URLs)),
 		})
 	})
 
@@ -426,74 +439,33 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	mux.HandleFunc("/api/download/progress", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
+	mux.HandleFunc("/api/download/cancel", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		jobID := r.URL.Query().Get("id")
-		if jobID == "" {
-			writeJSONError(w, http.StatusBadRequest, "missing id parameter")
+		var req struct {
+			JobID string `json:"jobId"`
+		}
+		if err := decodeJSONBody(w, r, &req); err != nil {
+			writeJSONError(w, err.status, err.message)
 			return
 		}
-		job, ok := tracker.Get(jobID)
+		if req.JobID == "" {
+			writeJSONError(w, http.StatusBadRequest, "jobId is required")
+			return
+		}
+		job, ok := tracker.Get(req.JobID)
 		if !ok {
 			writeJSONError(w, http.StatusNotFound, "job not found")
 			return
 		}
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			writeJSONError(w, http.StatusInternalServerError, "streaming not supported")
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("X-Accel-Buffering", "no")
-		flusher.Flush()
-
-		afterSeq := int64(0)
-		if seq, ok := parseProgressSeq(r.URL.Query().Get("since")); ok {
-			afterSeq = seq
-		} else if seq, ok := parseProgressSeq(r.Header.Get("Last-Event-ID")); ok {
-			afterSeq = seq
-		}
-
-		stream, cancel := job.Subscribe(afterSeq)
-		defer cancel()
-
-		enc := json.NewEncoder(w)
-		enc.SetEscapeHTML(false)
-
-		for {
-			select {
-			case <-r.Context().Done():
-				return
-			case evt, ok := <-stream:
-				if !ok {
-					doneEvt := ProgressEvent{
-						Type:    "done",
-						Status:  job.StatusValue(),
-						Message: job.StatusValue(),
-					}
-					snapshot := job.progressSnapshot()
-					doneEvt.ExitCode = snapshot.ExitCode
-					doneEvt.Error = snapshot.Error
-					if snapshot.Stats.Total > 0 {
-						stats := snapshot.Stats
-						doneEvt.Stats = &stats
-					}
-					writeSSEEvent(w, flusher, enc, doneEvt)
-					return
-				}
-				writeSSEEvent(w, flusher, enc, evt)
-			}
-		}
+		job.Cancel()
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
@@ -622,7 +594,9 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	if err != nil {
 		return err
 	}
+	go globalHub.Run()
 	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
+
 	actualAddr := listener.Addr().String()
 	server.Addr = actualAddr
 	log.Printf("Web server listening on %s", actualAddr)
@@ -649,6 +623,39 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 		return err
 	}
+}
+
+// BroadcastEvent sends a progress event to all connected clients.
+func BroadcastEvent(evt ProgressEvent) {
+	if globalHub == nil {
+		return
+	}
+	// Map legacy ProgressEvent to new WSMessage contract { type, payload }
+	msg := ws.WSMessage{
+		Type:    evt.Type,
+		Payload: evt,
+	}
+
+	// For the specific types required by the spec, we ensure they match the contract exactly
+	// but for compatibility we can just pass the whole event as the payload for now,
+	// or specifically pick fields. The spec defined payload for 'progress' and 'error'.
+
+	if evt.Type == "progress" {
+		msg.Payload = ws.ProgressPayload{
+			ID:      firstNonEmpty(evt.ID, evt.JobID),
+			Percent: evt.Percent,
+			Status:  firstNonEmpty(evt.Status, evt.Type),
+		}
+	} else if evt.Type == "error" || evt.Error != "" {
+		msg.Type = "error"
+		msg.Payload = ws.ErrorPayload{
+			ID:      firstNonEmpty(evt.ID, evt.JobID),
+			Message: firstNonEmpty(evt.Error, evt.Message, "Unknown error"),
+			Code:    500,
+		}
+	}
+
+	globalHub.Broadcast(msg)
 }
 
 func listenWithPortFallback(addr string, maxFallbacks int) (net.Listener, int, error) {
@@ -804,17 +811,8 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = enc.Encode(payload)
 }
 
-func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, enc *json.Encoder, evt ProgressEvent) {
-	if evt.Seq > 0 || evt.Type == "snapshot" {
-		fmt.Fprintf(w, "id: %d\n", evt.Seq)
-	}
-	fmt.Fprintf(w, "data: ")
-	_ = enc.Encode(evt)
-	fmt.Fprintf(w, "\n")
-	flusher.Flush()
-}
-
 func writeJSONError(w http.ResponseWriter, status int, message string) {
+
 	payload := DownloadResponse{
 		Type:   "error",
 		Status: "error",

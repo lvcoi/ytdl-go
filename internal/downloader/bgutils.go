@@ -25,7 +25,7 @@ func NewBgUtils() (*BgUtils, error) {
 	}
 
 	vm := goja.New()
-	
+
 	module := vm.NewObject()
 	exports := vm.NewObject()
 	module.Set("exports", exports)
@@ -55,16 +55,28 @@ func NewBgUtils() (*BgUtils, error) {
 		promise, resolve, reject := vm.NewPromise()
 		go func() {
 			method := "GET"
-			if m, ok := options["method"].(string); ok { method = m }
+			if m, ok := options["method"].(string); ok {
+				method = m
+			}
 			var body io.Reader
-			if b, ok := options["body"].(string); ok { body = strings.NewReader(b) }
+			if b, ok := options["body"].(string); ok {
+				body = strings.NewReader(b)
+			}
 			req, err := http.NewRequest(method, url, body)
-			if err != nil { reject(vm.ToValue(err.Error())); return }
+			if err != nil {
+				reject(vm.ToValue(err.Error()))
+				return
+			}
 			if h, ok := options["headers"].(map[string]interface{}); ok {
-				for k, v := range h { req.Header.Set(k, fmt.Sprint(v)) }
+				for k, v := range h {
+					req.Header.Set(k, fmt.Sprint(v))
+				}
 			}
 			resp, err := http.DefaultClient.Do(req)
-			if err != nil { reject(vm.ToValue(err.Error())); return }
+			if err != nil {
+				reject(vm.ToValue(err.Error()))
+				return
+			}
 			defer resp.Body.Close()
 			respBody, _ := io.ReadAll(resp.Body)
 			responseObj := vm.NewObject()
@@ -80,7 +92,9 @@ func NewBgUtils() (*BgUtils, error) {
 	})
 
 	_, err = vm.RunString(string(script))
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &BgUtils{vm: vm}, nil
 }
 
@@ -91,8 +105,12 @@ func (b *BgUtils) getBG() *goja.Object {
 func (b *BgUtils) GeneratePlaceholder(identifier string) (string, error) {
 	bg := b.getBG()
 	fn, ok := goja.AssertFunction(bg.Get("PoToken").ToObject(b.vm).Get("generatePlaceholder"))
-	if !ok { return "", fmt.Errorf("no generatePlaceholder") }
+	if !ok {
+		return "", fmt.Errorf("no generatePlaceholder")
+	}
 	result, err := fn(goja.Undefined(), b.vm.ToValue(identifier))
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return result.String(), nil
 }
