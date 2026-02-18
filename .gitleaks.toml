@@ -1,0 +1,28 @@
+# Gitleaks configuration file
+# See https://github.com/gitleaks/gitleaks for more information
+
+title = "ytdl-go Gitleaks Configuration"
+
+[extend]
+# Use default rules from gitleaks
+useDefault = true
+
+[allowlist]
+description = "Allowlist for known false positives"
+paths = [
+  # Ignore example/test files with fake secrets
+  '''.*_test\.go''',
+  '''.*\.example$''',
+  '''.*\.sample$''',
+]
+
+regexes = [
+  # Ignore placeholder tokens in documentation
+  '''ghp_\.\.\.''',
+  '''your_token_here''',
+  '''your_github_token_here''',
+  '''YOUR_API_KEY''',
+  '''<your-.*>''',
+  '''REPLACE_ME''',
+  '''CHANGEME''',
+]

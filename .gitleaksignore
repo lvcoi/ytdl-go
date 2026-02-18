@@ -1,0 +1,5 @@
+# Gitleaks ignore file
+# Add false positives here to prevent CI failures
+
+# Example placeholder tokens in documentation
+scripts/README.md:ghp_...

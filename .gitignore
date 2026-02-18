@@ -61,6 +61,24 @@ test_convert.go
 .env
 .env.local
 .env.*.local
+.envrc
+
+# Secrets and credentials
+*secret*
+*secrets*
+*.secret
+*credential*
+*credentials*
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*token*
+*tokens*
+.aws/
+.gcp/
 
 # Coverage reports
 coverage.txt

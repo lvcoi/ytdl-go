@@ -35,6 +35,7 @@ ytdl-go is a CLI tool that downloads publicly accessible YouTube content. Releva
 - **Command injection** via crafted URLs or metadata
 - **Dependency vulnerabilities** in third-party Go modules
 - **Unsafe file operations** that could overwrite unintended files
+- **Exposed secrets** in code, configuration, or git history
 
 ### Out of Scope
 
@@ -53,3 +54,20 @@ ytdl-go follows these security principles:
 - **No DRM circumvention**: Refuses encrypted/protected content
 - **Filesystem sanitization**: Output filenames are sanitized to prevent path traversal
 - **No code execution**: Downloaded content is never executed
+- **Secret scanning**: Automated scanning for exposed secrets in code and commits
+- **Pre-commit hooks**: Optional local validation to prevent committing secrets
+
+## Secret Management
+
+See the [Secret Management Guide](docs/SECRET_MANAGEMENT.md) for comprehensive information on:
+
+- How to prevent accidentally committing secrets
+- What to do if a secret is exposed
+- Git history cleanup procedures
+- Tool configuration and usage
+
+**Quick prevention tips:**
+- Always use environment variables for secrets (never hardcode)
+- Enable the pre-commit hooks: `git config core.hooksPath .githooks`
+- Use `.env` files locally (they're in `.gitignore`)
+- Check the secret scanning workflow results in GitHub Actions

@@ -251,6 +251,18 @@ ytdl-go -quiet URL
 
 </details>
 
+---
+
+## 🔒 Security
+
+For developers contributing to ytdl-go:
+
+- **Secret Scanning**: This repository uses automated secret scanning to prevent API keys and tokens from being committed
+- **Pre-commit Hooks**: Enable local secret scanning by running `./setup-hooks.sh`
+- **See [docs/SECRET_MANAGEMENT.md](docs/SECRET_MANAGEMENT.md)** for comprehensive security guidelines
+
+For security vulnerabilities, please see [SECURITY.md](SECURITY.md)
+
 --
 
 <div align="center">

@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit hook to prevent committing secrets
+# This script runs gitleaks to scan for secrets before allowing a commit
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Running secret scan...${NC}"
+
+# Check if gitleaks is installed
+if ! command -v gitleaks &> /dev/null; then
+    echo -e "${RED}Error: gitleaks is not installed${NC}"
+    echo "Please install gitleaks to enable secret scanning:"
+    echo "  brew install gitleaks  # macOS"
+    echo "  # or download from https://github.com/gitleaks/gitleaks/releases"
+    echo ""
+    echo "To skip this check temporarily (NOT RECOMMENDED):"
+    echo "  git commit --no-verify"
+    exit 1
+fi
+
+# Run gitleaks on staged files
+if gitleaks protect --staged --verbose 2>&1 | grep -q "Finding:"; then
+    echo -e "${RED}❌ Secret detected! Commit blocked.${NC}"
+    echo ""
+    echo "A potential secret was found in your staged changes."
+    echo "Please remove the secret before committing."
+    echo ""
+    echo "If this is a false positive, you can:"
+    echo "1. Add it to .gitleaksignore file"
+    echo "2. Or skip this check with: git commit --no-verify (NOT RECOMMENDED)"
+    exit 1
+else
+    echo -e "${GREEN}✓ No secrets detected${NC}"
+    exit 0
+fi
