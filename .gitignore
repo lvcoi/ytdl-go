@@ -64,19 +64,26 @@ test_convert.go
 .envrc
 
 # Secrets and credentials
-*secret*
-*secrets*
-*.secret
-*credential*
-*credentials*
+secrets/
+.secrets
+*.secrets
+.secret
+secret.txt
+secrets.txt
+credentials/
+.credentials
+*.credentials
+credential.txt
+credentials.txt
 *.key
 *.pem
 *.p12
 *.pfx
 *.cer
 *.crt
-*token*
-*tokens*
+.tokens
+tokens/
+*.token
 .aws/
 .gcp/
 
