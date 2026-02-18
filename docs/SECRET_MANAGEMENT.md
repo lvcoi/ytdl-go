@@ -28,7 +28,7 @@ if token == "" {
 
 ### 2. Use .gitignore
 
-Ensure sensitive files are excluded from version control. The `.gitignore` file already includes:
+Ensure sensitive files are excluded from version control. The `.gitignore` file includes:
 
 ```
 # Environment files
@@ -36,9 +36,13 @@ Ensure sensitive files are excluded from version control. The `.gitignore` file 
 .env.local
 .env.*.local
 
-# Credentials and secrets
-*secret*
-*credentials*
+# Secrets and credentials
+secrets/
+.secrets
+*.secrets
+credentials/
+.credentials
+*.credentials
 *.key
 *.pem
 ```
