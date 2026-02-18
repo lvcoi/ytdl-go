@@ -23,11 +23,15 @@ if ! command -v gitleaks &> /dev/null; then
 fi
 
 # Run gitleaks on staged files
-if gitleaks protect --staged --verbose 2>&1 | grep -q "Finding:"; then
+# gitleaks exits with code 1 if secrets are found, 0 if clean
+if ! gitleaks protect --staged --verbose > /dev/null 2>&1; then
     echo -e "${RED}❌ Secret detected! Commit blocked.${NC}"
     echo ""
     echo "A potential secret was found in your staged changes."
     echo "Please remove the secret before committing."
+    echo ""
+    echo "Run this command to see details:"
+    echo "  gitleaks protect --staged --verbose"
     echo ""
     echo "If this is a false positive, you can:"
     echo "1. Add it to .gitleaksignore file"
