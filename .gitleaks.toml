@@ -14,6 +14,10 @@ paths = [
   '''.*_test\.go''',
   '''.*\.example$''',
   '''.*\.sample$''',
+  # Ignore documentation with example secrets
+  '''docs/SECRET_MANAGEMENT\.md''',
+  '''docs/HISTORY_CLEANUP\.md''',
+  '''scripts/README\.md''',
 ]
 
 regexes = [
