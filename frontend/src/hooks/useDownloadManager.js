@@ -1,3 +1,11 @@
+// useDownloadManager hook handles real-time download progress tracking via Server-Sent Events (SSE).
+//
+// Architecture: This uses SSE (EventSource API), NOT WebSockets.
+// - Server → Client: Progress updates via SSE stream (/api/download/progress)
+// - Client → Server: Control messages via standard HTTP POST (/api/download, /api/download/duplicate-response)
+//
+// SSE is simpler than WebSockets for unidirectional streaming and has built-in reconnection support.
+// The EventSource API automatically handles SSE parsing and provides the JSON payload in e.data.
 import { createEffect, onCleanup } from 'solid-js';
 import { useAppStore } from '../store/appStore';
 import {
@@ -313,6 +321,13 @@ export function useDownloadManager() {
         resetProgressStreamState();
     };
 
+    // listenForProgress establishes an SSE connection to stream real-time download progress.
+    // Uses the browser's EventSource API which automatically:
+    // - Parses SSE format (id: and data: fields)
+    // - Provides JSON payload in e.data (newlines stripped)
+    // - Reconnects on connection loss (with Last-Event-ID header)
+    //
+    // We add additional reconnection logic with exponential backoff and event replay via ?since=<seq>.
     const listenForProgress = (jobId) => {
         resetProgressStreamState();
         activeJobId = jobId;
@@ -328,6 +343,7 @@ export function useDownloadManager() {
                 query.set('since', String(lastEventSeq));
             }
 
+            // EventSource automatically handles SSE protocol (id:, data:, blank line termination)
             eventSource = new EventSource(`/api/download/progress?${query.toString()}`);
 
             eventSource.onmessage = (e) => {

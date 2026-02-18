@@ -426,6 +426,15 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Server-Sent Events (SSE) endpoint for streaming download progress.
+	// NOTE: This uses SSE (EventSource), NOT WebSockets. SSE is simpler and more appropriate
+	// for unidirectional server-to-client streaming. The client uses the browser's EventSource API.
+	//
+	// Supports automatic reconnection via:
+	//  - ?since=<seq> query parameter (manual reconnect tracking)
+	//  - Last-Event-ID header (EventSource built-in reconnection)
+	//
+	// Each event has a monotonic sequence number for replay after disconnection.
 	mux.HandleFunc("/api/download/progress", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -448,12 +457,14 @@ func ListenAndServe(ctx context.Context, addr string) error {
 			return
 		}
 
+		// Set SSE-required headers per the HTML5 Server-Sent Events specification
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("X-Accel-Buffering", "no")
+		w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
 		flusher.Flush()
 
+		// Support reconnection with event replay. Client can specify which events to resume from.
 		afterSeq := int64(0)
 		if seq, ok := parseProgressSeq(r.URL.Query().Get("since")); ok {
 			afterSeq = seq
@@ -804,13 +815,21 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = enc.Encode(payload)
 }
 
+// writeSSEEvent writes a progress event in Server-Sent Events (SSE) format.
+// SSE format (per HTML5 spec):
+//   id: <sequence_number>
+//   data: <json_payload>
+//   <blank line to terminate event>
+//
+// The json.Encoder.Encode() method adds a newline after the JSON, so we add
+// one more newline to create the required blank line that terminates the event.
 func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, enc *json.Encoder, evt ProgressEvent) {
 	if evt.Seq > 0 || evt.Type == "snapshot" {
 		fmt.Fprintf(w, "id: %d\n", evt.Seq)
 	}
 	fmt.Fprintf(w, "data: ")
-	_ = enc.Encode(evt)
-	fmt.Fprintf(w, "\n")
+	_ = enc.Encode(evt)         // Writes JSON + newline
+	fmt.Fprintf(w, "\n")         // Blank line terminates the SSE event
 	flusher.Flush()
 }
 

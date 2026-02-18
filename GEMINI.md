@@ -83,9 +83,10 @@ The project features a sophisticated AI-integrated maintenance system located in
     - `server.go`: Go web server implementing a REST API.
     - **Endpoints:**
         - `POST /api/download`: Starts a download job.
-        - `GET /api/download/progress`: SSE endpoint for real-time progress updates.
+        - `GET /api/download/progress`: **SSE (Server-Sent Events)** endpoint for real-time progress updates (NOT WebSockets).
         - `GET /api/media/`: Lists or serves downloaded media files.
     - **Media Layout:** Files are organized into `audio/`, `video/`, `playlist/`, and `data/`.
+    - **Communication Architecture:** Uses SSE for server→client streaming (progress updates) and standard HTTP POST for client→server commands. SSE is simpler than WebSockets for unidirectional data flow.
 - `frontend/src/`: SolidJS application source.
 - `docs/`: Detailed documentation on architecture and flags.
 
