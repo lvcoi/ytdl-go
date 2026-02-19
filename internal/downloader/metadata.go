@@ -149,8 +149,10 @@ func finalizeDownloadMetadata(outputPath, baseDir string, metadata ItemMetadata,
 	if outputPath == "" {
 		return nil
 	}
-	// Attempt tag embedding for all media files, not just audio-only
-	embedAudioTags(metadata, outputPath, printer)
+	// Only embed tags for audio-only downloads to avoid unnecessary remuxing for video files
+	if audioOnly {
+		embedAudioTags(metadata, outputPath, printer)
+	}
 
 	if err := writeSidecar(outputPath, baseDir, metadata); err != nil {
 		return err
