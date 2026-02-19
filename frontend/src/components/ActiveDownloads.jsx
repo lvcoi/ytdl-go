@@ -1,17 +1,6 @@
 import { For, Show, createMemo } from 'solid-js';
 import Icon from './Icon';
 import { downloadStore } from '../store/downloadStore';
-import wsService from '../services/websocket';
-
-// Initialize WebSocket on component load (or App root, but here ensures it's active when widget is used)
-// Ideally this should be in App.jsx or main entry, but putting it here as requested implies this component manages the view.
-// Since wsService is a singleton, calling connect multiple times is fine if we guard it, 
-// but the class blindly creates new sockets. 
-// We should probably init it once.
-// However, given the prompt constraints, I'll assume the App initializes it or I should trigger it here.
-// Let's add a check in the service or just call connect().
-// The provided service code blindly connects. I should probably have added a check.
-// But for now, let's assume this component mounts once.
 
 export default function ActiveDownloads() {
     // Sorted tasks from global store
@@ -42,10 +31,22 @@ export default function ActiveDownloads() {
                     <span class="text-xs font-bold uppercase tracking-widest">No active tasks</span>
                 </div>
             }>
-                <div class="space-y-3 overflow-y-auto custom-scrollbar flex-1 pr-2 max-h-[300px]">
+                <div
+                    class="space-y-3 overflow-y-auto custom-scrollbar flex-1 pr-2 max-h-[300px]"
+                    style={{
+                        "mask-image": "linear-gradient(to bottom, black 0%, black 85%, transparent 100%)",
+                        "-webkit-mask-image": "linear-gradient(to bottom, black 0%, black 85%, transparent 100%)"
+                    }}
+                >
                     <For each={sortedTasks()}>
                         {(task) => (
-                            <div class="rounded-xl border border-white/5 bg-white/5 p-3 space-y-2">
+                            <div
+                                class="rounded-xl border border-white/5 bg-white/5 p-3 space-y-2 transition-all duration-300"
+                                classList={{
+                                    "opacity-0 scale-95": task.done,
+                                    "opacity-100 scale-100": !task.done,
+                                }}
+                            >
                                 <div class="flex justify-between items-center text-xs">
                                     <span class="font-bold text-slate-200 truncate max-w-[70%]">
                                         {task.filename || task.id}

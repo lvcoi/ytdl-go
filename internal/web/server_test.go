@@ -57,7 +57,7 @@ func startWebServerForTest(t *testing.T, ctx context.Context) (baseURL string, w
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- ListenAndServe(ctx, addr)
+		errCh <- ListenAndServe(ctx, addr, 1)
 	}()
 
 	client := &http.Client{Timeout: 500 * time.Millisecond}
@@ -1052,7 +1052,7 @@ func TestMediaTypeForExtension(t *testing.T) {
 func TestDownloadProgressStreamIncludesSnapshotAndSequencedEvents(t *testing.T) {
 	withTempCWD(t, func(_ string) {
 		tracker = &jobTracker{}
-		job := tracker.Create([]string{"https://example.com/watch?v=abc"})
+		job := tracker.Create(context.Background(), []string{"https://example.com/watch?v=abc"})
 		defer job.CloseEvents()
 
 		if !job.enqueueCriticalEvent(ProgressEvent{

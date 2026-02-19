@@ -108,6 +108,7 @@ export function useDownloadManager() {
         const data = evt.payload || evt;
 
         batch(() => {
+            try {
             switch (evt.type) {
                 case 'snapshot':
                     // snapshot is usually in the payload or top level?
@@ -119,6 +120,7 @@ export function useDownloadManager() {
                     }
                     break;
                 case 'status':
+                    try {
                      // status events might be top level or in payload
                     setDownloadStore('jobStatuses', data.jobId, (prev) => {
                         const nextStatus = normalizeDownloadStatus(data.status);
@@ -135,10 +137,29 @@ export function useDownloadManager() {
                         // Notify on terminal state change
                         if (prev?.status !== nextStatus && (nextStatus === 'complete' || nextStatus === 'error')) {
                             notifyJobOutcome(next);
+
+                            // Clear only tasks belonging to this job 300ms after completion for UI transition
+                            const completedJobId = data.jobId;
+                            setTimeout(() => {
+                                try {
+                                    const current = downloadStore.activeDownloads;
+                                    const keysToRemove = Object.keys(current).filter(
+                                        (key) => current[key]?.jobId === completedJobId || current[key]?.done
+                                    );
+                                    for (const key of keysToRemove) {
+                                        setDownloadStore('activeDownloads', key, undefined);
+                                    }
+                                } catch (err) {
+                                    console.error("Failed to clear completed job tasks:", err);
+                                }
+                            }, 300);
                         }
                         
                         return next;
                     });
+                    } catch (err) {
+                        console.error("Critical error processing status payload:", err);
+                    }
                     break;
 
                                 case 'register':
@@ -209,6 +230,9 @@ export function useDownloadManager() {
                     break;
                 default:
                     break;
+            }
+            } catch (err) {
+                console.error("Error processing WebSocket event:", err);
             }
         });
     };
