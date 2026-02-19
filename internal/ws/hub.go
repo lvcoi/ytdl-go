@@ -97,15 +97,10 @@ func (h *Hub) Run() {
 func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("ws upgrade error:", err)
+		log.Printf("ERROR: ws upgrade failed for client %s: %v", r.RemoteAddr, err)
 		return
 	}
-	// Added a buffer of 256 to handle rapid bursts of progress events
-	// Added a buffer of 256 to handle rapid bursts of progress events
-	// Added a buffer of 256 to handle rapid bursts of progress events
-	// Added a buffer of 256 to handle rapid bursts of progress events
-	// Added a buffer of 256 to handle rapid bursts of progress events
-	// Added a buffer of 256 to handle rapid bursts of progress events
+	// Buffered at 256 to prevent aggressive disconnects during rapid bursts
 	client := &Client{hub: h, conn: conn, send: make(chan WSMessage, 256)}
 	h.register <- client
 

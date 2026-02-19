@@ -2,6 +2,10 @@ import { createStore } from 'solid-js/store';
 
 const [downloadStore, setDownloadStore] = createStore({
     activeDownloads: {}, // Keyed by task ID { id, filename, percent, status, eta, done }
+    jobStatuses: {},     // Keyed by job ID { jobId, status, message, error, stats, exitCode }
+    logs: [],            // Array of { level, message }
+    notification: null,  // { type, message } or null
+    lastJobId: null,     // Most recent job ID
     error: null,         // { id, message, code }
 });
 
