@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/lvcoi/ytdl-go/internal/app"
+	"github.com/lvcoi/ytdl-go/internal/db"
 	"github.com/lvcoi/ytdl-go/internal/downloader"
 	"github.com/lvcoi/ytdl-go/internal/ws"
 )
@@ -30,6 +31,7 @@ import (
 var (
 	globalHub  *ws.Hub
 	globalPool *downloader.Pool
+	globalDB   *db.DB
 )
 
 //go:embed assets/*
@@ -341,6 +343,17 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	}
 	playlistStore := newSavedPlaylistStore(filepath.Join(mediaDir, mediaFolderData, savedPlaylistsFileName))
 	log.Printf("Media directory: %s", mediaDir)
+
+	// Initialize SQLite master catalog
+	dbPath := filepath.Join(mediaDir, mediaFolderData, "library.db")
+	catalogDB, dbErr := db.Open(dbPath)
+	if dbErr != nil {
+		log.Printf("WARNING: failed to open SQLite catalog at %s: %v (continuing without database)", dbPath, dbErr)
+	} else {
+		globalDB = catalogDB
+		defer catalogDB.Close()
+		log.Printf("SQLite catalog: %s", dbPath)
+	}
 
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
@@ -919,6 +932,15 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		if ext == ".json" {
 			return nil
 		}
+		// SQLite database files are internal data and should not be listed.
+		if ext == ".db" || ext == ".db-shm" || ext == ".db-wal" || ext == ".db-journal" {
+			return nil
+		}
+		// Also handle the multipart SQLite WAL filenames
+		baseName := strings.ToLower(entry.Name())
+		if strings.HasSuffix(baseName, ".db-shm") || strings.HasSuffix(baseName, ".db-wal") || strings.HasSuffix(baseName, ".db-journal") {
+			return nil
+		}
 
 		info, infoErr := entry.Info()
 		if infoErr != nil {
@@ -982,6 +1004,8 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 	out := make([]mediaItem, 0, len(items))
 	for _, item := range items {
 		out = append(out, item.item)
+		// Lazily catalog items into the SQLite database
+		go catalogMediaToDB(item.item)
 	}
 	return out, nil
 }
@@ -1135,4 +1159,36 @@ func resolveRealPath(path string) (string, error) {
 		return "", parentErr
 	}
 	return filepath.Join(realParent, filepath.Base(cleaned)), nil
+}
+
+// catalogMediaToDB inserts or updates a media item in the SQLite catalog.
+// This is called lazily during media listing if the DB is available.
+func catalogMediaToDB(item mediaItem) {
+	if globalDB == nil {
+		return
+	}
+	record := db.MediaRecord{
+		Title:         item.Title,
+		Artist:        item.Artist,
+		Album:         item.Album,
+		Duration:      item.DurationSeconds,
+		MediaType:     item.Type,
+		FilePath:      item.RelativePath,
+		SourceURL:     item.SourceURL,
+		ThumbnailURL:  item.ThumbnailURL,
+		Format:        item.Metadata.Format,
+		Quality:       item.Metadata.Quality,
+		FileSize:      item.SizeBytes,
+		VideoID:       item.Metadata.ID,
+		TagsEmbedded:  false,
+		PlaylistIndex: item.Metadata.Track,
+	}
+	if item.Playlist != nil {
+		record.PlaylistID = item.Playlist.ID
+		record.PlaylistTitle = item.Playlist.Title
+		record.PlaylistIndex = item.Playlist.Index
+	}
+	if _, err := globalDB.UpsertMedia(record); err != nil {
+		log.Printf("failed to catalog media %q to database: %v", item.RelativePath, err)
+	}
 }

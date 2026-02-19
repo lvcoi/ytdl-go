@@ -149,9 +149,9 @@ func finalizeDownloadMetadata(outputPath, baseDir string, metadata ItemMetadata,
 	if outputPath == "" {
 		return nil
 	}
-	if audioOnly {
-		embedAudioTags(metadata, outputPath, printer)
-	}
+	// Attempt tag embedding for all media files, not just audio-only
+	embedAudioTags(metadata, outputPath, printer)
+
 	if err := writeSidecar(outputPath, baseDir, metadata); err != nil {
 		return err
 	}
