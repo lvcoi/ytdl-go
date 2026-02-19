@@ -156,7 +156,7 @@ func (d *DB) UpsertMedia(record MediaRecord) (int64, error) {
 		tagsEmbedded = 1
 	}
 
-	result, err := d.db.Exec(`
+	_, err := d.db.Exec(`
 		INSERT INTO media (
 			title, artist, album, duration, media_type,
 			file_path, source_url, thumbnail_url, format, quality,
@@ -182,9 +182,10 @@ func (d *DB) UpsertMedia(record MediaRecord) (int64, error) {
 		return 0, fmt.Errorf("upserting media record: %w", err)
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("getting last insert id: %w", err)
+	// LastInsertId is unreliable for ON CONFLICT DO UPDATE; query the actual row ID.
+	var id int64
+	if err := d.db.QueryRow("SELECT id FROM media WHERE file_path = ?", record.FilePath).Scan(&id); err != nil {
+		return 0, fmt.Errorf("querying upserted media id: %w", err)
 	}
 	return id, nil
 }

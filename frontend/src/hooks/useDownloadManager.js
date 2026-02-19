@@ -138,12 +138,19 @@ export function useDownloadManager() {
                         if (prev?.status !== nextStatus && (nextStatus === 'complete' || nextStatus === 'error')) {
                             notifyJobOutcome(next);
 
-                            // Clear active downloads 300ms after job completion for UI transition
+                            // Clear only tasks belonging to this job 300ms after completion for UI transition
+                            const completedJobId = data.jobId;
                             setTimeout(() => {
                                 try {
-                                    setDownloadStore('activeDownloads', {});
+                                    const current = downloadStore.activeDownloads;
+                                    const keysToRemove = Object.keys(current).filter(
+                                        (key) => current[key]?.jobId === completedJobId || current[key]?.done
+                                    );
+                                    for (const key of keysToRemove) {
+                                        setDownloadStore('activeDownloads', key, undefined);
+                                    }
                                 } catch (err) {
-                                    console.error("Failed to clear download store:", err);
+                                    console.error("Failed to clear completed job tasks:", err);
                                 }
                             }, 300);
                         }
