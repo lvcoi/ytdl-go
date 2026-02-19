@@ -26,6 +26,7 @@ type MediaRecord struct {
 	VideoID         string
 	TagsEmbedded    bool
 	TagError        string
+	TrackNumber     int
 	PlaylistID      string
 	PlaylistTitle   string
 	PlaylistIndex   int
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS media (
     video_id        TEXT NOT NULL DEFAULT '',
     tags_embedded   INTEGER NOT NULL DEFAULT 0,
     tag_error       TEXT NOT NULL DEFAULT '',
+    track_number    INTEGER NOT NULL DEFAULT 0,
     playlist_id     TEXT NOT NULL DEFAULT '',
     playlist_title  TEXT NOT NULL DEFAULT '',
     playlist_index  INTEGER NOT NULL DEFAULT 0,
@@ -123,13 +125,13 @@ func (d *DB) InsertMedia(record MediaRecord) (int64, error) {
 			title, artist, album, duration, media_type,
 			file_path, source_url, thumbnail_url, format, quality,
 			file_size, video_id, tags_embedded, tag_error,
-			playlist_id, playlist_title, playlist_index
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			track_number, playlist_id, playlist_title, playlist_index
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		record.Title, record.Artist, record.Album, record.Duration, record.MediaType,
 		record.FilePath, record.SourceURL, record.ThumbnailURL, record.Format, record.Quality,
 		record.FileSize, record.VideoID, tagsEmbedded, record.TagError,
-		record.PlaylistID, record.PlaylistTitle, record.PlaylistIndex,
+		record.TrackNumber, record.PlaylistID, record.PlaylistTitle, record.PlaylistIndex,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("inserting media record: %w", err)
@@ -161,8 +163,8 @@ func (d *DB) UpsertMedia(record MediaRecord) (int64, error) {
 			title, artist, album, duration, media_type,
 			file_path, source_url, thumbnail_url, format, quality,
 			file_size, video_id, tags_embedded, tag_error,
-			playlist_id, playlist_title, playlist_index
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			track_number, playlist_id, playlist_title, playlist_index
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(file_path) DO UPDATE SET
 			title=excluded.title, artist=excluded.artist, album=excluded.album,
 			duration=excluded.duration, media_type=excluded.media_type,
@@ -170,13 +172,14 @@ func (d *DB) UpsertMedia(record MediaRecord) (int64, error) {
 			format=excluded.format, quality=excluded.quality,
 			file_size=excluded.file_size, video_id=excluded.video_id,
 			tags_embedded=excluded.tags_embedded, tag_error=excluded.tag_error,
+			track_number=excluded.track_number,
 			playlist_id=excluded.playlist_id, playlist_title=excluded.playlist_title,
 			playlist_index=excluded.playlist_index
 	`,
 		record.Title, record.Artist, record.Album, record.Duration, record.MediaType,
 		record.FilePath, record.SourceURL, record.ThumbnailURL, record.Format, record.Quality,
 		record.FileSize, record.VideoID, tagsEmbedded, record.TagError,
-		record.PlaylistID, record.PlaylistTitle, record.PlaylistIndex,
+		record.TrackNumber, record.PlaylistID, record.PlaylistTitle, record.PlaylistIndex,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("upserting media record: %w", err)
@@ -207,7 +210,7 @@ func (d *DB) ListMedia(limit, offset int) ([]MediaRecord, error) {
 		SELECT id, title, artist, album, duration, media_type,
 			file_path, source_url, thumbnail_url, format, quality,
 			file_size, video_id, tags_embedded, tag_error,
-			playlist_id, playlist_title, playlist_index, created_at
+			track_number, playlist_id, playlist_title, playlist_index, created_at
 		FROM media
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
@@ -225,7 +228,7 @@ func (d *DB) ListMedia(limit, offset int) ([]MediaRecord, error) {
 			&r.ID, &r.Title, &r.Artist, &r.Album, &r.Duration, &r.MediaType,
 			&r.FilePath, &r.SourceURL, &r.ThumbnailURL, &r.Format, &r.Quality,
 			&r.FileSize, &r.VideoID, &tagsEmbedded, &r.TagError,
-			&r.PlaylistID, &r.PlaylistTitle, &r.PlaylistIndex, &r.CreatedAt,
+			&r.TrackNumber, &r.PlaylistID, &r.PlaylistTitle, &r.PlaylistIndex, &r.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scanning media row: %w", err)
 		}
