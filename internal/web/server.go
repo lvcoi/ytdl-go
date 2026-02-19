@@ -351,7 +351,6 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 		log.Printf("WARNING: failed to open SQLite catalog at %s: %v (continuing without database)", dbPath, dbErr)
 	} else {
 		globalDB = catalogDB
-		defer catalogDB.Close()
 		log.Printf("SQLite catalog: %s", dbPath)
 	}
 
