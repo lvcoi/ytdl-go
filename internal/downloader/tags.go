@@ -13,7 +13,7 @@ import (
 
 // embedAudioTags attempts to embed metadata tags into the given audio file.
 // For .mp3 files, ID3v2 tags are used directly.
-// For other formats (.m4a, .webm, .opus, .ogg), FFmpeg is attempted.
+// For other formats (.m4a, .mp4, .webm, .opus, .ogg, .mkv), FFmpeg is attempted.
 func embedAudioTags(metadata ItemMetadata, outputPath string, printer *Printer) {
 	if outputPath == "" || metadata.Status != "ok" {
 		return
