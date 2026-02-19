@@ -1161,12 +1161,22 @@ func catalogMediaToDB(item mediaItem) {
 	if globalDB == nil {
 		return
 	}
+	// Use ClassifyMediaType for richer taxonomy (music/podcast/movie/video)
+	// instead of the extension-based "audio"/"video" from item.Type.
+	mediaType := db.ClassifyMediaType(
+		item.SourceURL,
+		strings.TrimSpace(item.Metadata.Author),
+		"", // category not available from sidecar metadata
+		strings.TrimSpace(item.Artist) != "",
+		strings.TrimSpace(item.Album) != "",
+		item.Type == "audio",
+	)
 	record := db.MediaRecord{
 		Title:         item.Title,
 		Artist:        item.Artist,
 		Album:         item.Album,
 		Duration:      item.DurationSeconds,
-		MediaType:     item.Type,
+		MediaType:     mediaType,
 		FilePath:      item.RelativePath,
 		SourceURL:     item.SourceURL,
 		ThumbnailURL:  item.ThumbnailURL,

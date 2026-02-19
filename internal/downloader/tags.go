@@ -108,7 +108,7 @@ func embedFFmpegTags(metadata ItemMetadata, outputPath string) error {
 	}
 
 	// Replace original with tagged version
-	if err := os.Replace(tmpFile, outputPath); err != nil {
+	if err := os.Rename(tmpFile, outputPath); err != nil {
 		os.Remove(tmpFile)
 		return fmt.Errorf("failed to replace original file with tagged version: %w", err)
 	}
