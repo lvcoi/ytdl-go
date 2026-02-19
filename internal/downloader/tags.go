@@ -96,12 +96,15 @@ func embedFFmpegTags(metadata ItemMetadata, outputPath string) error {
 	args = append(args, tmpFile)
 
 	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stderr = nil
-	cmd.Stdout = nil
-	if err := cmd.Run(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
 		// Clean up temp file on failure
 		os.Remove(tmpFile)
-		return fmt.Errorf("failed to embed metadata for itag format %s: %w", filepath.Ext(outputPath), err)
+		stderr := strings.TrimSpace(string(output))
+		if stderr != "" {
+			return fmt.Errorf("failed to embed metadata for output format %s: %s: %w", filepath.Ext(outputPath), stderr, err)
+		}
+		return fmt.Errorf("failed to embed metadata for output format %s: %w", filepath.Ext(outputPath), err)
 	}
 
 	// Replace original with tagged version
