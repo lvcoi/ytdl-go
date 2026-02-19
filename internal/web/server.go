@@ -1005,7 +1005,7 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 	for _, item := range items {
 		out = append(out, item.item)
 		// Lazily catalog items into the SQLite database
-		go catalogMediaToDB(item.item)
+		catalogMediaToDB(item.item)
 	}
 	return out, nil
 }
