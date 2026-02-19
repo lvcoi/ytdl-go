@@ -9,7 +9,6 @@ ytdl-go
 ytdl-go.exe
 # Test binary, built with `go test -c`
 *.test
-
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
@@ -88,14 +87,15 @@ videos/
 # Documentation build
 docs/_build/
 site/
-
+*.geminiignore
+*log*
 # Backup files
 *.bak
 *.backup
 
 # Frontend (Node.js)
 frontend/node_modules/
-
+module_path.txt
 # Local task snapshots
 .task-archive/
 **node_modules/
