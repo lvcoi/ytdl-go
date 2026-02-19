@@ -935,11 +935,6 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		if ext == ".db" || ext == ".db-shm" || ext == ".db-wal" || ext == ".db-journal" {
 			return nil
 		}
-		// Also handle the multipart SQLite WAL filenames
-		baseName := strings.ToLower(entry.Name())
-		if strings.HasSuffix(baseName, ".db-shm") || strings.HasSuffix(baseName, ".db-wal") || strings.HasSuffix(baseName, ".db-journal") {
-			return nil
-		}
 
 		info, infoErr := entry.Info()
 		if infoErr != nil {
