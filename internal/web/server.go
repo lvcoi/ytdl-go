@@ -1162,13 +1162,13 @@ func catalogMediaToDB(item mediaItem) {
 		return
 	}
 	// Use ClassifyMediaType for richer taxonomy (music/podcast/movie/video)
-	// instead of the extension-based "audio"/"video" from item.Type.
+	// based on YouTube metadata signals scraped during download.
 	mediaType := db.ClassifyMediaType(
 		item.SourceURL,
-		strings.TrimSpace(item.Metadata.Author),
-		"", // category not available from sidecar metadata
-		strings.TrimSpace(item.Artist) != "",
-		strings.TrimSpace(item.Album) != "",
+		strings.TrimSpace(item.Metadata.Author), // YouTube channel name
+		"",                    // category — not yet captured in sidecar metadata
+		item.Artist,
+		item.Album,
 		item.Type == "audio",
 	)
 	record := db.MediaRecord{
