@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -476,6 +477,16 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"active_downloads": tracker.ActiveCount(),
 			"uptime":           uptime,
+		})
+	})
+
+	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"cpuCores": runtime.NumCPU(),
 		})
 	})
 
