@@ -76,3 +76,50 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(139, 92, 246, 0.5);
 }
+
+/* Resize Cursors */
+.cursor-n-resize { cursor: n-resize; }
+.cursor-s-resize { cursor: s-resize; }
+.cursor-e-resize { cursor: e-resize; }
+.cursor-w-resize { cursor: w-resize; }
+.cursor-ne-resize { cursor: ne-resize; }
+.cursor-nw-resize { cursor: nw-resize; }
+.cursor-se-resize { cursor: se-resize; }
+.cursor-sw-resize { cursor: sw-resize; }
+.cursor-grabbing { cursor: grabbing; }
+.cursor-move { cursor: move; }
+
+/* Dashboard Widget Styles */
+.widget-dragging {
+    opacity: 0.7;
+    transform: scale(1.02);
+    z-index: 1000;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.widget-resizing {
+    z-index: 999;
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+}
+
+.resize-handle {
+    background: rgba(139, 92, 246, 0.3);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(139, 92, 246, 0.5);
+    transition: all 0.2s ease;
+}
+
+.resize-handle:hover {
+    background: rgba(139, 92, 246, 0.5);
+    border-color: rgba(139, 92, 246, 0.7);
+}
+
+/* Grid overlay for drag feedback */
+.grid-overlay {
+    pointer-events: none;
+    border: 2px dashed rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 2rem;
+    transition: all 0.2s ease;
+    z-index: 1000;
+}

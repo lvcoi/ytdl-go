@@ -10,7 +10,7 @@ describe('Grid component', () => {
 
     it('applies default grid classes', () => {
         const { container } = render(() => <Grid />);
-        expect(container.firstChild).toHaveClass('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6');
+        expect(container.querySelector('.grid')).toHaveClass('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6');
     });
 
     it('applies custom grid classes', () => {

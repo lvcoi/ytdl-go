@@ -102,6 +102,60 @@ This document provides a set of specific and actionable best practices for devel
 *   **`Show` Component:** Use the `<Show>` component for conditional rendering. Avoid using the `&&` operator for conditional rendering, as it can lead to unexpected behavior.
 *   **Props Destructuring:** When destructuring props, use the `splitProps` function to ensure that reactivity is preserved.
 
+---
+
+## Testing Practices (All Languages)
+
+These rules apply to both backend (Go) and frontend (SolidJS) tests.
+
+### Guard-Pair Testing
+
+Every boolean guard or early-return condition requires **two** tests:
+
+1.  **Block test:** Verify the guard prevents the action when the condition is not met.
+2.  **Pass-through test:** Verify the action proceeds when the condition *is* met.
+
+A guard that never opens is indistinguishable from a working guard if only the block side is tested. A passing block-only test can mask a bug where the guard is permanently closed.
+
+*   **Example (bad — block-only):**
+    ```javascript
+    // Only proves saves don't happen on mount — never proves saves work after load
+    it('does not save on mount', () => {
+        render(() => <Component />);
+        expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+    ```
+
+*   **Example (good — guard pair):**
+    ```javascript
+    it('does not save on mount', () => {
+        render(() => <Component />);
+        expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('saves after user modifies state', () => {
+        render(() => <Component />);
+        // trigger a user action that should persist
+        fireEvent.click(screen.getByText('Toggle'));
+        expect(localStorage.setItem).toHaveBeenCalled();
+    });
+    ```
+
+### State-Transition Coverage
+
+When a feature has distinct states (e.g., loading → loaded, idle → dragging → idle), tests must cover:
+
+*   The **entry** into each state.
+*   The **exit** from each state.
+*   The **behavior** while in each state.
+
+If a signal or flag controls a transition, at least one test must exercise the full round-trip (e.g., start drag → move → end drag → verify final state).
+
+### Test Independence
+
+*   Each test must set up its own preconditions. Do not rely on ordering or side effects from previous tests.
+*   Mock state (e.g., `localStorage`, `fetch`) must be reset in `beforeEach` — not only in the global setup file. If a mock is defined in both the setup file and a test file, the test file's mock wins and the setup mock is wasted; prefer one authoritative location per mock.
+
 ## Definitions
 
 *   **Issue:** An "issue" is any deviation from the best practices outlined in this document. This includes, but is not limited to:

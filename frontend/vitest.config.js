@@ -11,6 +11,7 @@ export default defineConfig({
         inline: [/solid-js/, /lucide-solid/],
       },
     },
+    setupFiles: ['./src/test/setup.js'],
   },
   resolve: {
     conditions: ['development', 'browser'],
