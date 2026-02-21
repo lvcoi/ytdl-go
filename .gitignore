@@ -19,6 +19,8 @@ ytdl-go.exe
 # Go workspace file
 go.work
 *.code-workspace
+.gocache/
+.gotmp/
 
 # codeQL custom queries
 *codeql-custom-queries-go
@@ -94,6 +96,14 @@ site/
 # Frontend (Node.js)
 frontend/node_modules/
 
-# Scripts binaries
-scripts/assign-milestones
-scripts/go.sum
+# Local task snapshots
+.task-archive/
+**node_modules/
+.github/
+.windsurf/
+**conductor/
+**.antigravity/
+.gemini/
+gha-creds-*.json
+**github/   
+**windsurf/

@@ -116,7 +116,9 @@ type Job struct {
 	taskState          map[string]ProgressTaskSnapshot `json:"-"`
 	logState           []ProgressLogSnapshot           `json:"-"`
 	duplicatePromptMap map[string]DuplicatePromptSnapshot
-	closeOnce          sync.Once `json:"-"`
+	ctx                context.Context    `json:"-"`
+	cancel             context.CancelFunc `json:"-"`
+	closeOnce          sync.Once          `json:"-"`
 }
 
 // jobTracker manages active download jobs.
@@ -133,16 +135,18 @@ var (
 )
 
 const (
-	criticalEventTimeout    = 2 * time.Second
-	duplicatePromptTimeout  = 120 * time.Second
-	maxJobEventHistory      = 4096
+	criticalEventTimeout   = 2 * time.Second
+	duplicatePromptTimeout = 10 * time.Second // Short timeout for web duplicates
+	maxJobEventHistory     = 4096
+
 	maxJobLogHistory        = 200
 	baseSubscriberBufferLen = 128
 )
 
-func (jt *jobTracker) Create(urls []string) *Job {
+func (jt *jobTracker) Create(ctx context.Context, urls []string) *Job {
 	id := fmt.Sprintf("job_%d", jt.counter.Add(1))
 	urlCopy := append([]string(nil), urls...)
+	jobCtx, cancel := context.WithCancel(ctx)
 	job := &Job{
 		ID:                 id,
 		Status:             "queued",
@@ -153,8 +157,28 @@ func (jt *jobTracker) Create(urls []string) *Job {
 		subscribers:        make(map[int64]chan ProgressEvent),
 		taskState:          make(map[string]ProgressTaskSnapshot),
 		duplicatePromptMap: make(map[string]DuplicatePromptSnapshot),
+		ctx:                jobCtx,
+		cancel:             cancel,
 	}
+
 	go job.runEventBroker()
+	go func() {
+		<-jobCtx.Done()
+		if errors.Is(jobCtx.Err(), context.Canceled) {
+			job.mu.Lock()
+			if job.Status == "queued" || job.Status == "running" {
+				job.setTerminalStatusLocked("error")
+				job.Error = "Cancelled by user"
+				status := job.Status
+				errMsg := job.Error
+				stats := job.Stats
+				job.mu.Unlock()
+				job.emitTerminalStatusEvent(status, errMsg, 130, stats)
+			} else {
+				job.mu.Unlock()
+			}
+		}
+	}()
 	job.emitStatusEvent("queued", "queued")
 	jt.jobs.Store(id, job)
 	return job
@@ -227,7 +251,22 @@ func (jt *jobTracker) StartCleanup(ctx context.Context, interval, completedTTL, 
 	}()
 }
 
+func (j *Job) Cancel() {
+	if j == nil || j.cancel == nil {
+		return
+	}
+	j.cancel()
+}
+
+func (j *Job) Context() context.Context {
+	if j == nil {
+		return context.Background()
+	}
+	return j.ctx
+}
+
 func (j *Job) CloseEvents() {
+
 	if j == nil {
 		return
 	}
@@ -276,13 +315,23 @@ func (j *Job) SetOutcome(results []app.Result, exitCode int) string {
 
 	if exitCode != 0 {
 		j.setTerminalStatusLocked("error")
+		var firstErr string
+		failCount := 0
 		for _, result := range resultsCopy {
 			if result.Error != "" {
-				j.Error = result.Error
-				break
+				if firstErr == "" {
+					firstErr = result.Error
+				}
+				failCount++
 			}
 		}
+		if failCount > 1 {
+			j.Error = fmt.Sprintf("%d items failed. First error: %s", failCount, firstErr)
+		} else {
+			j.Error = firstErr
+		}
 		status := j.Status
+
 		errMsg := j.Error
 		statsCopy := j.Stats
 		j.mu.Unlock()
@@ -541,8 +590,10 @@ func (j *Job) recordEvent(evt ProgressEvent) {
 		j.eventHistory = append([]ProgressEvent(nil), j.eventHistory[over:]...)
 	}
 	j.applyEventLocked(evt)
+	BroadcastEvent(evt)
 
 	subs := make([]chan ProgressEvent, 0, len(j.subscribers))
+
 	for _, sub := range j.subscribers {
 		subs = append(subs, sub)
 	}
@@ -829,7 +880,7 @@ func (p *webDuplicatePrompter) PromptDuplicate(path string) (downloader.Duplicat
 
 var _ downloader.DuplicatePrompter = (*webDuplicatePrompter)(nil)
 
-// webRenderer implements downloader.ProgressRenderer for SSE streaming.
+// webRenderer implements downloader.ProgressRenderer for WebSocket and internal tracking.
 type webRenderer struct {
 	events chan<- ProgressEvent
 }

@@ -117,7 +117,7 @@ Submits a duplicate-file decision for a pending prompt.
 - **URL:** `/status`
 - **Method:** `GET`
 
-### Success Response
+### Success Response - (server status)
 
 ```json
 {
@@ -136,7 +136,7 @@ Lists downloaded media with pagination.
   - `offset` (default `0`)
   - `limit` (default `200`, max `500`)
 
-### Success Response
+### Success Response - (media listing)
 
 ```json
 {
@@ -145,10 +145,37 @@ Lists downloaded media with pagination.
       "id": "file.mp4",
       "title": "file",
       "artist": "Unknown Artist",
+      "album": "Unknown Album",
       "size": "12.5 MB",
+      "size_bytes": 13107200,
       "date": "2026-02-07",
+      "modified_at": "2026-02-07T18:55:12Z",
       "type": "video",
-      "filename": "file.mp4"
+      "filename": "video/file.mp4",
+      "relative_path": "video/file.mp4",
+      "folder": "video",
+      "source_url": "https://www.youtube.com/watch?v=abc123",
+      "thumbnail_url": "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+      "playlist": {
+        "id": "PL123",
+        "title": "Road Trip",
+        "url": "https://www.youtube.com/playlist?list=PL123",
+        "index": 1,
+        "count": 10
+      },
+      "has_sidecar": true,
+      "metadata": {
+        "id": "abc123",
+        "title": "file",
+        "artist": "Unknown Artist",
+        "album": "Unknown Album",
+        "thumbnail_url": "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+        "source_url": "https://www.youtube.com/watch?v=abc123",
+        "release_date": "2026-02-07",
+        "duration_seconds": 215,
+        "output": "video/file.mp4",
+        "status": "ok"
+      }
     }
   ],
   "next_offset": null
@@ -156,6 +183,9 @@ Lists downloaded media with pagination.
 ```
 
 - `next_offset` is `null` when there are no more results.
+- `has_sidecar=true` indicates metadata was loaded from a sidecar (`<media-file>.json`) written during download.
+- Library UI grouping and thumbnail rendering primarily use sidecar-backed fields (`artist`, `album`, `thumbnail_url`, `playlist`, `metadata.*`).
+- Legacy files without sidecars still appear in results with fallback metadata (`has_sidecar=false`).
 
 ## 6. Media File Serve
 
@@ -165,3 +195,60 @@ Serves a media file from the media directory.
 - **Method:** `GET`
 
 Path traversal and symlink escape are rejected.
+
+## 7. Saved Playlists State
+
+Reads or replaces the saved-playlist state used by the Library tab.
+
+- **URL:** `/library/playlists`
+- **Methods:** `GET`, `PUT`
+- **Content-Type (`PUT`):** `application/json`
+
+### Payload Shape - (saved playlists)
+
+```json
+{
+  "playlists": [
+    {
+      "id": "saved-123",
+      "name": "Road Trip",
+      "createdAt": "2026-02-07T12:00:00Z",
+      "updatedAt": "2026-02-07T12:00:00Z"
+    }
+  ],
+  "assignments": {
+    "video/file.mp4": "saved-123"
+  }
+}
+```
+
+Notes:
+
+- `playlists[].id` and `playlists[].name` are required.
+- Invalid/duplicate entries are normalized server-side.
+- `assignments` values must reference an existing playlist id.
+
+## 8. Legacy Saved Playlists Migration
+
+One-time migration endpoint for moving legacy localStorage playlists into backend storage.
+
+- **URL:** `/library/playlists/migrate`
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+- **Body:** same shape as section 7 payload
+
+### Success Response - (saved playlists migration)
+
+```json
+{
+  "playlists": [
+    { "id": "saved-123", "name": "Road Trip" }
+  ],
+  "assignments": {
+    "video/file.mp4": "saved-123"
+  },
+  "migrated": true
+}
+```
+
+If backend storage already has playlist data, migration is skipped and `migrated` is `false`.

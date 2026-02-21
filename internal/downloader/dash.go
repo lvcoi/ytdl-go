@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 type mpd struct {
@@ -61,7 +61,7 @@ type dashRepresentation struct {
 	InitURL    string
 }
 
-func downloadDASH(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (downloadResult, error) {
+func downloadDASH(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (downloadResult, error) {
 	data, err := fetchManifest(ctx, client, video.DASHManifestURL)
 	if err != nil {
 		return downloadResult{}, wrapCategory(CategoryNetwork, fmt.Errorf("fetching DASH manifest: %w", err))
@@ -320,7 +320,7 @@ type dashResumeState struct {
 	InitDone     bool   `json:"init_done"`
 }
 
-func downloadDASHSegments(ctx context.Context, client *youtube.Client, rep dashRepresentation, outputPath, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
+func downloadDASHSegments(ctx context.Context, client YouTubeClient, rep dashRepresentation, outputPath, baseDir string, opts Options, printer *Printer, prefix string) (downloadResult, error) {
 	partPath, err := artifactPath(outputPath, partSuffix, baseDir)
 	if err != nil {
 		return downloadResult{}, err

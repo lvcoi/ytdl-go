@@ -1,4 +1,5 @@
 <div align="center">
+<img src="img/ytdl-Gopher.png" alt="ytdl-gopher">
 
 # ytdl-go
 
@@ -6,11 +7,11 @@
 _Now featuring a brand-new browser-based Web UI — no CLI required._
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
 [![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
 [![GoDoc](https://img.shields.io/badge/reference-go.dev-007d9c?style=for-the-badge&logo=go)](https://pkg.go.dev/github.com/lvcoi/ytdl-go)
 
-[Web UI](#-web-ui) • [Quick Start](#-quick-start) • [CLI](#-command-line-interface) • [Docs](#-documentation)
+[Web UI](#️-web-ui) • [Quick Start](#-quick-start) • [CLI](#-command-line-interface) • [Docs](#-documentation)
 
 </div>
 
@@ -95,10 +96,42 @@ ytdl-go -web   # launches the Web UI
 ```bash
 git clone https://github.com/lvcoi/ytdl-go.git
 cd ytdl-go
-./build.sh --web   # builds Go binary + frontend, then opens the UI
+
+# Build backend + frontend, then prompt to launch the UI
+./build.sh
+
+# Build and automatically launch backend + frontend UI
+./build.sh --web
+
+# Build and launch against a backend on a custom requested web address
+YTDL_WEB_ADDR=127.0.0.1:9090 ./build.sh --web
+
+# Build and launch UI against an explicit API proxy target
+VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
 ```
 
 The binary is written to `./bin/yt`. The Web UI is embedded — no separate frontend server needed.
+
+**What `build.sh` does:**
+- Builds the Go binary to `./bin/yt`
+- Builds frontend assets into `internal/web/assets/`
+- Prompts to launch backend + frontend dev UI unless `--web` is passed
+- Launches backend via `yt -web --web-addr "${YTDL_WEB_ADDR:-127.0.0.1:8080}"`
+- Uses `VITE_API_PROXY_TARGET` only when explicitly set; otherwise Vite auto-detects backend from `http://127.0.0.1:8080` + fallback ports
+- `ytdl-go -web` auto-falls back to the next available port if the requested port is already in use, and logs the final URL
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `-w`, `--web` | Automatically launch the UI after building |
+| `-h`, `--help` | Show help message |
+
+**Non-interactive (scripting):**
+
+```bash
+printf 'n\n' | ./build.sh
+```
 
 ### Option C — Manual build
 
@@ -125,15 +158,42 @@ The CLI remains fully functional for scripting, automation, and power users.
 ```bash
 # Download best quality video
 ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
+```
 
+![Video download](screenshots/05-video-download.svg)
+
+```bash
 # Download audio-only
-ytdl-go -audio https://www.youtube.com/watch?v=BaW_jenozKc
+ytdl-go --audio https://www.youtube.com/watch?v=BaW_jenozKc
+```
 
-# Interactive format selector (TUI)
+![Audio download](screenshots/06-audio-download.svg)
+
+### The Essentials
+
+| Goal | Command |
+| --- | --- |
+| **Download Best Video** | `ytdl-go "https://youtube.com/watch?v=..."` |
+| **Download Audio Only** | `ytdl-go -audio "https://youtube.com/watch?v=..."` |
+| **Interactive Format Selector** | `ytdl-go -list-formats "https://youtube.com/watch?v=..."` |
+| **Download Playlist** | `ytdl-go "https://youtube.com/playlist?list=..."` |
+| **Launch Web UI** | `ytdl-go -web` |
+
+### Interactive Mode (TUI)
+
+Use `-list-formats` to browse all available streams and pick a specific one.
+
+```shell
 ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
+```
 
-# Organize a music playlist
-ytdl-go -audio -o "Music/{artist}/{album}/{index} - {title}.{ext}" PLAYLIST_URL
+![Interactive Format Selector](screenshots/interactive-format-selector.svg)
+
+### File Organization & Templates
+
+```shell
+ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
+ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
 For the complete CLI reference — all flags, output template placeholders, concurrency options, scripting examples, and troubleshooting — see **[docs/CLI.md](docs/CLI.md)**.
@@ -156,11 +216,18 @@ For the complete CLI reference — all flags, output template placeholders, conc
 
 ---
 
-## 🛡️ Security
+## 🔧 Troubleshooting
 
-Please **do not** open public issues for security vulnerabilities. Follow the process in [SECURITY.md](SECURITY.md).
+<details>
+<summary><b>Common Issues & Fixes</b></summary>
 
-The repository uses [Gitleaks](https://github.com/gitleaks/gitleaks) for automated secret scanning and a pre-commit hook to prevent accidental credential commits. Run `./setup-hooks.sh` once after cloning to enable it.
+- **403 Forbidden Errors:** The tool automatically retries with different methods. If persistent, check your IP reputation or try `-timeout 10m`.
+- **Restricted Content:** Private, age-gated, or member-only videos require authentication which is currently **not supported**.
+- **Playlists:** Empty videos or deleted entries in playlists are automatically skipped.
+- **Library Metadata/Thumbnails:** New downloads write sidecar metadata (`<media-file>.json`) used by the web UI for artist/album/thumbnail grouping. Legacy files without sidecars still load, but may appear under Unknown buckets until re-downloaded.
+- **Web Port Already in Use:** `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL and point Vite with `VITE_API_PROXY_TARGET=http://127.0.0.1:<port>`.
+
+</details>
 
 ---
 
@@ -168,6 +235,6 @@ The repository uses [Gitleaks](https://github.com/gitleaks/gitleaks) for automat
 
 Made with ❤️ by the ytdl-go team
 
-[License](LICENSE) • [Report Issue](https://github.com/lvcoi/ytdl-go/issues) • [Discussions](https://github.com/lvcoi/ytdl-go/discussions)
+[License](LICENSE) • [Report Issue](https://github.com/lvcoi/ytdl-go/issues)
 
 </div>
