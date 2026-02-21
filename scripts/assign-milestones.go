@@ -82,6 +82,11 @@ func main() {
 		fmt.Println("Warning: No milestone rules created. Using fallback strategy.")
 	}
 
+	processIssues(ctx, client, issues, milestones, rules, *dryRun, *verbose)
+}
+
+// processIssues processes issues and assigns milestones based on rules
+func processIssues(ctx context.Context, client *github.Client, issues []*github.Issue, milestones []*github.Milestone, rules []MilestoneRule, dryRun bool, verbose bool) {
 	updated := 0
 	skipped := 0
 	errors := 0
@@ -95,7 +100,7 @@ func main() {
 
 		// Skip issues that already have a milestone
 		if issue.Milestone != nil {
-			if *verbose {
+			if verbose {
 				fmt.Printf("Issue #%d already has milestone '%s', skipping\n", issue.GetNumber(), issue.Milestone.GetTitle())
 			}
 			skipped++
@@ -105,7 +110,7 @@ func main() {
 		// Determine appropriate milestone
 		milestone := determineMilestone(issue, rules, milestones)
 		if milestone == nil {
-			if *verbose {
+			if verbose {
 				fmt.Printf("Issue #%d: No appropriate milestone found, skipping\n", issue.GetNumber())
 			}
 			skipped++
@@ -117,7 +122,7 @@ func main() {
 			truncate(issue.GetTitle(), 60),
 			milestone.GetTitle())
 
-		if !*dryRun {
+		if !dryRun {
 			// Update the issue with the milestone
 			issueReq := &github.IssueRequest{
 				Milestone: github.Int(milestone.GetNumber()),
@@ -141,7 +146,7 @@ func main() {
 	if errors > 0 {
 		fmt.Printf("Errors: %d\n", errors)
 	}
-	if *dryRun {
+	if dryRun {
 		fmt.Println("\nThis was a DRY RUN. Use -dry-run=false to actually update issues.")
 	}
 }
