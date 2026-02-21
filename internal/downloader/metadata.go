@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 const extractorName = "kkdai/youtube"
@@ -141,6 +141,21 @@ func writeSidecar(outputPath, baseDir string, metadata ItemMetadata) error {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(metadata); err != nil {
 		return wrapCategory(CategoryFilesystem, fmt.Errorf("writing sidecar: %w", err))
+	}
+	return nil
+}
+
+func finalizeDownloadMetadata(outputPath, baseDir string, metadata ItemMetadata, audioOnly bool, printer *Printer) error {
+	if outputPath == "" {
+		return nil
+	}
+	// Only embed tags for audio-only downloads to avoid unnecessary remuxing for video files
+	if audioOnly {
+		embedAudioTags(metadata, outputPath, printer)
+	}
+
+	if err := writeSidecar(outputPath, baseDir, metadata); err != nil {
+		return err
 	}
 	return nil
 }

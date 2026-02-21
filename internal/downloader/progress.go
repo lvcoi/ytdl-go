@@ -133,9 +133,17 @@ func (p *progressWriter) SetCurrent(current int64) {
 		return
 	}
 	p.total.Store(current)
-	if p.renderer != nil && p.taskID != "" {
-		size := p.size.Load()
-		p.renderer.Update(p.taskID, current, size)
+
+	// Throttle renderer updates to 100ms to match Write() throttle
+	now := time.Now()
+	lastUpdateNano := p.lastUpdate.Load()
+	if now.UnixNano()-lastUpdateNano >= 100*time.Millisecond.Nanoseconds() {
+		if p.lastUpdate.CompareAndSwap(lastUpdateNano, now.UnixNano()) {
+			if p.renderer != nil && p.taskID != "" {
+				size := p.size.Load()
+				p.renderer.Update(p.taskID, current, size)
+			}
+		}
 	}
 }
 
