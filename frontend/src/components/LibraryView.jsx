@@ -212,9 +212,48 @@ export default function LibraryView(props) {
   });
 
   const typedItems = createMemo(() => downloads().filter((item) => normalizeMediaType(item?.type) === activeMediaType()));
-  const creatorOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => creatorLabel(item))));
-  const collectionOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => albumOrChannelLabel(item))));
-  const sourcePlaylistOptions = createMemo(() => toUniqueSortedValues(typedItems().map((item) => sourcePlaylistLabel(item))));
+
+  const filterOptions = createMemo(() => {
+    const creators = new Set();
+    const collections = new Set();
+    const sourcePlaylists = new Set();
+
+    for (const item of typedItems()) {
+      const creator = creatorLabel(item);
+      if (typeof creator === 'string') {
+        const trimmed = creator.trim();
+        if (trimmed !== '') {
+          creators.add(trimmed);
+        }
+      }
+
+      const collection = albumOrChannelLabel(item);
+      if (typeof collection === 'string') {
+        const trimmed = collection.trim();
+        if (trimmed !== '') {
+          collections.add(trimmed);
+        }
+      }
+
+      const sourcePlaylist = sourcePlaylistLabel(item);
+      if (typeof sourcePlaylist === 'string') {
+        const trimmed = sourcePlaylist.trim();
+        if (trimmed !== '') {
+          sourcePlaylists.add(trimmed);
+        }
+      }
+    }
+
+    return {
+      creator: Array.from(creators).sort(compareText),
+      collection: Array.from(collections).sort(compareText),
+      playlist: Array.from(sourcePlaylists).sort(compareText),
+    };
+  });
+
+  const creatorOptions = createMemo(() => filterOptions().creator);
+  const collectionOptions = createMemo(() => filterOptions().collection);
+  const sourcePlaylistOptions = createMemo(() => filterOptions().playlist);
 
   const filteredItems = createMemo(() => {
     const activeFilters = filters();
