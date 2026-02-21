@@ -46,7 +46,7 @@ export default function DashboardView(props) {
         const pushUndo = (currentWidgets) => {
         const stack = undoStack();
         if (stack.length >= 50) stack.shift();
-        setUndoStack([...stack, JSON.parse(JSON.stringify(currentWidgets))]);
+        setUndoStack([...stack, structuredClone(currentWidgets)]);
         setRedoStack([]);
     };
 
@@ -57,7 +57,7 @@ export default function DashboardView(props) {
         const previous = stack[stack.length - 1];
         const newStack = stack.slice(0, -1);
         
-        setRedoStack([...redoStack(), JSON.parse(JSON.stringify(widgets()))]);
+        setRedoStack([...redoStack(), structuredClone(widgets())]);
         setUndoStack(newStack);
         setWidgets(previous);
     };
@@ -69,7 +69,7 @@ export default function DashboardView(props) {
         const next = stack[stack.length - 1];
         const newStack = stack.slice(0, -1);
         
-        setUndoStack([...undoStack(), JSON.parse(JSON.stringify(widgets()))]);
+        setUndoStack([...undoStack(), structuredClone(widgets())]);
         setRedoStack(newStack);
         setWidgets(next);
     };
@@ -234,7 +234,7 @@ export default function DashboardView(props) {
                 // Layout Management Functions
     const handleSaveLayout = (name) => {
         const id = crypto.randomUUID();
-        const newLayout = { id, name, widgets: JSON.parse(JSON.stringify(widgets())), isFactory: false };
+        const newLayout = { id, name, widgets: structuredClone(widgets()), isFactory: false };
         
         setLayoutState(prev => ({
             ...prev,
@@ -249,7 +249,7 @@ export default function DashboardView(props) {
         if (layout) {
             pushUndo(widgets());
             setLayoutState(prev => ({ ...prev, activeLayoutId: id }));
-            setWidgets(JSON.parse(JSON.stringify(layout.widgets)));
+            setWidgets(structuredClone(layout.widgets));
         }
     };
 
