@@ -123,3 +123,22 @@
     transition: all 0.2s ease;
     z-index: 1000;
 }
+
+/* 16-Column Grid Pattern */
+.dashboard-grid-lines {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 0,
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 1px,
+    transparent calc(6.25% - 0.75px) /* 100/16% - gap adjustment */
+  ),
+  repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0,
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 1px,
+    transparent calc(80px + 12px) /* 80px row + 12px gap */
+  );
+  background-size: 100% 100%;
+}

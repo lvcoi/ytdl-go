@@ -1,43 +1,48 @@
-import { render, screen } from '@solidjs/testing-library';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@solidjs/testing-library';
 import { Grid, GridItem } from './Grid';
 
 describe('Grid component', () => {
-    it('renders children', () => {
-        render(() => <Grid><div>Child</div></Grid>);
-        expect(screen.getByText('Child')).toBeInTheDocument();
-    });
+    afterEach(cleanup);
 
-    it('applies default grid classes', () => {
+    it('renders as a 16-column grid', () => {
         const { container } = render(() => <Grid />);
-        expect(container.querySelector('.grid')).toHaveClass('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6');
+        const grid = container.firstChild;
+        expect(grid).toHaveStyle({ display: 'grid' });
+        expect(grid).toHaveStyle({ 'grid-template-columns': 'repeat(16, 1fr)' });
     });
 
-    it('applies custom grid classes', () => {
-        const { container } = render(() => <Grid class="custom-class" />);
-        expect(container.firstChild).toHaveClass('custom-class');
+            it('renders grid lines only in edit mode', () => {
+        let { unmount } = render(() => <Grid isEditMode={false} />);
+        expect(document.querySelector('.dashboard-grid-lines')).toBeNull();
+        unmount();
+
+        ({ unmount } = render(() => <Grid isEditMode={true} />));
+        expect(document.querySelector('.dashboard-grid-lines')).toBeInTheDocument();
+        unmount();
     });
 });
 
 describe('GridItem component', () => {
-    it('renders children and applies default span', () => {
-        const { container } = render(() => <GridItem><div>Item</div></GridItem>);
-        expect(screen.getByText('Item')).toBeInTheDocument();
-        expect(container.firstChild).toHaveClass('lg:col-span-1');
+    afterEach(cleanup);
+
+    it('applies inline styles for placement', () => {
+        const { container } = render(() => (
+            <GridItem x={2} y={3} width={4} height={5} />
+        ));
+        const item = container.firstChild;
+        
+        expect(item.style.gridColumn).toBe('3 / span 4');
+        expect(item.style.gridRow).toBe('4 / span 5');
     });
 
-    it('applies correct span class for span=2', () => {
-        const { container } = render(() => <GridItem span={2} />);
-        expect(container.firstChild).toHaveClass('lg:col-span-2');
-    });
+    it('shows resize handles only in edit mode', () => {
+        let { container, unmount } = render(() => <GridItem isEditMode={false} />);
+        expect(container.querySelector('.cursor-nwse-resize')).toBeNull();
+        unmount();
 
-    it('applies correct span class for span=4', () => {
-        const { container } = render(() => <GridItem span={4} />);
-        expect(container.firstChild).toHaveClass('lg:col-span-4');
-    });
-
-    it('applies custom classes', () => {
-        const { container } = render(() => <GridItem class="custom-item" />);
-        expect(container.firstChild).toHaveClass('custom-item');
+        ({ container, unmount } = render(() => <GridItem isEditMode={true} />));
+        expect(container.querySelector('.cursor-nwse-resize')).toBeInTheDocument();
+        unmount();
     });
 });

@@ -8,6 +8,7 @@ vi.mock('./ActiveDownloads', () => ({ default: () => <div data-testid="active-do
 vi.mock('./dashboard/WelcomeWidget', () => ({ default: () => <div data-testid="welcome-widget">WelcomeWidget</div> }));
 vi.mock('./dashboard/StatsWidget', () => ({ default: () => <div data-testid="stats-widget">StatsWidget</div> }));
 vi.mock('./dashboard/RecentActivityWidget', () => ({ default: () => <div data-testid="recent-activity-widget">RecentActivityWidget</div> }));
+vi.mock('./ConcurrencyWidget', () => ({ default: () => <div data-testid="concurrency-widget">ConcurrencyWidget</div> }));
 
 describe('DashboardView', () => {
     beforeEach(() => {
@@ -32,19 +33,20 @@ describe('DashboardView', () => {
         expect(screen.getByTestId('active-downloads')).toBeInTheDocument();
     });
 
-    it('enters edit mode when edit button is clicked', async () => {
+        it('enters edit mode when edit button is clicked', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         
         render(() => <DashboardView libraryModel={mockModel} />);
         
-        const editButton = screen.getByText('Edit Layout');
+        // Find by role and name (more robust than exact text match which might be split by icons)
+        const editButton = screen.getByRole('button', { name: /Edit Layout/i });
         expect(editButton).toBeInTheDocument();
         
         fireEvent.click(editButton);
         
-        expect(screen.getByText('Done')).toBeInTheDocument();
-        expect(screen.getByText('Reset')).toBeInTheDocument();
-        expect(screen.getByText('Dashboard: Edit Mode')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Done/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Reset/i })).toBeInTheDocument();
+        expect(screen.getByText(/Dashboard: Edit Mode/i)).toBeInTheDocument();
     });
 
     it('shows reset button only in edit mode', async () => {
@@ -53,35 +55,35 @@ describe('DashboardView', () => {
         render(() => <DashboardView libraryModel={mockModel} />);
         
         // Initially should not show reset button
-        expect(screen.queryByText('Reset')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Reset/i })).not.toBeInTheDocument();
         
         // Enter edit mode
-        const editButton = screen.getByText('Edit Layout');
+        const editButton = screen.getByRole('button', { name: /Edit Layout/i });
         fireEvent.click(editButton);
         
         // Should show reset button
-        expect(screen.getByText('Reset')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Reset/i })).toBeInTheDocument();
         
         // Exit edit mode
-        const doneButton = screen.getByText('Done');
+        const doneButton = screen.getByRole('button', { name: /Done/i });
         fireEvent.click(doneButton);
         
         // Should hide reset button again
-        expect(screen.queryByText('Reset')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Reset/i })).not.toBeInTheDocument();
     });
 
-    it('loads layout from localStorage on mount', () => {
+        it('loads layout from localStorage on mount', () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         const savedLayout = [
-            { id: 'welcome', span: 4, enabled: true, x: 0, y: 0, width: 4, height: 2 },
-            { id: 'quick-download', span: 3, enabled: false, x: 0, y: 2, width: 3, height: 2 }
+            { id: 'welcome', enabled: true, x: 0, y: 0, width: 16, height: 3 },
+            { id: 'quick-download', enabled: false, x: 0, y: 3, width: 8, height: 2 }
         ];
         
         global.localStorage.getItem.mockReturnValue(JSON.stringify(savedLayout));
         
         render(() => <DashboardView libraryModel={mockModel} />);
         
-        expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v2');
+        expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v3');
     });
 
     it('migrates legacy layout format', () => {
@@ -92,70 +94,70 @@ describe('DashboardView', () => {
         ];
         
         global.localStorage.getItem.mockImplementation((key) => {
-            if (key === 'ytdl-go:dashboard-layout:v2') return null;
-            if (key === 'ytdl-go:dashboard-layout:v1') return JSON.stringify(legacyLayout);
+            if (key === 'ytdl-go:dashboard-layout:v3') return null;
+            if (key === 'ytdl-go:dashboard-layout:v2') return JSON.stringify(legacyLayout);
             return null;
         });
         
         render(() => <DashboardView libraryModel={mockModel} />);
         
         // Should try to load both formats
+        expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v3');
         expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v2');
-        expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v1');
         
         // Should save migrated format
         expect(global.localStorage.setItem).toHaveBeenCalledWith(
-            'ytdl-go:dashboard-layout:v2',
+            'ytdl-go:dashboard-layout:v3',
             expect.stringContaining('"width"')
         );
         
-        // Verify migrated positions account for span
+        // Verify migrated positions account for span (x*4)
         const savedCall = global.localStorage.setItem.mock.calls.find(
-            ([key]) => key === 'ytdl-go:dashboard-layout:v2'
+            ([key]) => key === 'ytdl-go:dashboard-layout:v3'
         );
         const migrated = JSON.parse(savedCall[1]);
         expect(migrated[0].x).toBe(0);
         expect(migrated[0].y).toBe(0);
+        expect(migrated[0].width).toBe(16); // 4 * 4
         expect(migrated[1].x).toBe(0);
         expect(migrated[1].y).toBe(2);
+        expect(migrated[1].width).toBe(12); // 3 * 4
     });
 
     it('does not overwrite saved layout with defaults on mount', () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         const savedLayout = [
-            { id: 'welcome', span: 4, enabled: true, x: 0, y: 0, width: 4, height: 2 },
-            { id: 'quick-download', span: 3, enabled: false, x: 0, y: 2, width: 3, height: 2 }
+            { id: 'welcome', enabled: true, x: 0, y: 0, width: 16, height: 3 },
+            { id: 'quick-download', enabled: false, x: 0, y: 3, width: 8, height: 2 }
         ];
         
         global.localStorage.getItem.mockImplementation((key) => {
-            if (key === 'ytdl-go:dashboard-layout:v2') return JSON.stringify(savedLayout);
+            if (key === 'ytdl-go:dashboard-layout:v3') return JSON.stringify(savedLayout);
             return null;
         });
 
         render(() => <DashboardView libraryModel={mockModel} />);
 
         // Should not call setItem when loading existing layout (no changes made)
-        // The only setItem calls might be from migration, but since v2 exists, there should be none
         const setItemCalls = global.localStorage.setItem.mock.calls.filter(
-            ([key]) => key === 'ytdl-go:dashboard-layout:v2'
+            ([key]) => key === 'ytdl-go:dashboard-layout:v3'
         );
         
-        // With the hasLoaded guard, loading an existing layout shouldn't trigger setItem
         expect(setItemCalls.length).toBe(0);
     });
 
-    it('persists layout changes after loading an existing v2 layout', async () => {
+        it('persists layout changes after loading an existing v2 layout', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         const savedLayout = [
-            { id: 'welcome', span: 4, enabled: true, x: 0, y: 0, width: 4, height: 2 },
-            { id: 'quick-download', span: 3, enabled: true, x: 0, y: 2, width: 3, height: 2 },
-            { id: 'active-downloads', span: 1, enabled: true, x: 3, y: 2, width: 1, height: 2 },
-            { id: 'recent-activity', span: 3, enabled: true, x: 0, y: 4, width: 3, height: 2 },
-            { id: 'stats', span: 1, enabled: true, x: 3, y: 4, width: 1, height: 2 },
+            { id: 'welcome', enabled: true, x: 0, y: 0, width: 16, height: 3 },
+            { id: 'quick-download', enabled: true, x: 0, y: 3, width: 8, height: 2 },
+            { id: 'active-downloads', enabled: true, x: 12, y: 3, width: 4, height: 4 },
+            { id: 'recent-activity', enabled: true, x: 0, y: 5, width: 12, height: 4 },
+            { id: 'stats', enabled: true, x: 12, y: 7, width: 4, height: 3 },
         ];
 
         global.localStorage.getItem.mockImplementation((key) => {
-            if (key === 'ytdl-go:dashboard-layout:v2') return JSON.stringify(savedLayout);
+            if (key === 'ytdl-go:dashboard-layout:v3') return JSON.stringify(savedLayout);
             return null;
         });
 
@@ -167,11 +169,11 @@ describe('DashboardView', () => {
         global.localStorage.setItem.mockClear(); // Clear any mount-time calls
 
         // Enter edit mode and reset layout
-        fireEvent.click(screen.getByText('Edit Layout'));
-        fireEvent.click(screen.getByText('Reset'));
+        fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
 
         const setItemCalls = global.localStorage.setItem.mock.calls.filter(
-            ([key]) => key === 'ytdl-go:dashboard-layout:v2'
+            ([key]) => key === 'ytdl-go:dashboard-layout:v3'
         );
         expect(setItemCalls.length).toBeGreaterThan(0);
     });

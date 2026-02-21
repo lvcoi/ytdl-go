@@ -1,97 +1,93 @@
-import { Show } from 'solid-js';
+import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
+
+// Base layout constants
+const GRID_COLS = 16;
+const ROW_HEIGHT = 80; // px
+const GAP = 12; // px
 
 export function Grid(props) {
+    let gridRef;
+
     return (
-        <div class={`relative ${props.class || ''}`}>
-            {/* Grid container */}
-            <div class={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6`}>
-                {props.children}
-            </div>
+        <div 
+            ref={(el) => {
+                gridRef = el;
+                if (props.ref) props.ref(el);
+            }}
+            class="relative w-full"
+            style={{
+                display: 'grid',
+                'grid-template-columns': `repeat(${GRID_COLS}, 1fr)`,
+                'grid-auto-rows': `${ROW_HEIGHT}px`,
+                gap: `${GAP}px`,
+                'min-height': props.totalRows ? `${props.totalRows * (ROW_HEIGHT + GAP)}px` : 'auto'
+            }}
+        >
+                        {/* Grid Lines Overlay */}
+            <Show when={props.isEditMode}>
+                <div 
+                    class="dashboard-grid-lines absolute inset-0 pointer-events-none z-0 rounded-3xl"
+                    style={{
+                        'background-size': `calc((100% + ${GAP}px) / ${GRID_COLS}) ${ROW_HEIGHT + GAP}px`,
+                        'background-position': `-${GAP/2}px -${GAP/2}px` // Offset for gap centering
+                    }}
+                />
+            </Show>
+            
+            {/* Ghost Preview */}
+            <Show when={props.ghost}>
+                <div 
+                    class="absolute z-0 bg-accent-primary/20 border-2 border-accent-primary/50 rounded-[2rem] transition-all duration-200"
+                    style={{
+                        'grid-column': `${props.ghost.x + 1} / span ${props.ghost.width}`,
+                        'grid-row': `${props.ghost.y + 1} / span ${props.ghost.height}`
+                    }}
+                />
+            </Show>
+            
+            {/* Grid Content */}
+            {props.children}
         </div>
     );
 }
 
 export function GridItem(props) {
-    const spanClass = () => {
-        switch(props.span) {
-            case 2: return 'lg:col-span-2';
-            case 3: return 'lg:col-span-3';
-            case 4: return 'lg:col-span-4';
-            default: return 'lg:col-span-1';
-        }
-    };
-
-    const handleResizeStart = (e, direction) => {
+    const handleResizeStart = (direction, e) => {
         e.preventDefault();
         e.stopPropagation();
-        
         if (props.onResizeStart) {
             props.onResizeStart(props.widgetId, direction, e);
         }
     };
 
-    const getResizeCursor = (direction) => {
-        const cursors = {
-            'n': 'cursor-n-resize',
-            's': 'cursor-s-resize',
-            'e': 'cursor-e-resize',
-            'w': 'cursor-w-resize',
-            'ne': 'cursor-ne-resize',
-            'nw': 'cursor-nw-resize',
-            'se': 'cursor-se-resize',
-            'sw': 'cursor-sw-resize'
-        };
-        return cursors[direction] || '';
-    };
-
     return (
-        <div 
-            class={`${spanClass()} ${props.class || ''} relative group`}
-            data-widget-id={props.widgetId}
+        <div
+            class={`${props.class || ''} relative z-10`}
+            style={{
+                'grid-column': `${(props.x || 0) + 1} / span ${props.width || props.span || 1}`,
+                'grid-row': `${(props.y || 0) + 1} / span ${props.height || 1}`,
+                transition: 'grid-column 0.25s ease, grid-row 0.25s ease, grid-column-end 0.25s ease, grid-row-end 0.25s ease, transform 0.1s ease',
+                ...(props.style || {})
+            }}
+            onMouseDown={props.onMouseDown}
         >
-            {/* Resize handles - only show in edit mode */}
-            <Show when={props.isEditMode}>
-                {/* Edge handles */}
-                <div 
-                    class={`absolute top-0 left-2 right-2 h-2 ${getResizeCursor('n')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'n')}
-                />
-                <div 
-                    class={`absolute bottom-0 left-2 right-2 h-2 ${getResizeCursor('s')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-b-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 's')}
-                />
-                <div 
-                    class={`absolute top-2 left-0 bottom-2 w-2 ${getResizeCursor('w')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-l-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'w')}
-                />
-                <div 
-                    class={`absolute top-2 right-0 bottom-2 w-2 ${getResizeCursor('e')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-r-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'e')}
-                />
-                
-                {/* Corner handles */}
-                <div 
-                    class={`absolute top-0 left-0 w-4 h-4 ${getResizeCursor('nw')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-tl-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'nw')}
-                />
-                <div 
-                    class={`absolute top-0 right-0 w-4 h-4 ${getResizeCursor('ne')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-tr-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'ne')}
-                />
-                <div 
-                    class={`absolute bottom-0 left-0 w-4 h-4 ${getResizeCursor('sw')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-bl-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'sw')}
-                />
-                <div 
-                    class={`absolute bottom-0 right-0 w-4 h-4 ${getResizeCursor('se')} resize-handle opacity-0 group-hover:opacity-100 transition-opacity rounded-br-lg`}
-                    onMouseDown={(e) => handleResizeStart(e, 'se')}
-                />
-            </Show>
+            {props.children}
             
-            {/* Widget content */}
-            <div class="h-full">
-                {props.children}
-            </div>
+            {/* Resize Handles - Only visible in edit mode */}
+            <Show when={props.isEditMode}>
+                {/* Corners */}
+                <div class="absolute -top-1.5 -left-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('nw', e)} />
+                <div class="absolute -top-1.5 -right-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('ne', e)} />
+                <div class="absolute -bottom-1.5 -left-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('sw', e)} />
+                <div class="absolute -bottom-1.5 -right-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('se', e)} />
+                
+                {/* Edges */}
+                <div class="absolute top-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('n', e)} />
+                <div class="absolute bottom-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('s', e)} />
+                <div class="absolute left-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('w', e)} />
+                <div class="absolute right-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('e', e)} />
+            </Show>
         </div>
     );
 }
+
