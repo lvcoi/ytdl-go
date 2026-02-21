@@ -2,6 +2,12 @@
 <img src="img/ytdl-Gopher.png" alt="ytdl-gopher">
 
 # ytdl-go
+---
+## **UNDER CONSTRUCTION**
+---
+
+v0.2.0 is about to release with a new webUI that I think is pretty cool. The commandline is still available and works in this version but for those who are interested in UI or not as comfortable with a CLI, I think the next version will work out nicely for you.  thanks for your patience!!
+
 
 **A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive._
 
