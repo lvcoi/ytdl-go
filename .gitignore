@@ -2,6 +2,8 @@
 # Go-specific
 # =============================================================================
 
+*USER_IDENTIFIED_ISSUES*
+
 # Binaries
 *.exe
 *.exe~
@@ -191,4 +193,3 @@ test_convert.go
 *codeql-custom-queries-go
 *codeql-custom-queries-go/
 *codeql-custom-queries-go.lock.yml
-USER_IDENTIFIED_ISSUES.md
