@@ -7,6 +7,7 @@ import DuplicateModal from './components/DuplicateModal';
 import { useAppStore } from './store/appStore';
 import { downloadStore, setDownloadStore } from './store/downloadStore';
 import { normalizeDownloadStatus } from './utils/downloadStatus';
+import logo from './assets/logo.png';
 
 
 
@@ -75,7 +76,14 @@ function App() {
 
   // Memoized Library Model for Dashboard
 
-  const libraryModel = createMemo(() => buildLibraryModel(state.library.downloads || []));
+  const libraryModel = createMemo(() => buildLibraryModel({
+    downloads: state.library.downloads,
+    savedPlaylists: state.library.savedPlaylists,
+    playlistAssignments: state.library.playlistAssignments,
+    typeFilter: state.library.typeFilter,
+    sortKey: state.library.sortKey,
+    filters: state.library.filters,
+  }));
 
   const setActiveTab = (tab) => {
     setState('ui', 'activeTab', tab);
@@ -403,11 +411,13 @@ function App() {
           }>
             <Show when={activeTab() === 'dashboard'}>
               <div class="max-w-7xl mx-auto">
-                <DashboardView
+                                <DashboardView
                   libraryModel={libraryModel}
                   onTabChange={setActiveTab}
                   onDownload={startDownload}
+                  onPlay={(item) => openPlayer(item, state.library.downloads)}
                 />
+
               </div>
             </Show>
 
@@ -443,9 +453,10 @@ function App() {
                     savedPlaylistId: '',
                   })}
                   onSortKeyChange={(nextSortKey) => setState('library', 'sortKey', nextSortKey)}
-                  onUiStateChange={(key, value) => setState('library', 'ui', key, value)}
-                  onPlay={(item, queue) => openPlayer(item, queue)}
+                                    onUiStateChange={(key, value) => setState('library', 'ui', key, value)}
+                  openPlayer={(item, queue) => openPlayer(item, queue)}
                   onOpenQueue={openQueue}
+
                   onCreatePlaylist={createSavedPlaylist}
                   onRenamePlaylist={renameSavedPlaylist}
                   onDeletePlaylist={deleteSavedPlaylist}
@@ -473,15 +484,20 @@ function App() {
           {/* Global Notification Toast */}
           <Show when={downloadStore.notification}>
             <div class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div class={`px-6 py-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-center gap-4 min-w-[320px] max-w-md ${
+              <div class={`px-6 py-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-center gap-4 min-w-[340px] max-w-md ${
                 downloadStore.notification.type === 'success' 
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
                   : 'bg-red-500/10 border-red-500/20 text-red-400'
               }`}>
-                <div class={`p-2 rounded-xl ${
-                  downloadStore.notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-red-500/20'
-                }`}>
-                  <Icon name={downloadStore.notification.type === 'success' ? 'check-circle-2' : 'alert-circle'} class="w-5 h-5" />
+                <div class="relative">
+                  <div class={`p-2.5 rounded-xl ${
+                    downloadStore.notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                  }`}>
+                    <Icon name={downloadStore.notification.type === 'success' ? 'check-circle-2' : 'alert-circle'} class="w-5 h-5 relative z-10" />
+                  </div>
+                  <Show when={downloadStore.notification.type === 'success'}>
+                    <img src={logo} class="absolute -top-10 -left-4 w-12 h-12 object-contain animate-bounce -rotate-12 pointer-events-none drop-shadow-lg" alt="Gopher Success" />
+                  </Show>
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-bold leading-tight line-clamp-2">{downloadStore.notification.message}</p>

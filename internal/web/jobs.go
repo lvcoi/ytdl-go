@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -118,6 +117,7 @@ type Job struct {
 	duplicatePromptMap map[string]DuplicatePromptSnapshot
 	ctx                context.Context    `json:"-"`
 	cancel             context.CancelFunc `json:"-"`
+	brokerStop         chan struct{}      `json:"-"`
 	closeOnce          sync.Once          `json:"-"`
 }
 
@@ -153,6 +153,7 @@ func (jt *jobTracker) Create(ctx context.Context, urls []string) *Job {
 		URLs:               urlCopy,
 		CreatedAt:          time.Now(),
 		Events:             make(chan ProgressEvent, 256),
+		brokerStop:         make(chan struct{}),
 		pendingPrompt:      make(map[string]chan downloader.DuplicateDecision),
 		subscribers:        make(map[int64]chan ProgressEvent),
 		taskState:          make(map[string]ProgressTaskSnapshot),
@@ -266,12 +267,11 @@ func (j *Job) Context() context.Context {
 }
 
 func (j *Job) CloseEvents() {
-
 	if j == nil {
 		return
 	}
 	j.closeOnce.Do(func() {
-		close(j.Events)
+		close(j.brokerStop)
 	})
 }
 
@@ -409,12 +409,6 @@ func (j *Job) enqueueCriticalEvent(evt ProgressEvent, maxWait time.Duration) (ok
 	if maxWait <= 0 {
 		maxWait = criticalEventTimeout
 	}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			log.Printf("web: dropping critical event for job %q after panic on send: %v", j.ID, recovered)
-			ok = false
-		}
-	}()
 	timer := time.NewTimer(maxWait)
 	defer timer.Stop()
 	select {
@@ -533,11 +527,25 @@ func (j *Job) closeDuplicatePrompts(defaultDecision downloader.DuplicateDecision
 }
 
 func (j *Job) runEventBroker() {
-	for evt := range j.Events {
-		normalized := j.normalizeEvent(evt)
-		j.recordEvent(normalized)
+	for {
+		select {
+		case evt := <-j.Events:
+			normalized := j.normalizeEvent(evt)
+			j.recordEvent(normalized)
+		case <-j.brokerStop:
+			// Drain any remaining events before shutting down
+			for {
+				select {
+				case evt := <-j.Events:
+					normalized := j.normalizeEvent(evt)
+					j.recordEvent(normalized)
+				default:
+					goto done
+				}
+			}
+		}
 	}
-
+done:
 	j.eventMu.Lock()
 	if j.eventClosed {
 		j.eventMu.Unlock()
@@ -883,26 +891,26 @@ var _ downloader.DuplicatePrompter = (*webDuplicatePrompter)(nil)
 // webRenderer implements downloader.ProgressRenderer for WebSocket and internal tracking.
 type webRenderer struct {
 	events chan<- ProgressEvent
+	closed atomic.Bool
 }
 
-func safeEnqueueEvent(events chan<- ProgressEvent, evt ProgressEvent) {
-	if events == nil {
+func (w *webRenderer) Close() {
+	w.closed.Store(true)
+}
+
+func safeEnqueueEvent(w *webRenderer, evt ProgressEvent) {
+	if w == nil || w.events == nil || w.closed.Load() {
 		return
 	}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			log.Printf("web: dropped renderer event %q after panic on send: %v", evt.Type, recovered)
-		}
-	}()
 	select {
-	case events <- evt:
+	case w.events <- evt:
 	default:
 	}
 }
 
 func (w *webRenderer) Register(prefix string, size int64) string {
 	id := fmt.Sprintf("%s@%d", prefix, time.Now().UnixNano())
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "register", ID: id, Label: prefix, Total: size})
+	safeEnqueueEvent(w, ProgressEvent{Type: "register", ID: id, Label: prefix, Total: size})
 	return id
 }
 
@@ -911,11 +919,11 @@ func (w *webRenderer) Update(id string, current, total int64) {
 	if total > 0 {
 		percent = float64(current) * 100 / float64(total)
 	}
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "progress", ID: id, Current: current, Total: total, Percent: percent})
+	safeEnqueueEvent(w, ProgressEvent{Type: "progress", ID: id, Current: current, Total: total, Percent: percent})
 }
 
 func (w *webRenderer) Finish(id string) {
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "finish", ID: id})
+	safeEnqueueEvent(w, ProgressEvent{Type: "finish", ID: id})
 }
 
 func (w *webRenderer) Log(level downloader.LogLevel, msg string) {
@@ -928,7 +936,7 @@ func (w *webRenderer) Log(level downloader.LogLevel, msg string) {
 	case downloader.LogError:
 		levelStr = "error"
 	}
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "log", Level: levelStr, Message: msg})
+	safeEnqueueEvent(w, ProgressEvent{Type: "log", Level: levelStr, Message: msg})
 }
 
 func parseProgressSeq(raw string) (int64, bool) {

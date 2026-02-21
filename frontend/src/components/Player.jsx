@@ -441,17 +441,18 @@ export default function Player(props) {
             >
               <Icon name="chevron-down" class="w-4 h-4 rotate-180" />
             </button>
-            <button
+                        <button
               onClick={() => {
-                if (typeof props.onClose === 'function') {
-                  props.onClose();
+                if (typeof props.onRestore === 'function') {
+                  props.onRestore();
                 }
               }}
-              class="p-1.5 rounded-lg text-gray-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-              title="Close player"
+              class="p-1.5 rounded-lg text-gray-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors"
+              title="Restore player"
             >
-              <Icon name="x" class="w-4 h-4" />
+              <Icon name="maximize-2" class="w-4 h-4" />
             </button>
+
           </div>
         </div>
       </div>

@@ -1,1 +1,0 @@
-/Users/anthony/go/pkg/mod/github.com/lvcoi/ytdl-lib/v2@v2.10.5-fork.2

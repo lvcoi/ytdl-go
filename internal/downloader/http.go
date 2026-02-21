@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
@@ -18,8 +19,13 @@ const musicUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWeb
 var sharedTransport = &http.Transport{
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 10,
-	MaxConnsPerHost:     0,
-	IdleConnTimeout:     90 * time.Second,
+	DialContext: (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ResponseHeaderTimeout: 15 * time.Second,
+	IdleConnTimeout:       90 * time.Second,
 }
 
 func CloseIdleConnections() {

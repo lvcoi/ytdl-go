@@ -114,6 +114,8 @@ type WebOption struct {
 	Quiet               bool              `json:"quiet"`
 	LogLevel            string            `json:"log-level"`
 	OnDuplicate         string            `json:"on-duplicate"`
+	UseCookies          bool              `json:"use-cookies"`
+	PoToken             string            `json:"po-token"`
 }
 
 type DuplicateResponseRequest struct {
@@ -279,7 +281,10 @@ func parseDownloadRequest(w http.ResponseWriter, r *http.Request) (*DownloadRequ
 		Quiet:               req.Options.Quiet,
 		LogLevel:            req.Options.LogLevel,
 		OnDuplicate:         onDuplicate,
+		UseCookies:          req.Options.UseCookies,
+		PoToken:             req.Options.PoToken,
 	}
+
 	if err := validateWebOutputTemplate(opts.OutputTemplate); err != nil {
 		return nil, downloader.Options{}, 0, &requestError{http.StatusBadRequest, err.Error()}
 	}
@@ -650,21 +655,18 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	}
 }
 
-// BroadcastEvent sends a progress event to all connected clients.
+// BroadcastEvent sends a progress event to all connected clients via WebSocket.
 func BroadcastEvent(evt ProgressEvent) {
 	if globalHub == nil {
 		return
 	}
-	// Map legacy ProgressEvent to new WSMessage contract { type, payload }
+
 	msg := ws.WSMessage{
 		Type:    evt.Type,
 		Payload: evt,
 	}
 
-	// For the specific types required by the spec, we ensure they match the contract exactly
-	// but for compatibility we can just pass the whole event as the payload for now,
-	// or specifically pick fields. The spec defined payload for 'progress' and 'error'.
-
+	// Ensure progress and error payloads match the expected contract for clients.
 	if evt.Type == "progress" {
 		msg.Payload = ws.ProgressPayload{
 			ID:      firstNonEmpty(evt.ID, evt.JobID),
@@ -684,6 +686,7 @@ func BroadcastEvent(evt ProgressEvent) {
 }
 
 func listenWithPortFallback(addr string, maxFallbacks int) (net.Listener, int, error) {
+
 	host, portText, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, 0, fmt.Errorf("invalid web address %q (expected host:port): %w", addr, err)
@@ -1166,7 +1169,7 @@ func catalogMediaToDB(item mediaItem) {
 	mediaType := db.ClassifyMediaType(
 		item.SourceURL,
 		strings.TrimSpace(item.Metadata.Author), // YouTube channel name
-		"",                    // category — not yet captured in sidecar metadata
+		"",                                      // category — not yet captured in sidecar metadata
 		item.Artist,
 		item.Album,
 		item.Type == "audio",

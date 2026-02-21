@@ -66,7 +66,8 @@ Only durable state is persisted to localStorage. Transient runtime state (active
 The frontend communicates with the Go backend via JSON over HTTP:
 
 - **`POST /api/download`** — Submit URLs for download (synchronous, returns results).
-- **`GET /api/download/progress`** — Receive job progress events (SSE stream).
+- **`WS /ws`** — Real-time progress updates, logs, and status events via WebSockets.
+
 - **`POST /api/download/duplicate-response`** — Resolve duplicate-file prompts.
 - **`GET /api/media/`** — Fetch downloaded media list.
 - **`GET /api/media/{filename}`** — Serve a specific media file.

@@ -27,7 +27,6 @@ type WSBroadcaster interface {
 // Pool manages a fixed number of workers to process download tasks.
 type Pool struct {
 	TaskQueue   chan Task // Strict Unbuffered Channel
-	WorkerQueue chan int  // Job distribution via worker IDs
 	Workers     int
 	Hub         WSBroadcaster
 	wg          sync.WaitGroup
@@ -37,19 +36,16 @@ type Pool struct {
 
 func NewPool(workers int, hub WSBroadcaster) *Pool {
 	return &Pool{
-		TaskQueue:   make(chan Task), // Strict Unbuffered
-		WorkerQueue: make(chan int, workers),
-		Workers:     workers,
-		Hub:         hub,
+		TaskQueue: make(chan Task), // Strict Unbuffered
+		Workers:   workers,
+		Hub:       hub,
 	}
 }
 
 func (p *Pool) Start(ctx context.Context) {
 	p.ctx, p.cancel = context.WithCancel(ctx)
 	for i := 0; i < p.Workers; i++ {
-		// Initialize the worker queue with worker IDs
-		p.WorkerQueue <- i
-		go p.worker(i)
+		go p.worker()
 	}
 }
 
@@ -62,25 +58,18 @@ func (p *Pool) AddTask(t Task) {
 	}()
 }
 
-func (p *Pool) worker(id int) {
+func (p *Pool) worker() {
 	for {
 		select {
 		case <-p.ctx.Done():
 			return
-		case workerID := <-p.WorkerQueue:
-			select {
-			case <-p.ctx.Done():
+		case task, ok := <-p.TaskQueue:
+			if !ok {
 				return
-			case task := <-p.TaskQueue:
-				p.wg.Add(1)
-				p.processTask(task)
-				p.wg.Done()
 			}
-			// Return worker to queue
-			select {
-			case p.WorkerQueue <- workerID:
-			case <-p.ctx.Done():
-			}
+			p.wg.Add(1)
+			p.processTask(task)
+			p.wg.Done()
 		}
 	}
 }

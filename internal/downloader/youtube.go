@@ -93,6 +93,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video
 	if err != nil {
 		return result, wrapCategory(CategoryFilesystem, err)
 	}
+	defer tempFile.Close()
 
 	var writer io.Writer = tempFile
 	if !opts.Quiet || opts.Renderer != nil {
@@ -105,7 +106,6 @@ func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video
 	}
 
 	_, err = copyWithContext(ctx, writer, stream)
-	tempFile.Close()
 	if err != nil {
 		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
 	}
@@ -166,16 +166,20 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 		outputPath string
 	)
 	defer func() {
-		if outputPath == "" {
+		if outputPath == "" || result.skipped {
 			return
 		}
 		status := "ok"
-		if result.skipped {
-			status = "skipped"
-		} else if err != nil {
+		if err != nil {
 			status = "error"
 		}
-		metadata := buildItemMetadata(video, format, ctxInfo, outputPath, status, err)
+
+		effectiveFormat := format
+		if result.format != nil {
+			effectiveFormat = result.format
+		}
+
+		metadata := buildItemMetadata(video, effectiveFormat, ctxInfo, outputPath, status, err)
 		if metaErr := finalizeDownloadMetadata(outputPath, opts.OutputDir, metadata, opts.AudioOnly, printer); metaErr != nil && err == nil {
 			err = metaErr
 		}

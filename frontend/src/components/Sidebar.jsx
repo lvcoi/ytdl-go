@@ -1,4 +1,5 @@
 import Icon from './Icon';
+import logo from '../assets/logo.png';
 
 export default function Sidebar(props) {
     const activeTab = () => props.activeTab;
@@ -6,11 +7,12 @@ export default function Sidebar(props) {
     return (
         <aside class="w-72 bg-bg-surface/85 border-r border-white/10 flex flex-col p-6 backdrop-blur-xl transition-all duration-300">
             <div class="flex items-center gap-3 mb-10 px-2">
-                <div class="w-10 h-10 bg-accent-primary rounded-2xl flex items-center justify-center shadow-lg shadow-accent-primary/20">
-                    <Icon name="zap" class="w-6 h-6 text-white fill-white" />
+                <div class="w-10 h-10 bg-accent-primary/10 rounded-2xl flex items-center justify-center shadow-lg shadow-accent-primary/5 overflow-hidden border border-accent-primary/20">
+                    <img src={logo} alt="ytdl-go logo" class="w-8 h-8 object-contain brightness-0 invert opacity-80" />
                 </div>
-                <span class="text-xl font-bold tracking-tight text-white">ytdl-go</span>
+                <span class="text-xl font-black tracking-tight text-transparent bg-clip-text bg-vibrant-gradient">ytdl-go</span>
             </div>
+
 
             <nav class="flex-1 space-y-2">
                 <button

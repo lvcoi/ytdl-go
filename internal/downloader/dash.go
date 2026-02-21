@@ -104,6 +104,7 @@ func downloadDASH(ctx context.Context, client YouTubeClient, video *youtube.Vide
 	}
 
 	result, err := downloadDASHSegments(ctx, client, selected, outputPath, opts.OutputDir, opts, printer, prefix)
+	result.format = format
 	if err == nil {
 		result.outputPath = outputPath
 	}

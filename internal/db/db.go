@@ -11,26 +11,26 @@ import (
 
 // MediaRecord represents a row in the media table.
 type MediaRecord struct {
-	ID              int64
-	Title           string
-	Artist          string
-	Album           string
-	Duration        int
-	MediaType       string
-	FilePath        string
-	SourceURL       string
-	ThumbnailURL    string
-	Format          string
-	Quality         string
-	FileSize        int64
-	VideoID         string
-	TagsEmbedded    bool
-	TagError        string
-	TrackNumber     int
-	PlaylistID      string
-	PlaylistTitle   string
-	PlaylistIndex   int
-	CreatedAt       time.Time
+	ID            int64
+	Title         string
+	Artist        string
+	Album         string
+	Duration      int
+	MediaType     string
+	FilePath      string
+	SourceURL     string
+	ThumbnailURL  string
+	Format        string
+	Quality       string
+	FileSize      int64
+	VideoID       string
+	TagsEmbedded  bool
+	TagError      string
+	TrackNumber   int
+	PlaylistID    string
+	PlaylistTitle string
+	PlaylistIndex int
+	CreatedAt     time.Time
 }
 
 const createTableSQL = `

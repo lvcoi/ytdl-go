@@ -1,12 +1,14 @@
 import { createMemo } from 'solid-js';
 import Icon from '../Icon';
+import logo from '../../assets/logo.png';
 
 export default function WelcomeWidget(props) {
     return (
         <div class="rounded-[2rem] border border-accent-primary/20 glass-vibrant p-8 relative overflow-hidden group h-full">
             <div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
-                <Icon name="layout-dashboard" class="w-48 h-48 rotate-12" />
+                <img src={logo} alt="ytdl-go logo" class="w-48 h-48 rotate-12 object-contain" />
             </div>
+
             <div class="relative z-10 space-y-4">
                 <h1 class="text-4xl font-black text-white tracking-tight">
                     Welcome Back!

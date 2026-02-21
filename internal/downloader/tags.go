@@ -115,4 +115,3 @@ func embedFFmpegTags(metadata ItemMetadata, outputPath string) error {
 
 	return nil
 }
-

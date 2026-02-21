@@ -100,6 +100,7 @@ func downloadHLS(ctx context.Context, client YouTubeClient, video *youtube.Video
 	}
 
 	result, err := downloadHLSSegments(ctx, client, playlistURL, manifest.Segments, outputPath, opts.OutputDir, opts, printer, prefix)
+	result.format = format
 	if err == nil {
 		result.outputPath = outputPath
 	}

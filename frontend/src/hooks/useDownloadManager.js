@@ -322,9 +322,12 @@ export function useDownloadManager() {
                         quality: state.settings.quality,
                         jobs: state.settings.jobs,
                         timeout: state.settings.timeout,
-                        audio: state.settings.audioOnly,
+                                                audio: state.settings.audioOnly,
                         "on-duplicate": state.settings.onDuplicate,
+                        "use-cookies": state.settings.useCookies,
+                        "po-token": state.settings.poTokenExtension ? "true" : "", // Placeholder logic as actual token may come from extension
                     }
+
                 })
             });
 

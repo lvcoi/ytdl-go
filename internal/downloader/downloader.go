@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lvcoi/ytdl-lib/v2"
+	youtube "github.com/lvcoi/ytdl-lib/v2"
 )
 
 // Options describes CLI behavior for a download run.
@@ -31,6 +31,8 @@ type Options struct {
 	OnDuplicate         DuplicatePolicy   `json:"on-duplicate,omitempty"`
 	DuplicatePrompter   DuplicatePrompter `json:"-"`
 	DuplicateSession    *DuplicateSession `json:"-"`
+	UseCookies          bool
+	PoToken             string
 }
 
 type outputContext struct {
@@ -48,6 +50,7 @@ type outputContext struct {
 type downloadResult struct {
 	bytes       int64
 	outputPath  string
+	format      *youtube.Format
 	retried     bool
 	hadProgress bool
 	skipped     bool

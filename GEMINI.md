@@ -1,99 +1,86 @@
-# GEMINI.md - Project Context: ytdl-go
+# GEMINI.md - ytdl-go Context & Instructions
+
+This file provides the foundational context, architecture, and engineering standards for the `ytdl-go` project. Adhere to these guidelines for all development tasks.
 
 ## Project Overview
-`ytdl-go` is a powerful, high-performance YouTube downloader written in Go, featuring both a feature-rich Terminal User Interface (TUI) and a modern Web UI. It supports downloading videos, audio, playlists, and YouTube Music with advanced features like parallel downloads, automatic retries, and rich metadata handling.
 
-### Key Technologies
-- **Backend:** Go 1.24+ (using `ytdl-lib` fork, `bubbletea` for TUI, `id3v2` for tags, `ffmpeg-go` for processing).
-- **Frontend:** SolidJS, Vite, Tailwind CSS (Single Page Application).
-- **Architecture:** Modular Go backend with a REST API serving a SolidJS frontend.
+**ytdl-go** is a high-performance, feature-rich YouTube downloader written in Go. It provides both a powerful Terminal User Interface (TUI) and a modern Web UI.
+
+- **Purpose:** Fast, parallelized downloading of YouTube videos, audio, and playlists with rich metadata embedding.
+- **Main Technologies:**
+    - **Backend:** Go 1.24+, `bubbletea` (TUI), `sqlite` (Storage), `ffmpeg` (Processing), `gorilla/websocket` (Real-time updates).
+    - **Frontend:** SolidJS, Tailwind CSS v4, Vite, Lucide Icons.
+- **Architecture:** 
+    - `main.go`: Entry point and flag parsing.
+    - `internal/app`: Application runner and lifecycle management.
+    - `internal/downloader`: Core downloading, format selection, and metadata logic.
+    - `internal/web`: REST API and WebSocket server, serves embedded frontend assets.
+    - `internal/db`: SQLite-based persistence for downloads and library state.
+    - `frontend/`: Standalone SolidJS application.
 
 ---
 
 ## Building and Running
 
-### Quick Start
-- **Integrated Build:** Run `./build.sh` to build both the backend and frontend.
-- **Launch Web UI:** Run `./build.sh --web` to build and automatically start the backend with the web interface.
+### Integrated Build (Recommended)
+The `build.sh` script is the single source of truth for building the entire application (Go binary + frontend assets).
 
-### Backend (Go)
-- **Build:** `go build -o ytdl-go .`
-- **Install:** `go install .`
-- **Run Tests:** `go test ./...`
-- **Lint/Format:** `go fmt ./...` and `go vet ./...`
+- **Build all:** `./build.sh`
+- **Build and Launch Web UI:** `./build.sh --web`
+- **Options:** Use `-p` for port, `-H` for host.
 
-### Frontend (SolidJS)
-- **Directory:** `frontend/`
-- **Install Dependencies:** `npm install`
-- **Development Server:** `npm run dev`
-- **Build Assets:** `npm run build` (outputs to `internal/web/assets/` via Vite config).
-- **Run Tests:** `npm test`
+### Individual Components
+- **Backend Only:** `go build -o ./bin/yt .`
+- **Frontend Development:** `cd frontend && npm install && npm run dev`
+- **Frontend Build:** `cd frontend && npm run build` (outputs to `internal/web/assets/`)
+
+---
+
+## Testing Strategy
+
+The project follows a **Test-Driven Development (TDD)** approach. Always write a reproduction test before fixing a bug or implementing a feature.
+
+- **Backend (Go):** 
+    - Run all tests: `go test ./...`
+    - Use `testify` (`assert`, `require`) for assertions.
+    - Ensure new functions have corresponding unit tests.
+- **Frontend (SolidJS):**
+    - Run all tests: `npm test` (inside `frontend/`).
+    - Uses `vitest` and `@solidjs/testing-library`.
+- **Quality Gate:** `build.sh` performs basic verification. CI runs full tests and linting.
 
 ---
 
 ## Development Conventions
 
-### Backend (Go) Best Practices
-- **Concurrency:** Use fixed-size worker pools managed by the `ProgressManager`. The number of workers is controlled via the `-jobs` flag.
-- **Cancellation:** Always pass `context.Context` to long-running operations and respect `ctx.Done()`.
-- **Error Handling:** Use custom error types (see `internal/downloader/errors.go`) and wrap errors with context using `fmt.Errorf("...: %w", err)`.
-- **Metadata:** The system generates sidecar JSON files (`.json`) for each download to store rich metadata and thumbnails.
+### Backend (Go)
+- **Concurrency:** Use fixed-size worker pools for downloads. Always pass `context.Context` for cancellation.
+- **Error Handling:** Use custom error types for distinct failure modes. Always wrap errors with context: `fmt.Errorf("...: %w", err)`.
+- **Interfaces:** Favor interfaces to decouple components and enable mocking in tests.
+- **Formatting:** Code must be formatted with `go fmt` and pass `go vet`.
 
-### Frontend (SolidJS) Best Practices
-- **Reactivity:** Use `<For>` for lists and `<Show>` for conditional rendering. Use `splitProps` to preserve reactivity when destructuring.
-- **State Management:** Application state is organized in `frontend/src/store/`. Use `createStore` for complex state.
-- **Components:** All form inputs must be controlled components.
+### Frontend (SolidJS)
+- **Reactivity:** Use `createSignal` for local state and `createStore` for shared/complex state.
+- **Performance:** Prefer `<Show>` over `&&` for conditional rendering. Use `<For>` for dynamic lists.
+- **State Management:** Keep stores in `frontend/src/store/`. Treat state as immutable.
+- **Styling:** Use Tailwind CSS v4 utility classes.
+- **Components:** All interactive elements must have appropriate ARIA attributes. Form inputs must be controlled components.
 
-### Engineering Process
-- **TDD:** Write a failing test before implementing bug fixes or new features.
-- **Branching:** Work in feature branches (`feature/xxx`) or bugfix branches (`bugfix/xxx`).
-- **Commits:** Follow Conventional Commits specification.
-- **Reviews:** All changes require a Pull Request and code review.
-
----
-
-## AI Automation and Maintenance
-The project features a sophisticated AI-integrated maintenance system located in the `.github` directory.
-
-### Gemini Automation
-- **Gemini Dispatch:** A custom GitHub Action (`.github/workflows/gemini-dispatch.yml`) that listens for specific triggers:
-    - **Pull Requests:** Automatically triggers a `/review` when a PR is opened.
-    - **Issues:** Automatically triggers a `/triage` when an issue is opened or reopened.
-    - **Interactive Commands:** Responds to comments starting with `@gemini-cli` from authorized users (Owner/Member/Collaborator).
-- **Command Configurations:** Detailed prompts and personas for AI actions are stored in `.github/commands/` (e.g., `gemini-review.toml`, `gemini-triage.toml`).
-- **Review Criteria:** The AI reviewer focuses on Correctness, Security, Efficiency, Maintainability, and Testing, using a standardized severity scale (🔴 to 🟢).
-
-### Standard CI/CD
-- **Go CI:** `.github/workflows/go.yml` handles building and testing the Go backend on every push and PR to the `main` branch.
-- **Dependency Review:** Automated scanning for dependency vulnerabilities.
+### General
+- **Commits:** Follow **Conventional Commits** (e.g., `feat:`, `fix:`, `docs:`, `chore:`).
+- **Branching:** Work in `feature/<issue-number>-description` or `bugfix/<issue-number>-description`.
+- **Documentation:** Maintain `docs/FLAGS.md` and `docs/ARCHITECTURE.md` as the implementation evolves.
 
 ---
 
-## Project Structure and API
-- `main.go`: CLI entry point and flag parsing.
-- `internal/app/runner.go`: Main execution flow and job coordination via `app.Run`.
-- `internal/downloader/`:
-    - `downloader.go`: Defines the central `Options` struct used by CLI and Web UI.
-    - `youtube.go`: YouTube-specific extraction and strategy selection.
-    - `unified_tui.go`: Bubble Tea TUI implementation.
-    - `progress_manager.go`: Multi-threaded progress tracking.
-    - `output.go`: File writing and template expansion.
-    - `errors.go`: Categorized error system (`CategoryRestricted`, `CategoryNetwork`, `CategoryInvalidURL`).
-- `internal/web/`: 
-    - `server.go`: Go web server implementing a REST API.
-    - **Endpoints:**
-        - `POST /api/download`: Starts a download job.
-        - `GET /api/download/progress`: SSE endpoint for real-time progress updates.
-        - `GET /api/media/`: Lists or serves downloaded media files.
-    - **Media Layout:** Files are organized into `audio/`, `video/`, `playlist/`, and `data/`.
-- `frontend/src/`: SolidJS application source.
-- `docs/`: Detailed documentation on architecture and flags.
+## Key Files & Directories
 
----
-
-## Documentation Links
-- [Architecture Overview](./docs/ARCHITECTURE.md)
-- [Backend Deep Dive](./internal/docs/BACKEND_ARCHITECTURE.md)
-- [Command-Line Flags](./docs/FLAGS.md)
-- [Engineering Process](./ENGINEERING_PROCESS.md)
-- [Best Practices](./BEST_PRACTICES.md)
+- `main.go`: Application entry point.
+- `build.sh`: Unified build and execution script.
+- `internal/downloader/`: Core engine for YouTube interaction.
+- `internal/web/server.go`: API and WebSocket hub implementation.
+- `internal/db/db.go`: SQLite schema and data access.
+- `frontend/src/App.jsx`: Main frontend component.
+- `ENGINEERING_PROCESS.md`: Detailed development lifecycle.
+- `BEST_PRACTICES.md`: Detailed coding standards and patterns.
+- `docs/FLAGS.md`: Comprehensive CLI flag documentation.

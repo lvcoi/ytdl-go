@@ -1,12 +1,14 @@
 package downloader
 
 import (
+	"context"
 	"embed"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -54,6 +56,9 @@ func NewBgUtils() (*BgUtils, error) {
 	vm.Set("fetch", func(url string, options map[string]interface{}) *goja.Object {
 		promise, resolve, reject := vm.NewPromise()
 		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
 			method := "GET"
 			if m, ok := options["method"].(string); ok {
 				method = m
@@ -62,7 +67,7 @@ func NewBgUtils() (*BgUtils, error) {
 			if b, ok := options["body"].(string); ok {
 				body = strings.NewReader(b)
 			}
-			req, err := http.NewRequest(method, url, body)
+			req, err := http.NewRequestWithContext(ctx, method, url, body)
 			if err != nil {
 				reject(vm.ToValue(err.Error()))
 				return
@@ -72,7 +77,8 @@ func NewBgUtils() (*BgUtils, error) {
 					req.Header.Set(k, fmt.Sprint(v))
 				}
 			}
-			resp, err := http.DefaultClient.Do(req)
+			client := &http.Client{Transport: sharedTransport, Timeout: 30 * time.Second}
+			resp, err := client.Do(req)
 			if err != nil {
 				reject(vm.ToValue(err.Error()))
 				return
