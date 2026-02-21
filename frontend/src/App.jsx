@@ -1,11 +1,28 @@
-import { createEffect, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, onCleanup, onMount, Show, createMemo, lazy, Suspense } from 'solid-js';
 import Icon from './components/Icon';
-import DownloadView from './components/DownloadView';
-import LibraryView from './components/LibraryView';
-import SettingsView from './components/SettingsView';
-import Player from './components/Player';
+import DashboardView from './components/DashboardView';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import DuplicateModal from './components/DuplicateModal';
 import { useAppStore } from './store/appStore';
+import { downloadStore, setDownloadStore } from './store/downloadStore';
 import { normalizeDownloadStatus } from './utils/downloadStatus';
+
+
+
+import { detectMediaType } from './utils/mediaType';
+import { useSavedPlaylists } from './hooks/useSavedPlaylists';
+import { useDownloadManager } from './hooks/useDownloadManager';
+import { buildLibraryModel } from './utils/libraryModel';
+import wsService from './services/websocket';
+
+// Lazily load non-critical views
+
+const DownloadView = lazy(() => import('./components/DownloadView'));
+const LibraryView = lazy(() => import('./components/LibraryView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const Player = lazy(() => import('./components/Player'));
+
 
 const toSucceededCount = (stats) => {
   if (!stats || typeof stats !== 'object') return 0;
@@ -27,31 +44,25 @@ const encodeMediaPath = (relativePath) => (
     .map((segment) => encodeURIComponent(segment))
     .join('/')
 );
-
-const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
-const normalizeSavedPlaylistName = (value) => (
-  String(value || '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .slice(0, MAX_SAVED_PLAYLIST_NAME_LENGTH)
-);
-const normalizeSavedPlaylistId = (value) => String(value || '').trim();
-const normalizeMediaKey = (value) => String(value || '').trim();
-const hasSavedPlaylistNameConflict = (playlists, playlistName, excludedId = '') => (
-  playlists.some((playlist) => (
-    playlist.id !== excludedId &&
-    playlist.name.localeCompare(playlistName, undefined, { sensitivity: 'base' }) === 0
-  ))
-);
-const createSavedPlaylistId = () => {
-  if (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
-  }
-  return `saved-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
+const normalizeQueueKey = (value) => String(value || '').trim();
 
 function App() {
   const { state, setState } = useAppStore();
+  const [playerQueue, setPlayerQueue] = createSignal([]);
+
+  /* Hook for Saved Playlists */
+  const {
+    initError: savedPlaylistInitError,
+    initialize: initializeSavedPlaylists,
+    createPlaylist: createSavedPlaylist,
+    renamePlaylist: renameSavedPlaylist,
+    deletePlaylist: deleteSavedPlaylist,
+    assignPlaylist: assignSavedPlaylist
+  } = useSavedPlaylists();
+
+  /* Hook for Download Manager */
+  const { listenForProgress, startDownload } = useDownloadManager();
+
   let mediaListAbortController = null;
   let mediaListRequestToken = 0;
   let lastSyncedLibraryJobId = '';
@@ -59,9 +70,12 @@ function App() {
   let librarySyncRetryTimer = null;
   let isDisposed = false;
 
-  const activeTab = () => state.ui.activeTab;
+    const activeTab = () => state.ui.activeTab || 'dashboard'; // Default to dashboard if not set
   const isAdvanced = () => state.ui.isAdvanced;
-  const downloadJobStatus = () => state.download.jobStatus;
+
+  // Memoized Library Model for Dashboard
+
+  const libraryModel = createMemo(() => buildLibraryModel(state.library.downloads || []));
 
   const setActiveTab = (tab) => {
     setState('ui', 'activeTab', tab);
@@ -118,7 +132,85 @@ function App() {
     }
   };
 
+    const retryLibraryMetadataScan = async () => {
+    const synced = await fetchMediaFiles();
+    if (!synced) {
+      return {
+        ok: false,
+        message: 'Unable to refresh metadata right now. Please retry in a few seconds.',
+      };
+    }
+    return {
+      ok: true,
+      message: 'Library refreshed. Legacy files without sidecars may still need re-download for complete metadata and thumbnails.',
+    };
+  };
+
+  const removeDuplicatePrompt = (promptId) => {
+    if (!promptId) return;
+    setState('download', 'duplicateQueue', (prev) => prev.filter((item) => item.promptId !== promptId));
+  };
+
+  const submitDuplicateChoice = async (choice) => {
+    const prompt = state.download.duplicateQueue[0];
+    if (!prompt) return;
+    setState('download', 'duplicateError', '');
+    try {
+      const res = await fetch('/api/download/duplicate-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: prompt.jobId,
+          promptId: prompt.promptId,
+          choice,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) {
+        if (res.status === 404 || res.status === 409) {
+          removeDuplicatePrompt(prompt.promptId);
+          setState('download', 'duplicateError', '');
+          return;
+        }
+        setState('download', 'duplicateError', data.error || 'Failed to submit duplicate choice');
+        return;
+      }
+      removeDuplicatePrompt(prompt.promptId);
+      setState('download', 'duplicateError', '');
+    } catch (e) {
+      setState('download', 'duplicateError', e.message || 'Failed to submit duplicate choice');
+    }
+  };
+
+    const handleDuplicateShortcut = (e) => {
+    if (state.download.duplicateQueue.length === 0) return;
+    
+    // Check if user is typing in an input or textarea
+    const activeElement = document.activeElement;
+    const isTyping = activeElement && (
+      activeElement.tagName === 'INPUT' || 
+      activeElement.tagName === 'TEXTAREA' || 
+      activeElement.isContentEditable
+    );
+    
+    if (isTyping) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    switch (e.key) {
+
+      case 'o': e.preventDefault(); submitDuplicateChoice('overwrite'); break;
+      case 'O': e.preventDefault(); submitDuplicateChoice('overwrite_all'); break;
+      case 's': e.preventDefault(); submitDuplicateChoice('skip'); break;
+      case 'S': e.preventDefault(); submitDuplicateChoice('skip_all'); break;
+      case 'r': e.preventDefault(); submitDuplicateChoice('rename'); break;
+      case 'R': e.preventDefault(); submitDuplicateChoice('rename_all'); break;
+      case 'q': e.preventDefault(); submitDuplicateChoice('cancel'); break;
+      default: break;
+    }
+  };
+
   const syncLibraryForJob = async (jobId, attempt = 1) => {
+
     if (!jobId || isDisposed) {
       return;
     }
@@ -148,297 +240,284 @@ function App() {
     }, attempt * 1000);
   };
 
-  // Load media files when component mounts and when switching to library tab
+      // Load media files when component mounts
   onMount(() => {
     void fetchMediaFiles();
+    void initializeSavedPlaylists();
+    wsService.connect();
+
+    if (typeof window !== 'undefined') {
+
+      window.addEventListener('keydown', handleDuplicateShortcut);
+    }
+
+    // Ensure activeTab is set to dashboard if empty (first load)
+    if (!state.ui.activeTab) {
+      setActiveTab('dashboard');
+    }
   });
 
-  // Refresh media files when switching to library tab
+
+  // Refresh media files when switching to library tab (or dashboard?)
   createEffect(() => {
-    if (activeTab() === 'library') {
+    const tab = activeTab();
+    if (tab === 'library' || tab === 'dashboard') {
       void fetchMediaFiles();
     }
   });
 
-  // Keep library data fresh after terminal download outcomes, even when
-  // the user stays on the download tab.
+    // Keep library data fresh after terminal download outcomes
   createEffect(() => {
-    const currentJobStatus = downloadJobStatus();
-    const jobId = currentJobStatus?.jobId;
-    if (typeof jobId !== 'string' || jobId === '') {
-      return;
-    }
-    if (jobId === lastSyncedLibraryJobId || jobId === pendingLibrarySyncJobId) {
-      return;
-    }
+    const statuses = downloadStore.jobStatuses;
+    for (const jobId in statuses) {
+      const job = statuses[jobId];
+      if (typeof jobId !== 'string' || jobId === '') {
+        continue;
+      }
+      if (jobId === lastSyncedLibraryJobId || jobId === pendingLibrarySyncJobId) {
+        continue;
+      }
 
-    if (!shouldSyncLibraryForTerminalDownload(currentJobStatus?.status, currentJobStatus?.stats)) {
-      return;
+      if (!shouldSyncLibraryForTerminalDownload(job?.status, job?.stats)) {
+        continue;
+      }
+      void syncLibraryForJob(jobId, 1);
     }
-    void syncLibraryForJob(jobId, 1);
   });
 
-  onCleanup(() => {
+
+    onCleanup(() => {
     isDisposed = true;
     clearLibrarySyncRetryTimer();
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('keydown', handleDuplicateShortcut);
+    }
     if (mediaListAbortController) {
       mediaListAbortController.abort();
       mediaListAbortController = null;
     }
   });
 
-  const openPlayer = (item) => {
-    // Add the full media URL for the player
-    const mediaItem = {
-      ...item,
-      url: `/api/media/${encodeMediaPath(item.filename)}`
-    };
-    setState('player', 'selectedMedia', mediaItem);
+
+  const toPlayerMediaItem = (item) => ({
+    ...item,
+    url: `/api/media/${encodeMediaPath(item.filename)}`,
+  });
+
+  const toQueueItems = (candidateItems, anchorItem) => {
+    const fallback = Array.isArray(state.library.downloads) ? state.library.downloads : [];
+    const source = Array.isArray(candidateItems) && candidateItems.length > 0 ? candidateItems : fallback;
+    const uniqueItems = [];
+    const seen = new Set();
+    for (const entry of source) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const queueKey = normalizeQueueKey(entry.filename);
+      if (queueKey === '' || seen.has(queueKey)) {
+        continue;
+      }
+      seen.add(queueKey);
+      uniqueItems.push(entry);
+    }
+    const anchorKey = normalizeQueueKey(anchorItem?.filename);
+    if (anchorKey !== '' && !seen.has(anchorKey)) {
+      uniqueItems.unshift(anchorItem);
+    }
+    return uniqueItems;
+  };
+
+  const openPlayer = (item, queueItems) => {
+    if (!item || typeof item !== 'object' || String(item.filename || '').trim() === '') {
+      return;
+    }
+    const preparedQueue = toQueueItems(queueItems, item);
+    setPlayerQueue(preparedQueue);
+    setState('player', 'selectedMedia', toPlayerMediaItem(item));
+    setState('player', 'minimized', false);
     setState('player', 'active', true);
   };
 
-  const createSavedPlaylist = (rawName) => {
-    const normalizedName = normalizeSavedPlaylistName(rawName);
-    if (normalizedName === '') {
-      return { ok: false, error: 'Playlist name is required.' };
-    }
-
-    const timestamp = new Date().toISOString();
-    let createdPlaylist = null;
-    setState('library', 'savedPlaylists', (previous) => {
-      const playlists = Array.isArray(previous) ? previous : [];
-      if (hasSavedPlaylistNameConflict(playlists, normalizedName)) {
-        return playlists;
-      }
-      createdPlaylist = {
-        id: createSavedPlaylistId(),
-        name: normalizedName,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      };
-      return [...playlists, createdPlaylist];
-    });
-
-    if (!createdPlaylist) {
-      return { ok: false, error: 'A playlist with that name already exists.' };
-    }
-    return { ok: true, playlist: createdPlaylist };
+  const closePlayer = () => {
+    setState('player', 'active', false);
+    setState('player', 'selectedMedia', null);
+    setState('player', 'minimized', false);
+    setPlayerQueue([]);
   };
 
-  const renameSavedPlaylist = (playlistId, rawName) => {
-    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
-    const normalizedName = normalizeSavedPlaylistName(rawName);
-    if (normalizedPlaylistId === '') {
-      return { ok: false, error: 'Playlist not found.' };
+  const openQueue = () => {
+    const selected = state.player.selectedMedia;
+    if (selected) {
+      const mediaType = detectMediaType(selected);
+      // 'audio' and 'video' are mapped to 'Music' and 'YouTube Video' in UI but verify filter compatibility
+      // For now, setting typeFilter to 'all' or specific type might depend on LibraryView implementation
+      // Use 'all' safely or map if needed. LibraryView handles type mapping.
+      setState('library', 'typeFilter', 'all');
     }
-    if (normalizedName === '') {
-      return { ok: false, error: 'Playlist name is required.' };
-    }
-
-    let resultCode = 'missing';
-    const updatedAt = new Date().toISOString();
-    setState('library', 'savedPlaylists', (previous) => {
-      const playlists = Array.isArray(previous) ? previous : [];
-      const exists = playlists.some((playlist) => playlist.id === normalizedPlaylistId);
-      if (!exists) {
-        resultCode = 'missing';
-        return playlists;
-      }
-      if (hasSavedPlaylistNameConflict(playlists, normalizedName, normalizedPlaylistId)) {
-        resultCode = 'duplicate';
-        return playlists;
-      }
-      resultCode = 'ok';
-      return playlists.map((playlist) => (
-        playlist.id === normalizedPlaylistId
-          ? { ...playlist, name: normalizedName, updatedAt }
-          : playlist
-      ));
+    setState('library', 'section', 'all_media');
+    setState('library', 'navPath', {
+      creatorType: '',
+      creatorName: '',
+      albumName: '',
+      playlistKey: '',
+      playlistKind: '',
     });
-
-    if (resultCode === 'ok') {
-      return { ok: true };
-    }
-    if (resultCode === 'duplicate') {
-      return { ok: false, error: 'A playlist with that name already exists.' };
-    }
-    return { ok: false, error: 'Playlist not found.' };
+    setActiveTab('library');
   };
 
-  const deleteSavedPlaylist = (playlistId) => {
-    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
-    if (normalizedPlaylistId === '') {
-      return { ok: false, error: 'Playlist not found.' };
-    }
-
-    let removed = false;
-    setState('library', 'savedPlaylists', (previous) => {
-      const playlists = Array.isArray(previous) ? previous : [];
-      const nextPlaylists = playlists.filter((playlist) => playlist.id !== normalizedPlaylistId);
-      removed = nextPlaylists.length !== playlists.length;
-      return nextPlaylists;
-    });
-
-    if (!removed) {
-      return { ok: false, error: 'Playlist not found.' };
-    }
-
-    setState('library', 'playlistAssignments', (previous) => {
-      const assignments = previous && typeof previous === 'object' ? previous : {};
-      let changed = false;
-      const nextAssignments = {};
-      for (const [mediaKey, assignedPlaylistId] of Object.entries(assignments)) {
-        if (assignedPlaylistId === normalizedPlaylistId) {
-          changed = true;
-          continue;
-        }
-        nextAssignments[mediaKey] = assignedPlaylistId;
-      }
-      return changed ? nextAssignments : assignments;
-    });
-
-    setState('library', 'filters', 'savedPlaylistId', (current) => (
-      current === normalizedPlaylistId ? '' : current
-    ));
-
-    return { ok: true };
-  };
-
-  const assignSavedPlaylist = (mediaKey, playlistId) => {
-    const normalizedMediaKey = normalizeMediaKey(mediaKey);
-    const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
-    if (normalizedMediaKey === '') {
+  const playNextInQueue = () => {
+    const queue = playerQueue();
+    if (queue.length === 0) {
       return;
     }
-
-    const playlistExists = normalizedPlaylistId === '' || state.library.savedPlaylists.some(
-      (playlist) => playlist.id === normalizedPlaylistId,
-    );
-    if (!playlistExists) {
+    const activeFilename = normalizeQueueKey(state.player.selectedMedia?.filename);
+    const currentIndex = queue.findIndex((entry) => normalizeQueueKey(entry.filename) === activeFilename);
+    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % queue.length;
+    const nextItem = queue[nextIndex];
+    if (!nextItem) {
       return;
     }
-
-    setState('library', 'playlistAssignments', (previous) => {
-      const assignments = previous && typeof previous === 'object' ? previous : {};
-      if (normalizedPlaylistId === '') {
-        if (!(normalizedMediaKey in assignments)) {
-          return assignments;
-        }
-        const nextAssignments = { ...assignments };
-        delete nextAssignments[normalizedMediaKey];
-        return nextAssignments;
-      }
-      if (assignments[normalizedMediaKey] === normalizedPlaylistId) {
-        return assignments;
-      }
-      return {
-        ...assignments,
-        [normalizedMediaKey]: normalizedPlaylistId,
-      };
-    });
+    setState('player', 'selectedMedia', toPlayerMediaItem(nextItem));
+    setState('player', 'active', true);
   };
 
-  return (
-    <div class="flex h-screen bg-[#05070a] text-gray-200 overflow-hidden font-sans select-none">
-      {/* Sidebar */}
-      <aside class="w-72 bg-[#0a0c14] border-r border-white/5 flex flex-col p-6">
-        <div class="flex items-center gap-3 mb-10 px-2">
-            <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                <Icon name="zap" class="w-6 h-6 text-white fill-white" />
-            </div>
-            <span class="text-xl font-bold tracking-tight text-white">ytdl-go</span>
-        </div>
+    return (
+    <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
 
-        <nav class="flex-1 space-y-1">
-            <button onClick={() => setActiveTab('download')} class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab() === 'download' ? 'bg-blue-600/10 text-blue-400' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'}`}>
-                <Icon name="plus-circle" class="w-5 h-5" />
-                <span class="font-semibold text-sm">New Download</span>
-            </button>
-            <button onClick={() => setActiveTab('library')} class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab() === 'library' ? 'bg-blue-600/10 text-blue-400' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'}`}>
-                <Icon name="layers" class="w-5 h-5" />
-                <span class="font-semibold text-sm">Library</span>
-            </button>
-            <button onClick={() => setActiveTab('settings')} class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab() === 'settings' ? 'bg-blue-600/10 text-blue-400' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'}`}>
-                <Icon name="sliders" class="w-5 h-5" />
-                <span class="font-semibold text-sm">Configurations</span>
-            </button>
-        </nav>
-
-        <div class="mt-auto p-4 bg-white/5 rounded-2xl border border-white/5">
-            <div class="flex items-center gap-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                <Icon name="puzzle" class="w-3 h-3" />
-                Extensions
-            </div>
-            <div class="flex items-center justify-between text-xs">
-                <span class="text-gray-400">PO Token Provider</span>
-                <span class="px-2 py-0.5 bg-green-500/10 text-green-500 rounded-full font-bold">Active</span>
-            </div>
-        </div>
-      </aside>
+      <Sidebar activeTab={activeTab()} onTabChange={setActiveTab} />
 
       {/* Main Content */}
-      <main class="flex-1 flex flex-col bg-[#05070a] relative">
-        <header class="h-20 border-b border-white/5 flex items-center justify-between px-10 glass sticky top-0 z-20">
-            <h2 class="text-lg font-bold text-white capitalize">{activeTab()}</h2>
-            <div class="flex items-center gap-6">
-                <div class="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5 has-tooltip cursor-pointer">
-                    <span class="tooltip bg-gray-800 text-[10px] px-2 py-1 rounded shadow-xl mb-4 border border-white/10 w-48 text-center leading-relaxed">Logged in. Cookies synced for age-restricted content.</span>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span class="text-xs font-bold text-gray-300 italic">YT_AUTH_OK</span>
-                    <Icon name="chevron-down" class="w-3 h-3 text-gray-500" />
-                </div>
-                <button onClick={toggleAdvanced} class={`px-4 py-2 rounded-full text-xs font-bold transition-all ${isAdvanced() ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-gray-500 hover:text-gray-300'}`}>
-                    Advanced Mode
-                </button>
-            </div>
-        </header>
+      <main class="flex-1 flex flex-col bg-transparent relative min-w-0">
+        <Header
+          activeTab={activeTab()}
+          isAdvanced={isAdvanced()}
+          onToggleAdvanced={toggleAdvanced}
+        />
 
-        <div class="flex-1 overflow-y-auto p-10 custom-scrollbar">
-            <div class={`max-w-4xl mx-auto ${activeTab() === 'download' ? '' : 'hidden'}`}>
-                <DownloadView onOpenLibrary={openLibrary} />
+        <div class="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+          <Suspense fallback={
+            <div class="flex flex-col items-center justify-center h-full text-gray-500 gap-4 animate-pulse">
+              <Icon name="loader" class="w-10 h-10 animate-spin text-accent-primary" />
+              <span class="text-xs font-bold uppercase tracking-widest">Loading View...</span>
             </div>
-            <Show when={activeTab() === 'library'}>
-              <div class="max-w-4xl mx-auto">
-                  <LibraryView
-                      downloads={() => state.library.downloads}
-                      activeMediaType={() => state.library.activeMediaType}
-                      filters={() => state.library.filters}
-                      sortKey={() => state.library.sortKey}
-                      savedPlaylists={() => state.library.savedPlaylists}
-                      playlistAssignments={() => state.library.playlistAssignments}
-                      onMediaTypeChange={(nextType) => setState('library', 'activeMediaType', nextType)}
-                      onFilterChange={(filterKey, value) => setState('library', 'filters', filterKey, value)}
-                      onClearFilters={() => setState('library', 'filters', {
-                        creator: '',
-                        collection: '',
-                        playlist: '',
-                        savedPlaylistId: '',
-                      })}
-                      onSortKeyChange={(nextSortKey) => setState('library', 'sortKey', nextSortKey)}
-                      onCreateSavedPlaylist={createSavedPlaylist}
-                      onRenameSavedPlaylist={renameSavedPlaylist}
-                      onDeleteSavedPlaylist={deleteSavedPlaylist}
-                      onAssignSavedPlaylist={assignSavedPlaylist}
-                      openPlayer={openPlayer}
-                  />
+          }>
+            <Show when={activeTab() === 'dashboard'}>
+              <div class="max-w-7xl mx-auto">
+                <DashboardView
+                  libraryModel={libraryModel}
+                  onTabChange={setActiveTab}
+                  onDownload={startDownload}
+                />
               </div>
             </Show>
+
+            <Show when={activeTab() === 'download'}>
+              <div class="max-w-4xl mx-auto">
+                <DownloadView
+                  onOpenLibrary={openLibrary}
+                  onStartDownload={(jobId) => listenForProgress(jobId)}
+                />
+              </div>
+            </Show>
+
+            <Show when={activeTab() === 'library'}>
+              <div class="max-w-dynamic mx-auto h-full">
+                <LibraryView
+                  downloads={() => state.library.downloads}
+                  section={() => state.library.section}
+                  viewMode={() => state.library.viewMode}
+                  typeFilter={() => state.library.typeFilter}
+                  navPath={() => state.library.navPath}
+                  filters={() => state.library.filters}
+                  sortKey={() => state.library.sortKey}
+                  uiState={() => state.library.ui}
+                  savedPlaylists={() => state.library.savedPlaylists}
+                  playlistAssignments={() => state.library.playlistAssignments}
+                  onSectionChange={(nextSection) => setState('library', 'section', nextSection)}
+                  onViewModeChange={(nextViewMode) => setState('library', 'viewMode', nextViewMode)}
+                  onTypeFilterChange={(nextTypeFilter) => setState('library', 'typeFilter', nextTypeFilter)}
+                  onNavPathChange={(nextNavPath) => setState('library', 'navPath', nextNavPath)}
+                  onFilterChange={(filterKey, value) => setState('library', 'filters', filterKey, value)}
+                  onClearFilters={() => setState('library', 'filters', {
+                    query: '',
+                    savedPlaylistId: '',
+                  })}
+                  onSortKeyChange={(nextSortKey) => setState('library', 'sortKey', nextSortKey)}
+                  onUiStateChange={(key, value) => setState('library', 'ui', key, value)}
+                  onPlay={(item, queue) => openPlayer(item, queue)}
+                  onOpenQueue={openQueue}
+                  onCreatePlaylist={createSavedPlaylist}
+                  onRenamePlaylist={renameSavedPlaylist}
+                  onDeletePlaylist={deleteSavedPlaylist}
+                  onAssignPlaylist={assignSavedPlaylist}
+                  onRetryMetadataScan={retryLibraryMetadataScan}
+                />
+              </div>
+            </Show>
+
             <Show when={activeTab() === 'settings'}>
               <div class="max-w-4xl mx-auto">
-                  <SettingsView />
+                <SettingsView />
               </div>
             </Show>
+          </Suspense>
+
+          <Show when={state.download.duplicateQueue.length > 0}>
+            <DuplicateModal
+              prompt={state.download.duplicateQueue[0]}
+              onSelect={submitDuplicateChoice}
+              error={state.download.duplicateError}
+            />
+          </Show>
+
+          {/* Global Notification Toast */}
+          <Show when={downloadStore.notification}>
+            <div class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div class={`px-6 py-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-center gap-4 min-w-[320px] max-w-md ${
+                downloadStore.notification.type === 'success' 
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                  : 'bg-red-500/10 border-red-500/20 text-red-400'
+              }`}>
+                <div class={`p-2 rounded-xl ${
+                  downloadStore.notification.type === 'success' ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                }`}>
+                  <Icon name={downloadStore.notification.type === 'success' ? 'check-circle-2' : 'alert-circle'} class="w-5 h-5" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold leading-tight line-clamp-2">{downloadStore.notification.message}</p>
+                </div>
+                <button 
+                  onClick={() => setDownloadStore('notification', null)}
+                  class="p-1 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <Icon name="x" class="w-4 h-4 opacity-50" />
+                </button>
+              </div>
+            </div>
+          </Show>
         </div>
-        
-        {state.player.active && (
-          <Player 
-             media={state.player.selectedMedia} 
-             onClose={() => setState('player', 'active', false)} 
-          />
-        )}
       </main>
+
+      <Suspense>
+        <Show when={state.player.active}>
+          <Player
+            active={state.player.active}
+            minimized={state.player.minimized}
+            media={state.player.selectedMedia}
+            onClose={closePlayer}
+            onMinimize={() => setState('player', 'minimized', true)}
+            onRestore={() => setState('player', 'minimized', false)}
+            onNext={playNextInQueue}
+            onPrevious={playNextInQueue}
+          />
+        </Show>
+      </Suspense>
     </div>
   );
 }
 
 export default App;
+
+
+
+

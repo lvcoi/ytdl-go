@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 // Options describes CLI behavior for a download run.
@@ -166,11 +166,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return err
 	}
 
-	savedClient := youtube.DefaultClient
-	defer func() { youtube.DefaultClient = savedClient }()
-	youtube.DefaultClient = youtube.AndroidClient
-
-	client := newClient(opts)
+	client := newClientForType("android", opts)
 	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
 		return wrapFetchError(err, "fetching video metadata")
@@ -254,7 +250,7 @@ func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle
 	tui.TransitionToProgress()
 	defer tui.Stop()
 
-	client := newClient(opts)
+	client := newClientForType("android", opts)
 	printer := NewSeamlessPrinter(opts, tui)
 
 	ctxInfo := outputContext{}

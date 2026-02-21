@@ -1,131 +1,162 @@
 <div align="center">
+<img src="img/ytdl-Gopher.png" alt="ytdl-gopher">
 
 # ytdl-go
----
-## **UNDER CONSTRUCTION**
----
 
-v0.2.0 is about to release with a new webUI that I think is pretty cool. The commandline is still available and works in this version but for those who are interested in UI or not as comfortable with a CLI, I think the next version will work out nicely for you.  thanks for your patience!!
-
-
-**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive, and dependency-free._
+**A powerful, blazing-fast YouTube downloader written in Go.**
+_Now featuring a brand-new browser-based Web UI — no CLI required._
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
 [![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
 [![GoDoc](https://img.shields.io/badge/reference-go.dev-007d9c?style=for-the-badge&logo=go)](https://pkg.go.dev/github.com/lvcoi/ytdl-go)
 
-[Features](#-features-at-a-glance) • [Installation](#-installation) • [Usage](#-usage-guide) • [Options](#-command-line-options)
+[Web UI](#️-web-ui) • [Quick Start](#-quick-start) • [CLI](#-command-line-interface) • [Docs](#-documentation)
 
 </div>
 
-## Table of Contents
+---
 
-- [✨ Features](#-features)
-- [🚀 Installation](#-installation)
-  - [🧰 One-command build script (build.sh)](#-one-command-build-script-buildsh)
-- [📖 Usage](#-usage)
-  - [🎯 Basic usage](#-basic-usage)
-  - [🎨 Output customization](#-output-customization)
-  - [📚 Playlist downloads](#-playlist-downloads)
-  - [⚙️ Advanced options](#️-advanced-options)
-- [📊 Command Line Options](#-command-line-options)
-- [🏷️ Output Template Placeholders](#️-output-template-placeholders)
-- [🧾 Metadata & Sidecars](#-metadata--sidecars)
-- [🎮 Interactive Features](#-interactive-features)
-- [🛡️ Error Handling](#️-error-handling)
-- [💡 Examples by Use Case](#-examples-by-use-case)
-- [📝 Notes / Limitations](#-notes--limitations)
-- [🔧 Troubleshooting](#-troubleshooting)
-- [⚡ Performance](#-performance)
-- [🙏 Acknowledgments](#-acknowledgments)
-- [📜 License](#-license)
+## ✨ What's New in v0.2.0
 
-## ✨ Features at a Glance
+v0.2.0 ships a **completely new browser-based Web UI** — a sleek, dark-themed single-page app built with SolidJS and Tailwind CSS, embedded directly in the Go binary (no separate install needed). The original CLI is still fully supported for scripting and power users.
 
-| Core Capabilities | Advanced Tools |
+| | |
 | --- | --- |
-| **🚀 High Performance**<br>Parallel downloads, automatic retries, and resume capability. | **🎮 Interactive TUI**<br>Visual format selector to browse and pick specific quality streams. |
-| **📺 Broad Support**<br>Download Videos, Audio, Playlists, and YouTube Music URLs. | **🏷️ Rich Metadata**<br>Embeds ID3 tags, fetches structured JSON metadata, and handles sidecars. |
-| **🎨 Format Control**<br>Select by quality (`1080p`, `best`), container (`mp4`), or exact `itag`. | **⚙️ Automation Ready**<br>JSON output mode, custom output templates, and quiet modes for scripts. |
+| 🖥️ **Web UI** | Point-and-click downloads, real-time progress, built-in media player |
+| 📚 **Library** | Browse, filter, sort, and organize all your downloaded media |
+| ⚙️ **Settings** | Auth cookies, PO token extension, output templates, duplicate handling |
+| 🔒 **Auth** | YouTube cookie sync for age-restricted content |
+| ⚡ **Same engine** | The same high-performance Go download core powers both interfaces |
 
 ---
 
-## 🚀 Installation
+## 🖥️ Web UI
 
-### Quick Install (Recommended)
+Launch the Web UI with a single flag:
 
-Requires Go 1.24+ installed on your system.
+```bash
+ytdl-go -web
+# or build everything and launch automatically:
+./build.sh --web
+```
+
+Then open **http://127.0.0.1:8080** in your browser.
+
+### New Download
+
+Paste one or more YouTube URLs, choose quality, format, and concurrency, then hit **Download**. Real-time progress bars and log output appear inline as the job runs.
+
+![New Download view — paste URLs and configure options](https://github.com/user-attachments/assets/d8567e50-4a51-4e25-ab66-68edbbea372d)
+
+> **Features:** multi-URL input · quality & format selectors · audio-only toggle · concurrent jobs · real-time SSE progress stream with per-file progress bars · inline download log
+
+### Active Download Progress
+
+Watch downloads in real time — per-file progress bars show bytes, speed, and ETA. A live log stream displays metadata fetch, format selection, and completion events.
+
+![Active download — real-time progress bar and log stream](https://github.com/user-attachments/assets/f7fcd737-1b72-40c2-9a69-71a9fd9232f2)
+
+> **Features:** per-file progress bars · download speed & ETA · inline log panel · automatic reconnect on network interruption (up to 5 retries with exponential back-off)
+
+### Library
+
+All your downloaded media in one place. Switch between Video and Audio tabs, filter by artist/creator, album/channel, or source playlist, and sort by date, creator, or collection. Hit ▶ to play right in the browser.
+
+![Library view — browse, filter, and play downloaded media](https://github.com/user-attachments/assets/9ba2320f-3160-451a-8d82-8e6c1d1e936a)
+
+> **Features:** video/audio tabs with counts · artist/channel/playlist filters · saved custom playlists · multi-column sort · built-in media player (video & audio) · persistent filter state across reloads
+
+### Configurations
+
+Manage YouTube auth cookies, enable the PO Token extension for restricted content, set a default output template, and choose how duplicate files are handled.
+
+![Configurations view — auth cookies, PO token, output template, duplicate handling](https://github.com/user-attachments/assets/7ddd0e9f-7770-4284-9086-b95315674aeb)
+
+> **Features:** YouTube cookie re-sync · PO Token extension toggle · default `{title}.{ext}` output template · duplicate file policy (prompt / overwrite / skip / auto-rename)
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Go 1.24+** — [download](https://golang.org/dl/)
+- **Node.js / npm** — required only if building the frontend from source
+
+### Option A — `go install` (CLI only)
 
 ```shell
 go install github.com/lvcoi/ytdl-go@latest
+ytdl-go -web   # launches the Web UI
 ```
 
-*Ensure your `$GOPATH/bin` is in your system `$PATH`.*
+### Option B — Build script (recommended for Web UI)
 
-### Build from Source
-
-<details>
-<summary>Click to expand build instructions</summary>
-
-```shell
-# Clone the repository
+```bash
 git clone https://github.com/lvcoi/ytdl-go.git
 cd ytdl-go
 
-# Build the binary
-go build -o ytdl-go .
-
-# (Optional) Install to system path
-go install .
-```
-
-</details>
-
-### 🧰 One-command build script (build.sh)
-
-Use `build.sh` for an integrated repository build (Go binary + frontend assets).
-
-```bash
 # Build backend + frontend, then prompt to launch the UI
 ./build.sh
 
-# Build and automatically launch the UI
+# Build and automatically launch backend + frontend UI
 ./build.sh --web
 
-# Build and launch UI against a backend running on a different port
-VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
+# Build and launch against a backend on a custom requested web address
+YTDL_WEB_ADDR=127.0.0.1:9090 ./build.sh --web
 
-# Show script options
-./build.sh --help
+# Build and launch UI against an explicit API proxy target
+VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
 ```
 
-What it does:
+The binary is written to `./bin/yt`. The Web UI is embedded — no separate frontend server needed.
 
+**What `build.sh` does:**
 - Builds the Go binary to `./bin/yt`
 - Builds frontend assets into `internal/web/assets/`
-- Prompts to launch the UI unless `--web` is passed
-- Uses `VITE_API_PROXY_TARGET` for frontend API proxy target (default `http://127.0.0.1:8080`)
+- Prompts to launch backend + frontend dev UI unless `--web` is passed
+- Launches backend via `yt -web --web-addr "${YTDL_WEB_ADDR:-127.0.0.1:8080}"`
+- Uses `VITE_API_PROXY_TARGET` only when explicitly set; otherwise Vite auto-detects backend from `http://127.0.0.1:8080` + fallback ports
+- `ytdl-go -web` auto-falls back to the next available port if the requested port is already in use, and logs the final URL
 
-Options:
+**Options:**
 
 | Option | Description |
 | --- | --- |
 | `-w`, `--web` | Automatically launch the UI after building |
 | `-h`, `--help` | Show help message |
 
-Automation example (non-interactive "do not launch UI" path):
+**Non-interactive (scripting):**
 
 ```bash
 printf 'n\n' | ./build.sh
 ```
 
-## 📖 Usage
-
-### 🎯 Basic usage
+### Option C — Manual build
 
 ```bash
-# Download video with best quality
+git clone https://github.com/lvcoi/ytdl-go.git
+cd ytdl-go
+
+# Build frontend assets (requires npm)
+cd frontend && npm install && npm run build && cd ..
+
+# Build Go binary
+go build -o ytdl-go .
+
+# Launch Web UI
+./ytdl-go -web
+```
+
+---
+
+## 💻 Command-Line Interface
+
+The CLI remains fully functional for scripting, automation, and power users.
+
+```bash
+# Download best quality video
 ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
@@ -138,111 +169,50 @@ ytdl-go --audio https://www.youtube.com/watch?v=BaW_jenozKc
 
 ![Audio download](screenshots/06-audio-download.svg)
 
-```bash
-# Get video metadata without downloading
-ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
-```
-
-## 📖 Usage Guide
-
-### 🎯 The Essentials
+### The Essentials
 
 | Goal | Command |
 | --- | --- |
 | **Download Best Video** | `ytdl-go "https://youtube.com/watch?v=..."` |
 | **Download Audio Only** | `ytdl-go -audio "https://youtube.com/watch?v=..."` |
-| **Interactive Mode** | `ytdl-go -list-formats "https://youtube.com/watch?v=..."` |
+| **Interactive Format Selector** | `ytdl-go -list-formats "https://youtube.com/watch?v=..."` |
 | **Download Playlist** | `ytdl-go "https://youtube.com/playlist?list=..."` |
+| **Launch Web UI** | `ytdl-go -web` |
 
-### 🎮 Interactive Mode (TUI)
+### Interactive Mode (TUI)
 
-Don't guess the quality code. Use `-list-formats` to browse streams visually.
+Use `-list-formats` to browse all available streams and pick a specific one.
 
 ```shell
 ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
 ```
 
-> **Controls:** `↑/↓` to navigate, `Enter` to download, type digits for itag (e.g., `101`), repeat quickly to cycle.
-
 ![Interactive Format Selector](screenshots/interactive-format-selector.svg)
 
-### 📂 File Organization & Templates
-
-Customize where files go using the `-o` flag with placeholders.
-
-**Organize Music by Artist:**
+### File Organization & Templates
 
 ```shell
 ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
-```
-
-**Archive Playlists with Index:**
-
-```shell
 ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
 ```
 
-**Supported Placeholders:**
-`{title}`, `{artist}`, `{album}`, `{id}`, `{ext}`, `{quality}`, `{playlist-title}`, `{playlist-id}`, `{index}`, `{count}`
+For the complete CLI reference — all flags, output template placeholders, concurrency options, scripting examples, and troubleshooting — see **[docs/CLI.md](docs/CLI.md)**.
 
 ---
 
-## ⚙️ Advanced Usage
+## 📚 Documentation
 
-### 📺 Format Selection & Quality
-
-```shell
-# Specific resolution
-ytdl-go -quality 1080p URL
-
-# Specific container
-ytdl-go -format mp4 URL
-
-# Exact YouTube itag
-ytdl-go -itag 137 URL
-```
-
-### 🛠️ Network & Performance
-
-```shell
-# Parallel downloads (4 files at once)
-ytdl-go -jobs 4 URL1 URL2...
-
-# Custom Timeout
-ytdl-go -timeout 5m URL
-
-# Resume downloads
-ytdl-go URL  # (Automatic detection of .part files)
-```
-
-### 🤖 Scripting & Metadata
-
-```shell
-# Get JSON metadata (no download)
-ytdl-go -info -json URL
-
-# Override metadata manually
-ytdl-go -meta artist="My Artist" -meta title="Custom Title" URL
-
-# Quiet mode (no progress bars)
-ytdl-go -quiet URL
-```
-
----
-
-## 📊 Command Line Options
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-o` | `{title}.{ext}` | Output template. |
-| `-audio` | `false` | Download best audio-only format. |
-| `-list-formats` | `false` | Launch interactive format selector. |
-| `-quality` | `best` | Target quality (`1080p`, `720p`, `worst`). |
-| `-format` | `` | Preferred container (`mp4`, `webm`, `m4a`). |
-| `-jobs` | `1` | Concurrent download jobs. |
-| `-json` | `false` | Output logs/status as JSON lines. |
-| `-quiet` | `false` | Suppress progress and other non-error output (errors are still printed). |
-| `-meta` | `` | Override metadata field (`key=value`). |
+| Document | Description |
+| --- | --- |
+| [docs/CLI.md](docs/CLI.md) | Full command-line reference: all flags, templates, examples, troubleshooting |
+| [docs/FLAGS.md](docs/FLAGS.md) | Detailed per-flag reference with types, defaults, and edge cases |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Internal architecture, data-flow diagrams, concurrency model |
+| [frontend/docs/ARCHITECTURE.md](frontend/docs/ARCHITECTURE.md) | Frontend SPA architecture (SolidJS, Vite, Tailwind CSS) |
+| [frontend/docs/API.md](frontend/docs/API.md) | Backend REST + SSE API contract used by the Web UI |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to contribute (workflow, tests, style) |
+| [docs/MAINTAINERS.md](docs/MAINTAINERS.md) | Release process, dependency management, security |
+| [SECURITY.md](SECURITY.md) | Security policy and vulnerability reporting |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Top-level contribution guidelines |
 
 ---
 
@@ -254,10 +224,12 @@ ytdl-go -quiet URL
 - **403 Forbidden Errors:** The tool automatically retries with different methods. If persistent, check your IP reputation or try `-timeout 10m`.
 - **Restricted Content:** Private, age-gated, or member-only videos require authentication which is currently **not supported**.
 - **Playlists:** Empty videos or deleted entries in playlists are automatically skipped.
+- **Library Metadata/Thumbnails:** New downloads write sidecar metadata (`<media-file>.json`) used by the web UI for artist/album/thumbnail grouping. Legacy files without sidecars still load, but may appear under Unknown buckets until re-downloaded.
+- **Web Port Already in Use:** `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL and point Vite with `VITE_API_PROXY_TARGET=http://127.0.0.1:<port>`.
 
 </details>
 
---
+---
 
 <div align="center">
 

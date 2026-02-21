@@ -26,6 +26,8 @@ func main() {
 	var jobs int
 	var web bool
 	var webAddr string
+	var serverHost string
+	var serverPort int
 
 	flag.StringVar(&opts.OutputTemplate, "o", "{title}.{ext}", "output path or template (supports {title}, {artist}, {album}, {id}, {ext}, {quality}, {playlist_title}, {playlist_id}, {index}, {count})")
 	flag.StringVar(&opts.OutputDir, "output-dir", "", "base output directory for security enforcement (prevents directory traversal)")
@@ -45,8 +47,14 @@ func main() {
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
 	flag.StringVar(&opts.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
 	flag.BoolVar(&web, "web", false, "launch the web UI server")
-	flag.StringVar(&webAddr, "web-addr", "127.0.0.1:8080", "web server address")
+	flag.StringVar(&webAddr, "web-addr", "", "web server address (overrides host/port)")
+	flag.StringVar(&serverHost, "host", "0.0.0.0", "web server host")
+	flag.IntVar(&serverPort, "port", 8888, "web server port")
 	flag.Parse()
+
+	if webAddr == "" {
+		webAddr = fmt.Sprintf("%s:%d", serverHost, serverPort)
+	}
 
 	opts.MetaOverrides = meta.Values()
 
@@ -54,7 +62,7 @@ func main() {
 	defer stop()
 
 	if web {
-		if err := webserver.ListenAndServe(ctx, webAddr); err != nil && !errors.Is(err, context.Canceled) {
+		if err := webserver.ListenAndServe(ctx, webAddr, jobs); err != nil && !errors.Is(err, context.Canceled) {
 			fmt.Fprintf(os.Stderr, "web server error: %v\n", err)
 			os.Exit(1)
 		}
