@@ -10,6 +10,8 @@ import StorageWidget from './widgets/StorageWidget';
 const ROW_HEIGHT = 80;
 const GAP = 8;
 const COLS = 12;
+const MIN_COL_SPAN = 2;
+const MIN_ROW_SPAN = 1;
 
 const WIDGET_CATALOG = [
   { type: 'quick-download', label: 'Quick Download', icon: 'download', description: 'Paste a URL and start downloading', defaultColSpan: 4, defaultRowSpan: 2 },
@@ -86,8 +88,8 @@ export default function DashboardView() {
       const dy = e.clientY - resize.startMouseY;
       const dCols = Math.round(dx / (cellW + GAP));
       const dRows = Math.round(dy / cellH);
-      const newColSpan = Math.max(2, Math.min(COLS - widget.col + 1, resize.startColSpan + dCols));
-      const newRowSpan = Math.max(1, resize.startRowSpan + dRows);
+      const newColSpan = Math.max(MIN_COL_SPAN, Math.min(COLS - widget.col + 1, resize.startColSpan + dCols));
+      const newRowSpan = Math.max(MIN_ROW_SPAN, resize.startRowSpan + dRows);
       setResizePreview({ colSpan: newColSpan, rowSpan: newRowSpan });
     }
   };
@@ -146,7 +148,10 @@ export default function DashboardView() {
   };
 
   const addWidget = (catalogItem) => {
-    const id = `${catalogItem.type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const uuid = (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID)
+      ? globalThis.crypto.randomUUID()
+      : `${catalogItem.type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const id = `${catalogItem.type}-${uuid}`;
     const newWidget = {
       id,
       type: catalogItem.type,
