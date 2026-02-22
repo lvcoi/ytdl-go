@@ -14,8 +14,9 @@ v0.2.0 is about to release with a new webUI that I think is pretty cool. The com
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
 [![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
 [![GoDoc](https://img.shields.io/badge/reference-go.dev-007d9c?style=for-the-badge&logo=go)](https://pkg.go.dev/github.com/lvcoi/ytdl-go)
+[![Documentation](https://img.shields.io/badge/docs-wiki-blue.svg?style=for-the-badge)](https://lvcoi.github.io/ytdl-go/)
 
-[Features](#-features-at-a-glance) • [Installation](#-installation) • [Usage](#-usage-guide) • [Options](#-command-line-options)
+[Features](#-features-at-a-glance) • [Installation](#-installation) • [Usage](#-usage-guide) • [Documentation](https://lvcoi.github.io/ytdl-go/)
 
 </div>
 
@@ -38,8 +39,19 @@ v0.2.0 is about to release with a new webUI that I think is pretty cool. The com
 - [📝 Notes / Limitations](#-notes--limitations)
 - [🔧 Troubleshooting](#-troubleshooting)
 - [⚡ Performance](#-performance)
+- [📚 Documentation](#-documentation)
 - [🙏 Acknowledgments](#-acknowledgments)
 - [📜 License](#-license)
+
+## 📚 Documentation
+
+**Complete documentation is available on the [ytdl-go Wiki](https://lvcoi.github.io/ytdl-go/)**
+
+- **[User Guide](https://lvcoi.github.io/ytdl-go/docs/user-guide/)** - Installation, usage, and troubleshooting
+- **[Developer Guide](https://lvcoi.github.io/ytdl-go/docs/developer-guide/)** - Architecture, API reference, and contributing
+- **[Reference](https://lvcoi.github.io/ytdl-go/docs/reference/)** - CLI options, placeholders, exit codes
+
+---
 
 ## ✨ Features at a Glance
 
@@ -263,6 +275,6 @@ ytdl-go -quiet URL
 
 Made with ❤️ by the ytdl-go team
 
-[License](LICENSE) • [Report Issue](https://github.com/lvcoi/ytdl-go/issues)
+[Documentation](https://lvcoi.github.io/ytdl-go/) • [License](LICENSE) • [Report Issue](https://github.com/lvcoi/ytdl-go/issues)
 
 </div>
