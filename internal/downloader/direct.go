@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 type directInfo struct {
@@ -269,7 +269,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	}
 	_ = os.Remove(resumePath)
 	metadata := buildItemMetadata(video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}, outputPath, "ok", nil)
-	if err := writeSidecar(outputPath, opts.OutputDir, metadata); err != nil {
+	if err := finalizeDownloadMetadata(outputPath, opts.OutputDir, metadata, opts.AudioOnly, printer); err != nil {
 		return downloadResult{}, err
 	}
 	return downloadResult{bytes: state.BytesWritten, outputPath: outputPath}, nil
@@ -316,7 +316,12 @@ func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*ht
 			return resp, nil
 		}
 		lastErr = err
-		time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
+		if attempt < maxAttempts {
+			delay := time.Duration(attempt) * 300 * time.Millisecond
+			if err := sleepWithContext(req.Context(), delay); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return nil, lastErr
 }
