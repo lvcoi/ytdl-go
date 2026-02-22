@@ -10,16 +10,28 @@ import (
 	"io/fs"
 	"log"
 	"mime"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/lvcoi/ytdl-go/internal/app"
+	"github.com/lvcoi/ytdl-go/internal/db"
 	"github.com/lvcoi/ytdl-go/internal/downloader"
+	"github.com/lvcoi/ytdl-go/internal/ws"
+)
+
+var (
+	globalHub  *ws.Hub
+	globalPool *downloader.Pool
+	globalDB   *db.DB
 )
 
 //go:embed assets/*
@@ -33,6 +45,11 @@ const (
 	jobCompletedTTL       = 15 * time.Minute
 	jobErroredTTL         = 30 * time.Minute
 	jobCleanupInterval    = time.Minute
+	maxPortFallbacks      = 20
+	maxTCPPort            = 65535
+	defaultMediaDirName   = "media"
+	legacyMediaDirName    = "frontend/media"
+	mediaDirEnvVar        = "YTDL_MEDIA_DIR"
 	mediaFolderAudio      = "audio"
 	mediaFolderVideo      = "video"
 	mediaFolderPlaylist   = "playlist"
@@ -97,6 +114,8 @@ type WebOption struct {
 	Quiet               bool              `json:"quiet"`
 	LogLevel            string            `json:"log-level"`
 	OnDuplicate         string            `json:"on-duplicate"`
+	UseCookies          bool              `json:"use-cookies"`
+	PoToken             string            `json:"po-token"`
 }
 
 type DuplicateResponseRequest struct {
@@ -262,7 +281,10 @@ func parseDownloadRequest(w http.ResponseWriter, r *http.Request) (*DownloadRequ
 		Quiet:               req.Options.Quiet,
 		LogLevel:            req.Options.LogLevel,
 		OnDuplicate:         onDuplicate,
+		UseCookies:          req.Options.UseCookies,
+		PoToken:             req.Options.PoToken,
 	}
+
 	if err := validateWebOutputTemplate(opts.OutputTemplate); err != nil {
 		return nil, downloader.Options{}, 0, &requestError{http.StatusBadRequest, err.Error()}
 	}
@@ -303,13 +325,20 @@ func hasKnownMediaRootPrefix(template string) bool {
 	return ok
 }
 
-func ListenAndServe(ctx context.Context, addr string) error {
+func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	startedAt := time.Now()
 
-	// Create a dedicated media directory for downloads.
-	mediaDir, err := filepath.Abs("media")
+	// Resolve media directory for downloads and library data.
+
+	mediaDir, err := resolveWebMediaDir()
 	if err != nil {
-		return fmt.Errorf("resolving media directory: %w", err)
+		return err
+	}
+	if strings.TrimSpace(os.Getenv(mediaDirEnvVar)) == "" {
+		defaultMediaDir, defaultErr := filepath.Abs(defaultMediaDirName)
+		if defaultErr == nil && mediaDir != defaultMediaDir {
+			log.Printf("Detected existing media under %s; using it as media directory. Set %s to override.", mediaDir, mediaDirEnvVar)
+		}
 	}
 	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
 		return fmt.Errorf("creating media directory: %w", err)
@@ -317,8 +346,18 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	if err := ensureMediaLayout(mediaDir); err != nil {
 		return err
 	}
+	playlistStore := newSavedPlaylistStore(filepath.Join(mediaDir, mediaFolderData, savedPlaylistsFileName))
 	log.Printf("Media directory: %s", mediaDir)
-	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
+
+	// Initialize SQLite master catalog
+	dbPath := filepath.Join(mediaDir, mediaFolderData, "library.db")
+	catalogDB, dbErr := db.Open(dbPath)
+	if dbErr != nil {
+		log.Printf("WARNING: failed to open SQLite catalog at %s: %v (continuing without database)", dbPath, dbErr)
+	} else {
+		globalDB = catalogDB
+		log.Printf("SQLite catalog: %s", dbPath)
+	}
 
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
@@ -327,7 +366,19 @@ func ListenAndServe(ctx context.Context, addr string) error {
 	fileServer := http.FileServer(http.FS(assets))
 
 	mux := http.NewServeMux()
+	globalHub = ws.NewHub()
+	go globalHub.Run()
+
+	if jobs < 1 {
+		jobs = 1
+	}
+	globalPool = downloader.NewPool(jobs, globalHub)
+	globalPool.Start(ctx)
+
+	mux.HandleFunc("/ws", globalHub.HandleWS)
+
 	mux.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
@@ -339,37 +390,33 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 		opts.OutputDir = mediaDir
 		opts.Quiet = true
+		// Force progress reporting for the WebSocket renderer even in quiet mode
+		// We rely on the downloader checking opts.Renderer != nil as well
 
-		job := tracker.Create(req.URLs)
-		renderer := &webRenderer{events: job.Events}
-		opts.Renderer = renderer
-		opts.DuplicatePrompter = newWebDuplicatePrompter(ctx, job)
+		// Enqueue each URL as a separate task to the pool
+		for _, u := range req.URLs {
+			url := u
+			taskID := fmt.Sprintf("dl_%d", time.Now().UnixNano()) // Simple ID
 
-		go func() {
-			job.SetStatus("running")
-			results, exitCode := app.Run(ctx, req.URLs, opts, jobs)
-			job.closeDuplicatePrompts(downloader.DuplicateDecisionSkip)
-			status := job.SetOutcome(results, exitCode)
-			snapshot := job.progressSnapshot()
-			doneEvt := ProgressEvent{
-				Type:     "done",
-				Status:   status,
-				Message:  status,
-				ExitCode: snapshot.ExitCode,
-				Error:    snapshot.Error,
-			}
-			if snapshot.Stats.Total > 0 {
-				stats := snapshot.Stats
-				doneEvt.Stats = &stats
-			}
-			_ = job.enqueueCriticalEvent(doneEvt, criticalEventTimeout)
-			job.CloseEvents()
-		}()
+			globalPool.AddTask(downloader.Task{
+				ID:      taskID,
+				URLs:    []string{url},
+				Options: opts,
+				Jobs:    jobs,
+				Execute: func(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]any, int) {
+					results, exitCode := app.Run(ctx, urls, opts, jobs)
+					anyResults := make([]any, len(results))
+					for i, res := range results {
+						anyResults[i] = res
+					}
+					return anyResults, exitCode
+				},
+			})
+		}
 
 		writeJSON(w, http.StatusOK, map[string]string{
 			"status":  "queued",
-			"jobId":   job.ID,
-			"message": fmt.Sprintf("Download started for %d item(s).", len(req.URLs)),
+			"message": fmt.Sprintf("Enqueued %d item(s) to the download pool.", len(req.URLs)),
 		})
 	})
 
@@ -412,74 +459,33 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	mux.HandleFunc("/api/download/progress", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
+	mux.HandleFunc("/api/download/cancel", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		jobID := r.URL.Query().Get("id")
-		if jobID == "" {
-			writeJSONError(w, http.StatusBadRequest, "missing id parameter")
+		var req struct {
+			JobID string `json:"jobId"`
+		}
+		if err := decodeJSONBody(w, r, &req); err != nil {
+			writeJSONError(w, err.status, err.message)
 			return
 		}
-		job, ok := tracker.Get(jobID)
+		if req.JobID == "" {
+			writeJSONError(w, http.StatusBadRequest, "jobId is required")
+			return
+		}
+		job, ok := tracker.Get(req.JobID)
 		if !ok {
 			writeJSONError(w, http.StatusNotFound, "job not found")
 			return
 		}
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			writeJSONError(w, http.StatusInternalServerError, "streaming not supported")
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("X-Accel-Buffering", "no")
-		flusher.Flush()
-
-		afterSeq := int64(0)
-		if seq, ok := parseProgressSeq(r.URL.Query().Get("since")); ok {
-			afterSeq = seq
-		} else if seq, ok := parseProgressSeq(r.Header.Get("Last-Event-ID")); ok {
-			afterSeq = seq
-		}
-
-		stream, cancel := job.Subscribe(afterSeq)
-		defer cancel()
-
-		enc := json.NewEncoder(w)
-		enc.SetEscapeHTML(false)
-
-		for {
-			select {
-			case <-r.Context().Done():
-				return
-			case evt, ok := <-stream:
-				if !ok {
-					doneEvt := ProgressEvent{
-						Type:    "done",
-						Status:  job.StatusValue(),
-						Message: job.StatusValue(),
-					}
-					snapshot := job.progressSnapshot()
-					doneEvt.ExitCode = snapshot.ExitCode
-					doneEvt.Error = snapshot.Error
-					if snapshot.Stats.Total > 0 {
-						stats := snapshot.Stats
-						doneEvt.Stats = &stats
-					}
-					writeSSEEvent(w, flusher, enc, doneEvt)
-					return
-				}
-				writeSSEEvent(w, flusher, enc, evt)
-			}
-		}
+		job.Cancel()
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
@@ -488,6 +494,64 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"active_downloads": tracker.ActiveCount(),
 			"uptime":           uptime,
+		})
+	})
+
+	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"cpuCores": runtime.NumCPU(),
+		})
+	})
+
+	mux.HandleFunc("/api/library/playlists", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			state, err := playlistStore.Load()
+			if err != nil {
+				writeJSONError(w, http.StatusInternalServerError, "failed to read saved playlists")
+				return
+			}
+			writeJSON(w, http.StatusOK, state)
+		case http.MethodPut:
+			var req savedPlaylistState
+			if err := decodeJSONBody(w, r, &req); err != nil {
+				writeJSONError(w, err.status, err.message)
+				return
+			}
+			state, saveErr := playlistStore.Replace(req)
+			if saveErr != nil {
+				writeJSONError(w, http.StatusInternalServerError, "failed to persist saved playlists")
+				return
+			}
+			writeJSON(w, http.StatusOK, state)
+		default:
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	})
+
+	mux.HandleFunc("/api/library/playlists/migrate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		var req savedPlaylistState
+		if err := decodeJSONBody(w, r, &req); err != nil {
+			writeJSONError(w, err.status, err.message)
+			return
+		}
+		state, migrated, migrateErr := playlistStore.MigrateFromLegacy(req)
+		if migrateErr != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to migrate saved playlists")
+			return
+		}
+		writeJSON(w, http.StatusOK, savedPlaylistMigrationResponse{
+			Playlists:   state.Playlists,
+			Assignments: state.Assignments,
+			Migrated:    migrated,
 		})
 	})
 
@@ -556,9 +620,25 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	listener, fallbackCount, err := listenWithPortFallback(addr, maxPortFallbacks)
+	if err != nil {
+		return err
+	}
+	go globalHub.Run()
+	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
+
+	actualAddr := listener.Addr().String()
+	server.Addr = actualAddr
+	log.Printf("Web server listening on %s", actualAddr)
+	log.Printf("Web UI available at %s", formatWebURL(actualAddr))
+	if fallbackCount > 0 {
+		log.Printf("Requested web address %s was unavailable. Auto-switched to %s after %d port attempt(s).", addr, actualAddr, fallbackCount)
+		log.Printf("If you run the frontend dev server, set VITE_API_PROXY_TARGET=%s", formatWebURL(actualAddr))
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.ListenAndServe()
+		errCh <- server.Serve(listener)
 	}()
 
 	select {
@@ -573,6 +653,171 @@ func ListenAndServe(ctx context.Context, addr string) error {
 		}
 		return err
 	}
+}
+
+// BroadcastEvent sends a progress event to all connected clients via WebSocket.
+func BroadcastEvent(evt ProgressEvent) {
+	if globalHub == nil {
+		return
+	}
+
+	msg := ws.WSMessage{
+		Type:    evt.Type,
+		Payload: evt,
+	}
+
+	// Ensure progress and error payloads match the expected contract for clients.
+	if evt.Type == "progress" {
+		msg.Payload = ws.ProgressPayload{
+			ID:      firstNonEmpty(evt.ID, evt.JobID),
+			Percent: evt.Percent,
+			Status:  firstNonEmpty(evt.Status, evt.Type),
+		}
+	} else if evt.Type == "error" || evt.Error != "" {
+		msg.Type = "error"
+		msg.Payload = ws.ErrorPayload{
+			ID:      firstNonEmpty(evt.ID, evt.JobID),
+			Message: firstNonEmpty(evt.Error, evt.Message, "Unknown error"),
+			Code:    500,
+		}
+	}
+
+	globalHub.Broadcast(msg)
+}
+
+func listenWithPortFallback(addr string, maxFallbacks int) (net.Listener, int, error) {
+
+	host, portText, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid web address %q (expected host:port): %w", addr, err)
+	}
+
+	port, err := strconv.Atoi(portText)
+	if err != nil || port < 0 || port > maxTCPPort {
+		return nil, 0, fmt.Errorf("invalid port in web address %q", addr)
+	}
+
+	if maxFallbacks < 0 {
+		maxFallbacks = 0
+	}
+
+	var (
+		lastErr  error
+		attempts int
+	)
+	for offset := 0; offset <= maxFallbacks; offset++ {
+		candidatePort := port + offset
+		if candidatePort > maxTCPPort {
+			break
+		}
+		attempts++
+		candidateAddr := net.JoinHostPort(host, strconv.Itoa(candidatePort))
+		ln, err := net.Listen("tcp", candidateAddr)
+		if err == nil {
+			return ln, offset, nil
+		}
+		if !isAddressInUse(err) {
+			return nil, 0, fmt.Errorf("failed to listen on %s: %w", candidateAddr, err)
+		}
+		lastErr = err
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("no bind attempts were possible")
+	}
+	return nil, 0, fmt.Errorf("failed to bind web server starting at %s after %d attempt(s): %w", addr, attempts, lastErr)
+}
+
+func isAddressInUse(err error) bool {
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "address already in use") || strings.Contains(message, "only one usage of each socket address")
+}
+
+func formatWebURL(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "http://" + addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return (&url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort(host, port),
+	}).String()
+}
+
+func resolveWebMediaDir() (string, error) {
+	if override := strings.TrimSpace(os.Getenv(mediaDirEnvVar)); override != "" {
+		mediaDir, err := filepath.Abs(override)
+		if err != nil {
+			return "", fmt.Errorf("resolving media directory from %s: %w", mediaDirEnvVar, err)
+		}
+		return mediaDir, nil
+	}
+
+	candidates := []string{defaultMediaDirName, legacyMediaDirName}
+	chosenMediaDir := ""
+	maxMediaCount := -1
+	for _, candidate := range candidates {
+		absCandidate, err := filepath.Abs(candidate)
+		if err != nil {
+			return "", fmt.Errorf("resolving media directory %q: %w", candidate, err)
+		}
+
+		mediaCount, err := countMediaFilesInDir(absCandidate)
+		if err != nil {
+			return "", fmt.Errorf("scanning media directory %q: %w", absCandidate, err)
+		}
+		if mediaCount > maxMediaCount {
+			chosenMediaDir = absCandidate
+			maxMediaCount = mediaCount
+		}
+	}
+
+	if chosenMediaDir == "" {
+		mediaDir, err := filepath.Abs(defaultMediaDirName)
+		if err != nil {
+			return "", fmt.Errorf("resolving media directory: %w", err)
+		}
+		return mediaDir, nil
+	}
+	return chosenMediaDir, nil
+}
+
+func countMediaFilesInDir(dir string) (int, error) {
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	if !info.IsDir() {
+		return 0, fmt.Errorf("path exists but is not a directory: %s", dir)
+	}
+
+	count := 0
+	err = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".json") {
+			return nil
+		}
+		count++
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func ensureMediaLayout(mediaDir string) error {
@@ -594,17 +839,8 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = enc.Encode(payload)
 }
 
-func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, enc *json.Encoder, evt ProgressEvent) {
-	if evt.Seq > 0 || evt.Type == "snapshot" {
-		fmt.Fprintf(w, "id: %d\n", evt.Seq)
-	}
-	fmt.Fprintf(w, "data: ")
-	_ = enc.Encode(evt)
-	fmt.Fprintf(w, "\n")
-	flusher.Flush()
-}
-
 func writeJSONError(w http.ResponseWriter, status int, message string) {
+
 	payload := DownloadResponse{
 		Type:   "error",
 		Status: "error",
@@ -637,7 +873,7 @@ func fileExists(assets fs.FS, name string) bool {
 }
 
 func withSecurityHeaders(next http.Handler) http.Handler {
-	const cspValue = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; media-src 'self'"
+	const cspValue = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; media-src 'self'"
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -696,6 +932,10 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		ext := strings.ToLower(filepath.Ext(entry.Name()))
 		// Media sidecars/manifests are metadata artifacts and should not be listed as playable media.
 		if ext == ".json" {
+			return nil
+		}
+		// SQLite database files are internal data and should not be listed.
+		if ext == ".db" || ext == ".db-shm" || ext == ".db-wal" || ext == ".db-journal" {
 			return nil
 		}
 
@@ -761,6 +1001,8 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 	out := make([]mediaItem, 0, len(items))
 	for _, item := range items {
 		out = append(out, item.item)
+		// Lazily catalog items into the SQLite database
+		catalogMediaToDB(item.item)
 	}
 	return out, nil
 }
@@ -914,4 +1156,46 @@ func resolveRealPath(path string) (string, error) {
 		return "", parentErr
 	}
 	return filepath.Join(realParent, filepath.Base(cleaned)), nil
+}
+
+// catalogMediaToDB inserts or updates a media item in the SQLite catalog.
+// This is called lazily during media listing if the DB is available.
+func catalogMediaToDB(item mediaItem) {
+	if globalDB == nil {
+		return
+	}
+	// Use ClassifyMediaType for richer taxonomy (music/podcast/movie/video)
+	// based on YouTube metadata signals scraped during download.
+	mediaType := db.ClassifyMediaType(
+		item.SourceURL,
+		strings.TrimSpace(item.Metadata.Author), // YouTube channel name
+		"",                                      // category — not yet captured in sidecar metadata
+		item.Artist,
+		item.Album,
+		item.Type == "audio",
+	)
+	record := db.MediaRecord{
+		Title:        item.Title,
+		Artist:       item.Artist,
+		Album:        item.Album,
+		Duration:     item.DurationSeconds,
+		MediaType:    mediaType,
+		FilePath:     item.RelativePath,
+		SourceURL:    item.SourceURL,
+		ThumbnailURL: item.ThumbnailURL,
+		Format:       item.Metadata.Format,
+		Quality:      item.Metadata.Quality,
+		FileSize:     item.SizeBytes,
+		VideoID:      item.Metadata.ID,
+		TagsEmbedded: false,
+		TrackNumber:  item.Metadata.Track,
+	}
+	if item.Playlist != nil {
+		record.PlaylistID = item.Playlist.ID
+		record.PlaylistTitle = item.Playlist.Title
+		record.PlaylistIndex = item.Playlist.Index
+	}
+	if _, err := globalDB.UpsertMedia(record); err != nil {
+		log.Printf("failed to catalog media %q to database: %v", item.RelativePath, err)
+	}
 }

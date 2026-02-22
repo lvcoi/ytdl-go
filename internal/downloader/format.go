@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 func selectFormat(video *youtube.Video, opts Options) (*youtube.Format, error) {

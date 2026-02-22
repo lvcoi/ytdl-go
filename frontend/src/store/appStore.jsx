@@ -4,7 +4,9 @@ import { createStore } from 'solid-js/store';
 const APP_STATE_STORAGE_KEY = 'ytdl-go:app-state:v1';
 const VALID_TABS = new Set(['download', 'library', 'settings']);
 const VALID_DUPLICATE_POLICIES = new Set(['prompt', 'overwrite', 'skip', 'rename']);
-const VALID_LIBRARY_MEDIA_TYPES = new Set(['video', 'audio']);
+const VALID_LIBRARY_SECTIONS = new Set(['artists', 'channels', 'playlists', 'all_media']);
+const VALID_LIBRARY_VIEW_MODES = new Set(['gallery', 'list', 'detail']);
+const VALID_LIBRARY_TYPE_FILTERS = new Set(['all', 'audio', 'video']);
 const VALID_LIBRARY_SORT_KEYS = new Set([
   'newest',
   'oldest',
@@ -16,6 +18,7 @@ const VALID_LIBRARY_SORT_KEYS = new Set([
   'playlist_desc',
 ]);
 const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
+
 export const MAX_JOBS = 32;
 export const MAX_TIMEOUT_SECONDS = 24 * 60 * 60;
 
@@ -31,28 +34,47 @@ const defaultSettings = {
   poTokenExtension: false,
 };
 
+const emptyLibraryNavPath = {
+  creatorType: '',
+  creatorName: '',
+  albumName: '',
+  playlistKey: '',
+  playlistKind: '',
+};
+
+const emptyLibraryFilters = {
+  query: '',
+  creator: '',
+  collection: '',
+  playlist: '',
+  savedPlaylistId: '',
+};
+
 const createDefaultState = () => ({
   ui: {
-    activeTab: 'download',
+    activeTab: 'dashboard',
     isAdvanced: false,
   },
   settings: { ...defaultSettings },
   library: {
     downloads: [],
-    activeMediaType: 'video',
-    filters: {
-      creator: '',
-      collection: '',
-      playlist: '',
-      savedPlaylistId: '',
-    },
+    section: 'artists',
+    viewMode: 'gallery',
+    typeFilter: 'all',
+    navPath: { ...emptyLibraryNavPath },
+    filters: { ...emptyLibraryFilters },
     sortKey: 'newest',
     savedPlaylists: [],
     playlistAssignments: {},
+    ui: {
+      advancedFiltersOpen: false,
+      metadataBannerDismissed: false,
+    },
   },
   player: {
     active: false,
     selectedMedia: null,
+    minimized: false,
   },
   download: {
     urlInput: '',
@@ -69,9 +91,6 @@ const AppStoreContext = createContext();
 let hasLoggedStorageReadError = false;
 
 const getPersistedState = (state) => ({
-  // Keep this allowlist intentionally narrow. Runtime download state
-  // (`isDownloading`, `jobStatus`, task progress, logs, duplicate queue)
-  // is transient and should not survive reloads.
   ui: {
     activeTab: state.ui.activeTab,
     isAdvanced: state.ui.isAdvanced,
@@ -80,8 +99,14 @@ const getPersistedState = (state) => ({
     ...state.settings,
   },
   library: {
-    activeMediaType: state.library.activeMediaType,
+    section: state.library.section,
+    viewMode: state.library.viewMode,
+    typeFilter: state.library.typeFilter,
+    navPath: {
+      ...state.library.navPath,
+    },
     filters: {
+      query: state.library.filters.query,
       creator: state.library.filters.creator,
       collection: state.library.filters.collection,
       playlist: state.library.filters.playlist,
@@ -90,20 +115,27 @@ const getPersistedState = (state) => ({
     sortKey: state.library.sortKey,
     savedPlaylists: state.library.savedPlaylists,
     playlistAssignments: state.library.playlistAssignments,
+    ui: {
+      advancedFiltersOpen: state.library.ui.advancedFiltersOpen,
+      metadataBannerDismissed: state.library.ui.metadataBannerDismissed,
+    },
   },
   download: {
     urlInput: state.download.urlInput,
+    activeJobId: state.download.activeJobId,
   },
 });
 
 const toString = (value, fallback) => (typeof value === 'string' ? value : fallback);
 const toBoolean = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
+
 const normalizeSavedPlaylistName = (value) => (
   toString(value, '')
     .trim()
     .replace(/\s+/g, ' ')
     .slice(0, MAX_SAVED_PLAYLIST_NAME_LENGTH)
 );
+
 const toBoundedPositiveInteger = (value, fallback, max) => {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(parsed)) {
@@ -137,6 +169,7 @@ const sanitizeLibraryFilters = (rawFilters, validSavedPlaylistIds = new Set()) =
   const raw = rawFilters && typeof rawFilters === 'object' ? rawFilters : {};
   const savedPlaylistId = toString(raw.savedPlaylistId, '').trim();
   return {
+    query: toString(raw.query, ''),
     creator: toString(raw.creator, ''),
     collection: toString(raw.collection, ''),
     playlist: toString(raw.playlist, ''),
@@ -182,19 +215,56 @@ const sanitizePlaylistAssignments = (rawAssignments, validSavedPlaylistIds) => {
   return out;
 };
 
+const sanitizeLibraryNavPath = (rawNavPath) => {
+  const raw = rawNavPath && typeof rawNavPath === 'object' ? rawNavPath : {};
+  const creatorType = toString(raw.creatorType, '').trim().toLowerCase();
+  const playlistKind = toString(raw.playlistKind, '').trim().toLowerCase();
+
+  return {
+    creatorType: creatorType === 'artist' || creatorType === 'channel' ? creatorType : '',
+    creatorName: toString(raw.creatorName, ''),
+    albumName: toString(raw.albumName, ''),
+    playlistKey: toString(raw.playlistKey, ''),
+    playlistKind: playlistKind === 'source' || playlistKind === 'saved' ? playlistKind : '',
+  };
+};
+
+const sanitizeLibraryUiState = (rawUiState) => {
+  const raw = rawUiState && typeof rawUiState === 'object' ? rawUiState : {};
+  return {
+    advancedFiltersOpen: toBoolean(raw.advancedFiltersOpen, false),
+    metadataBannerDismissed: toBoolean(raw.metadataBannerDismissed, false),
+  };
+};
+
 const sanitizeLibrary = (rawLibrary) => {
   const raw = rawLibrary && typeof rawLibrary === 'object' ? rawLibrary : {};
 
-  const activeMediaType = toString(raw.activeMediaType, 'video');
+  const section = toString(raw.section, 'artists');
+  const viewMode = toString(raw.viewMode, 'gallery');
   const sortKey = toString(raw.sortKey, 'newest');
   const savedPlaylists = sanitizeSavedPlaylists(raw.savedPlaylists);
   const validSavedPlaylistIds = new Set(savedPlaylists.map((playlist) => playlist.id));
+
+  const requestedTypeFilter = toString(raw.typeFilter, '').trim().toLowerCase();
+  const legacyActiveMediaType = toString(raw.activeMediaType, '').trim().toLowerCase();
+  let typeFilter = 'all';
+  if (VALID_LIBRARY_TYPE_FILTERS.has(requestedTypeFilter)) {
+    typeFilter = requestedTypeFilter;
+  } else if (VALID_LIBRARY_TYPE_FILTERS.has(legacyActiveMediaType)) {
+    typeFilter = legacyActiveMediaType;
+  }
+
   return {
-    activeMediaType: VALID_LIBRARY_MEDIA_TYPES.has(activeMediaType) ? activeMediaType : 'video',
+    section: VALID_LIBRARY_SECTIONS.has(section) ? section : 'artists',
+    viewMode: VALID_LIBRARY_VIEW_MODES.has(viewMode) ? viewMode : 'gallery',
+    typeFilter,
+    navPath: sanitizeLibraryNavPath(raw.navPath),
     filters: sanitizeLibraryFilters(raw.filters, validSavedPlaylistIds),
     sortKey: VALID_LIBRARY_SORT_KEYS.has(sortKey) ? sortKey : 'newest',
     savedPlaylists,
     playlistAssignments: sanitizePlaylistAssignments(raw.playlistAssignments, validSavedPlaylistIds),
+    ui: sanitizeLibraryUiState(raw.ui),
   };
 };
 
@@ -237,6 +307,9 @@ const getInitialState = () => {
   const persistedUrlInput = typeof persisted?.download?.urlInput === 'string'
     ? persisted.download.urlInput
     : baseState.download.urlInput;
+  const persistedActiveJobId = typeof persisted?.download?.activeJobId === 'string'
+    ? persisted.download.activeJobId
+    : '';
 
   return {
     ...baseState,
@@ -249,15 +322,20 @@ const getInitialState = () => {
     },
     library: {
       ...baseState.library,
-      activeMediaType: persistedLibrary.activeMediaType,
+      section: persistedLibrary.section,
+      viewMode: persistedLibrary.viewMode,
+      typeFilter: persistedLibrary.typeFilter,
+      navPath: persistedLibrary.navPath,
       filters: persistedLibrary.filters,
       sortKey: persistedLibrary.sortKey,
       savedPlaylists: persistedLibrary.savedPlaylists,
       playlistAssignments: persistedLibrary.playlistAssignments,
+      ui: persistedLibrary.ui,
     },
     download: {
       ...baseState.download,
       urlInput: persistedUrlInput,
+      activeJobId: persistedActiveJobId,
     },
   };
 };

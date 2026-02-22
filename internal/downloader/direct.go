@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 type directInfo struct {
@@ -269,7 +269,7 @@ func downloadDirectFile(ctx context.Context, info directInfo, opts Options, prin
 	}
 	_ = os.Remove(resumePath)
 	metadata := buildItemMetadata(video, format, outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}, outputPath, "ok", nil)
-	if err := writeSidecar(outputPath, opts.OutputDir, metadata); err != nil {
+	if err := finalizeDownloadMetadata(outputPath, opts.OutputDir, metadata, opts.AudioOnly, printer); err != nil {
 		return downloadResult{}, err
 	}
 	return downloadResult{bytes: state.BytesWritten, outputPath: outputPath}, nil
