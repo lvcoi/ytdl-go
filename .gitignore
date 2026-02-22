@@ -1,4 +1,10 @@
-# Binaries for programs and plugins
+# =============================================================================
+# Go-specific
+# =============================================================================
+
+*USER_IDENTIFIED_ISSUES*
+
+# Binaries
 *.exe
 *.exe~
 *.dll
@@ -7,74 +13,145 @@
 yt
 ytdl-go
 ytdl-go.exe
-# Test binary, built with `go test -c`
+
+# Test binaries
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Coverage and profiling
 *.out
+coverage.txt
+coverage.out
+coverage.html
+*.prof
+*.pprof
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
+# Go workspace and cache
 go.work
-*.code-workspace
+.gocache/
+.gotmp/
 
-# codeQL custom queries
-*codeql-custom-queries-go
-*codeql-custom-queries-go/
-*codeql-custom-queries-go.lock.yml
-
-# IDE specific files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# =============================================================================
+# Build & Distribution
+# =============================================================================
 
 # Build artifacts
 build/
-media
 dist/
 bin/
 
+# =============================================================================
+# Dependencies
+# =============================================================================
 
-# OS generated files
-Thumbs.db
+# Go vendor
+# vendor/
+
+# Node.js
+**node_modules/
+module_path.txt
+
+# =============================================================================
+# IDE & Editor Files
+# =============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# IntelliJ
+.idea/
+
+# Vim
+*.swp
+*.swo
+
+# General editor files
+*~
+
+# =============================================================================
+# AI & Development Tools
+# =============================================================================
+
+# AI assistants and tools
+.ai/
+**.ai/
+*.ai
+AI/
+**AI/
+chatgpt/
+**chatgpt/
+copilot/
+**copilot/
+claude/
+**claude/
+gemini/
+**gemini/
+.openai/
+**.openai/
+.anthropic/
+**.anthropic/
+.google-ai/
+**.google-ai/
+llm/
+**llm/
+prompts/
+**prompts/
+
+# AI cache and session files
+.ai-cache/
+**.ai-cache/
+.ai-history/
+**.ai-history/
+.ai-session/
+**.ai-session/
+*.ai-session
+.ai-config/
+**.ai-config/
+*.ai-config
+
+# Development tools
+.agents/
+.windsurf/
+**windsurf/
+**conductor/
+**.antigravity/
+.gemini/
+.github/
+**github/
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+
+# macOS
+.DS_Store
 .Spotlight-V100
 .Trashes
 
-# Log files
-*.log
+# Windows
+Thumbs.db
 
-# Temporary files
-*.tmp
-*.temp
-test_convert.go
-
-# Cache directories
-.cache/
-*.cache
+# =============================================================================
+# Configuration & Secrets
+# =============================================================================
 
 # Environment files
 .env
 .env.local
 .env.*.local
 
-# Coverage reports
-coverage.txt
-coverage.out
-coverage.html
+# GitHub credentials
+gha-creds-*.json
 
-# Profiling data
-*.prof
-*.pprof
+# =============================================================================
+# Project-specific
+# =============================================================================
 
-# Downloaded content (common when testing)
+# Downloaded content (testing)
 downloads/
 music/
 videos/
+media/
 *.mp4
 *.mp3
 *.m4a
@@ -83,17 +160,36 @@ videos/
 *.avi
 *.mov
 
-# Documentation build
+# Documentation
 docs/_build/
 site/
+*.geminiignore
+USER_IDENTIFIED_ISSUES.md
+AGENTS.md
+
+# Logs and temporary files
+*.log
+*log*
+*.tmp
+*.temp
+test_convert.go
+
+# Cache
+.cache/
+*.cache
 
 # Backup files
 *.bak
 *.backup
 
-# Frontend (Node.js)
-frontend/node_modules/
+# Local archives
+.task-archive/
 
-# Scripts binaries
-scripts/assign-milestones
-scripts/go.sum
+# =============================================================================
+# Security & Analysis
+# =============================================================================
+
+# CodeQL
+*codeql-custom-queries-go
+*codeql-custom-queries-go/
+*codeql-custom-queries-go.lock.yml
