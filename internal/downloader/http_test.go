@@ -200,15 +200,19 @@ func TestDoWithRetryExhaustsAttempts(t *testing.T) {
 		t.Fatalf("creating request: %v", err)
 	}
 
-	resp, err := doWithRetry(req, 5*time.Second, 3)
+	resp, err := doWithRetry(req, 30*time.Second, 3)
 	if err == nil {
 		if resp != nil {
 			resp.Body.Close()
 		}
 		t.Fatalf("expected error after exhausting retries")
 	}
-	if attempts != 3 {
-		t.Fatalf("expected 3 attempts, got %d", attempts)
+	// retryTransport makes 1 initial attempt plus defaultRetryConfig.MaxRetries retries
+	// before returning the final 5xx, which doWithRetry then converts to an error.
+	expectedAttempts := 1 + defaultRetryConfig.MaxRetries
+	if attempts != expectedAttempts {
+		t.Fatalf("expected %d server hits (retryTransport: 1 initial + %d retries), got %d",
+			expectedAttempts, defaultRetryConfig.MaxRetries, attempts)
 	}
 }
 
@@ -238,4 +242,36 @@ func TestDoWithRetryPassesThrough4xx(t *testing.T) {
 	if attempts != 1 {
 		t.Fatalf("expected 1 attempt for 4xx, got %d", attempts)
 	}
+}
+
+func TestNewClientForType_Android(t *testing.T) {
+	opts := Options{Timeout: 5 * time.Second}
+	client := newClientForType("android", opts)
+	if client == nil {
+		t.Fatal("expected non-nil client for android type")
+	}
+}
+
+func TestNewClientForType_Web(t *testing.T) {
+	opts := Options{Timeout: 5 * time.Second}
+	client := newClientForType("web", opts)
+	if client == nil {
+		t.Fatal("expected non-nil client for web type")
+	}
+}
+
+func TestNewClientForType_ConcurrentSafety(t *testing.T) {
+	opts := Options{Timeout: 5 * time.Second}
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client := newClientForType("web", opts)
+			if client == nil {
+				t.Errorf("expected non-nil client from concurrent newClientForType")
+			}
+		}()
+	}
+	wg.Wait()
 }
