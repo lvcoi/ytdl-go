@@ -317,12 +317,11 @@ func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*ht
 			time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
 			continue
 		}
-		// Retry on transient server errors (5xx) to handle CDN hiccups.
+		// Treat server errors (5xx) as failures; retry behavior for these
+		// is handled by the HTTP client's retry transport.
 		if resp.StatusCode >= 500 {
 			resp.Body.Close()
-			lastErr = fmt.Errorf("unexpected status %d", resp.StatusCode)
-			time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
-			continue
+			return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 		}
 		return resp, nil
 	}
