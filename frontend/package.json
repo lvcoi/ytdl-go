@@ -9,7 +9,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "lucide-solid": "^0.475.0",
+    "lucide-solid": "^0.575.0",
     "solid-js": "^1.9.4"
   },
   "devDependencies": {
