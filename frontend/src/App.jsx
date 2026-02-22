@@ -14,7 +14,7 @@ import logo from './assets/logo.png';
 import { detectMediaType } from './utils/mediaType';
 import { useSavedPlaylists } from './hooks/useSavedPlaylists';
 import { useDownloadManager } from './hooks/useDownloadManager';
-import { buildLibraryModel } from './utils/libraryModel';
+import { normalizeLibrary, filterLibrary } from './utils/libraryModel';
 import wsService from './services/websocket';
 
 // Lazily load non-critical views
@@ -76,14 +76,19 @@ function App() {
 
   // Memoized Library Model for Dashboard
 
-  const libraryModel = createMemo(() => buildLibraryModel({
-    downloads: state.library.downloads,
-    savedPlaylists: state.library.savedPlaylists,
-    playlistAssignments: state.library.playlistAssignments,
-    typeFilter: state.library.typeFilter,
-    sortKey: state.library.sortKey,
-    filters: state.library.filters,
-  }));
+  const normalizedLibrary = createMemo(() => normalizeLibrary(
+    state.library.downloads,
+    state.library.savedPlaylists,
+    state.library.playlistAssignments
+  ));
+
+  const libraryModel = createMemo(() => filterLibrary(
+    normalizedLibrary(),
+    state.library.savedPlaylists,
+    state.library.typeFilter,
+    state.library.sortKey,
+    state.library.filters
+  ));
 
   const setActiveTab = (tab) => {
     setState('ui', 'activeTab', tab);
