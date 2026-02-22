@@ -1,4 +1,4 @@
-import { createMemo, lazy, Suspense, createSignal, For, Show, onMount, createEffect, onCleanup, untrack } from 'solid-js';
+import { createMemo, lazy, Suspense, createSignal, For, Show, onMount, createEffect, onCleanup } from 'solid-js';
 import ActiveDownloads from './ActiveDownloads';
 import { Grid, GridItem } from './Grid';
 import WelcomeWidget from './dashboard/WelcomeWidget';
@@ -45,8 +45,8 @@ export default function DashboardView(props) {
 
         const pushUndo = (currentWidgets) => {
         const stack = undoStack();
-        if (stack.length >= 50) stack.shift();
-        setUndoStack([...stack, structuredClone(currentWidgets)]);
+        const trimmed = stack.length >= 50 ? stack.slice(1) : stack;
+        setUndoStack([...trimmed, structuredClone(currentWidgets)]);
         setRedoStack([]);
     };
 
@@ -186,7 +186,7 @@ export default function DashboardView(props) {
                 if (Array.isArray(parsed) || (parsed.version === 3 && Array.isArray(parsed.layouts?.default?.widgets))) {
                     const loadedWidgets = Array.isArray(parsed) ? parsed : parsed.layouts[parsed.activeLayoutId || 'default'].widgets;
                     setWidgets(loadedWidgets);
-                    setTimeout(() => setHasLoaded(true), 0);
+                    setHasLoaded(true);
                     return;
                 }
             } catch (e) {
@@ -219,13 +219,13 @@ export default function DashboardView(props) {
             }
         }
         
-        setTimeout(() => setHasLoaded(true), 0);
+        setHasLoaded(true);
     });
 
     // Auto-save layout changes
     createEffect(() => {
         const w = widgets();
-        if (!untrack(hasLoaded)) return;
+        if (!hasLoaded()) return;
         if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
             localStorage.setItem(DASHBOARD_LAYOUT_KEY_V3, JSON.stringify(w));
         }
@@ -263,7 +263,7 @@ export default function DashboardView(props) {
         let newActiveId = state.activeLayoutId;
         if (state.activeLayoutId === id) {
             newActiveId = 'default';
-            setWidgets(newLayouts['default'].widgets);
+            setWidgets(structuredClone(newLayouts['default'].widgets));
         }
         
         setLayoutState(prev => ({
@@ -367,9 +367,8 @@ export default function DashboardView(props) {
         const drag = dragState();
         if (!drag.isDragging) return;
 
-        // Use measured cell size from registry constants for now (Task 6 will add precise measurement)
-        const cellWidthPx = window.innerWidth / GRID_COLS; // Approx
-        const cellHeightPx = 80 + 12; // Row + Gap
+        const cellWidthPx = cellSize().width || (window.innerWidth / GRID_COLS);
+        const cellHeightPx = cellSize().height || (GRID_ROW_HEIGHT_PX + GRID_GAP_PX);
 
         const deltaX = Math.round((e.clientX - drag.startX) / cellWidthPx);
         const deltaY = Math.round((e.clientY - drag.startY) / cellHeightPx);
@@ -450,8 +449,8 @@ export default function DashboardView(props) {
         const resize = resizeState();
         if (!resize.isResizing) return;
 
-        const cellWidthPx = window.innerWidth / GRID_COLS; // Approx
-        const cellHeightPx = 80 + 12; // Row + Gap
+        const cellWidthPx = cellSize().width || (window.innerWidth / GRID_COLS);
+        const cellHeightPx = cellSize().height || (GRID_ROW_HEIGHT_PX + GRID_GAP_PX);
 
         const deltaX = Math.round((e.clientX - resize.startX) / cellWidthPx);
         const deltaY = Math.round((e.clientY - resize.startY) / cellHeightPx);
