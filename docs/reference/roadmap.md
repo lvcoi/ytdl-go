@@ -1,6 +1,6 @@
-# ytdl-go: AI-Powered MVP Roadmap
+# Roadmap
 
-This document provides a structured, AI-first roadmap to guide the `ytdl-go` project to a stable and feature-rich Minimum Viable Product (MVP). The primary goal is to create a clear, actionable plan that an AI developer can follow to produce a high-quality, stable application, while minimizing regressions.
+Structured roadmap to guide the `ytdl-go` project to a stable MVP.
 
 ## Guiding Principles for the AI
 
