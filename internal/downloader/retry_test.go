@@ -256,6 +256,110 @@ func TestIsRetryableStatus(t *testing.T) {
 	}
 }
 
+func TestRetryTransport_ClosesRetryableBodyOnSuccess(t *testing.T) {
+	// Verify that response bodies from retryable responses are closed
+	// when a subsequent attempt succeeds.
+	bodies := make([]*trackingBody, 0)
+	var calls int32
+	transport := newRetryTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		n := atomic.AddInt32(&calls, 1)
+		tb := &trackingBody{}
+		bodies = append(bodies, tb)
+		if n <= 2 {
+			return &http.Response{StatusCode: 503, Body: tb}, nil
+		}
+		return &http.Response{StatusCode: 200, Body: tb}, nil
+	}), retryConfig{MaxRetries: 3, InitialDelay: time.Millisecond, MaxDelay: 10 * time.Millisecond})
+
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if len(bodies) != 3 {
+		t.Fatalf("expected 3 bodies, got %d", len(bodies))
+	}
+	// Bodies from retryable responses (attempts 1 and 2) must be closed
+	for i := 0; i < 2; i++ {
+		if !bodies[i].closed {
+			t.Errorf("body from attempt %d was not closed (response body leak)", i+1)
+		}
+	}
+	// Body from the successful response must NOT be closed (caller owns it)
+	if bodies[2].closed {
+		t.Error("body from successful attempt was closed prematurely")
+	}
+}
+
+func TestRetryTransport_ClosesRetryableBodyOnNonRetryableError(t *testing.T) {
+	// Verify that a retryable response body is closed when a subsequent
+	// attempt returns a non-retryable transport error.
+	var retryableBody *trackingBody
+	var calls int32
+	transport := newRetryTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		n := atomic.AddInt32(&calls, 1)
+		if n == 1 {
+			retryableBody = &trackingBody{}
+			return &http.Response{StatusCode: 502, Body: retryableBody}, nil
+		}
+		// Return a non-retryable error (e.g. DNS failure)
+		return nil, &net.DNSError{Err: "no such host", Name: "example.com", IsNotFound: true}
+	}), retryConfig{MaxRetries: 3, InitialDelay: time.Millisecond, MaxDelay: 10 * time.Millisecond})
+
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+	_, err := transport.RoundTrip(req)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if retryableBody == nil {
+		t.Fatal("retryable body was never created")
+	}
+	if !retryableBody.closed {
+		t.Error("retryable response body was not closed on non-retryable error (response body leak)")
+	}
+}
+
+func TestDoWithRetry_RespectsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var calls int32
+
+	// Start a test server that always fails
+	server := &http.Server{Addr: "127.0.0.1:0"}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	server.Handler = mux
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	go server.Serve(ln)
+	defer server.Close()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://"+ln.Addr().String()+"/fail", nil)
+
+	// Cancel after a short delay
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	_, retryErr := doWithRetry(req, 5*time.Second, 10)
+	if retryErr == nil {
+		t.Fatal("expected error from cancelled context")
+	}
+	// Should have stopped early due to context cancellation, not exhausted all 10 attempts
+	c := atomic.LoadInt32(&calls)
+	if c >= 10 {
+		t.Fatalf("expected fewer than 10 calls due to cancellation, got %d", c)
+	}
+}
+
 // --- Test helpers ---
 
 // roundTripFunc adapts a function to http.RoundTripper.
@@ -264,6 +368,14 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
+
+// trackingBody is an io.ReadCloser that records whether Close was called.
+type trackingBody struct {
+	closed bool
+}
+
+func (tb *trackingBody) Read(p []byte) (int, error) { return 0, io.EOF }
+func (tb *trackingBody) Close() error               { tb.closed = true; return nil }
 
 // timeoutError is a mock error that satisfies net.Error with Timeout() = true.
 type timeoutError struct{}

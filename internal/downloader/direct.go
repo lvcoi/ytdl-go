@@ -316,7 +316,12 @@ func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*ht
 			return resp, nil
 		}
 		lastErr = err
-		time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
+		if attempt < maxAttempts {
+			delay := time.Duration(attempt) * 300 * time.Millisecond
+			if err := sleepWithContext(req.Context(), delay); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return nil, lastErr
 }
