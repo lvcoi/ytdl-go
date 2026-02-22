@@ -5,6 +5,7 @@ import {
   AlertCircle, CheckCircle2, Loader, Terminal,
   Search, Filter, Film, Play, ExternalLink,
   X, PlayCircle, SkipBack, Pause, SkipForward,
+  LayoutDashboard, Move, GripVertical, Grid, Plus, Minus, Settings, BarChart2, HardDrive, Clock, Download, Edit2, Check, CornerRightDown,
 } from 'lucide-solid';
 
 const iconMap = {
@@ -33,8 +34,26 @@ const iconMap = {
   'skip-back': SkipBack,
   'pause': Pause,
   'skip-forward': SkipForward,
+  'layout-dashboard': LayoutDashboard,
+  'move': Move,
+  'grip': GripVertical,
+  'grid': Grid,
+  'plus': Plus,
+  'minus': Minus,
+  'settings': Settings,
+  'bar-chart': BarChart2,
+  'hard-drive': HardDrive,
+  'clock': Clock,
+  'download': Download,
+  'edit-2': Edit2,
+  'check': Check,
+  'corner-right-down': CornerRightDown,
 };
 
 export default function Icon(props) {
-  return <Dynamic component={iconMap[props.name]} class={props.class} />;
+  const component = iconMap[props.name];
+  if (!component) {
+    return <svg class={props.class} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>;
+  }
+  return <Dynamic component={component} class={props.class} />;
 }

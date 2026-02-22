@@ -2,7 +2,7 @@ import { createContext, createEffect, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 const APP_STATE_STORAGE_KEY = 'ytdl-go:app-state:v1';
-const VALID_TABS = new Set(['download', 'library', 'settings']);
+const VALID_TABS = new Set(['download', 'library', 'settings', 'dashboard']);
 const VALID_DUPLICATE_POLICIES = new Set(['prompt', 'overwrite', 'skip', 'rename']);
 const VALID_LIBRARY_MEDIA_TYPES = new Set(['video', 'audio']);
 const VALID_LIBRARY_SORT_KEYS = new Set([
@@ -54,6 +54,14 @@ const createDefaultState = () => ({
     active: false,
     selectedMedia: null,
   },
+  dashboard: {
+    widgets: [
+      { id: 'quick-download', type: 'quick-download', col: 1, row: 1, colSpan: 4, rowSpan: 2 },
+      { id: 'recent-downloads', type: 'recent-downloads', col: 5, row: 1, colSpan: 8, rowSpan: 4 },
+      { id: 'system-stats', type: 'system-stats', col: 1, row: 3, colSpan: 4, rowSpan: 2 },
+      { id: 'storage', type: 'storage', col: 1, row: 5, colSpan: 4, rowSpan: 2 },
+    ]
+  },
   download: {
     urlInput: '',
     isDownloading: false,
@@ -93,6 +101,9 @@ const getPersistedState = (state) => ({
   },
   download: {
     urlInput: state.download.urlInput,
+  },
+  dashboard: {
+    widgets: state.dashboard.widgets,
   },
 });
 
@@ -198,6 +209,33 @@ const sanitizeLibrary = (rawLibrary) => {
   };
 };
 
+const sanitizeDashboardWidgets = (rawWidgets) => {
+  if (!Array.isArray(rawWidgets)) {
+    return null;
+  }
+  const out = [];
+  for (const entry of rawWidgets) {
+    const w = entry && typeof entry === 'object' ? entry : {};
+    const id = toString(w.id, '').trim();
+    const type = toString(w.type, '').trim();
+    const col = typeof w.col === 'number' ? Math.trunc(w.col) : Number(w.col);
+    const row = typeof w.row === 'number' ? Math.trunc(w.row) : Number(w.row);
+    const colSpan = typeof w.colSpan === 'number' ? Math.trunc(w.colSpan) : Number(w.colSpan);
+    const rowSpan = typeof w.rowSpan === 'number' ? Math.trunc(w.rowSpan) : Number(w.rowSpan);
+    if (
+      id === '' || type === '' ||
+      !Number.isFinite(col) || col < 1 ||
+      !Number.isFinite(row) || row < 1 ||
+      !Number.isFinite(colSpan) || colSpan < 1 ||
+      !Number.isFinite(rowSpan) || rowSpan < 1
+    ) {
+      continue;
+    }
+    out.push({ id, type, col, row, colSpan, rowSpan });
+  }
+  return out.length > 0 ? out : null;
+};
+
 const readPersistedState = () => {
   if (typeof window === 'undefined') {
     return null;
@@ -238,6 +276,9 @@ const getInitialState = () => {
     ? persisted.download.urlInput
     : baseState.download.urlInput;
 
+  const persistedDashboardWidgets = sanitizeDashboardWidgets(persisted?.dashboard?.widgets)
+    ?? baseState.dashboard.widgets;
+
   return {
     ...baseState,
     ui: {
@@ -258,6 +299,9 @@ const getInitialState = () => {
     download: {
       ...baseState.download,
       urlInput: persistedUrlInput,
+    },
+    dashboard: {
+      widgets: persistedDashboardWidgets,
     },
   };
 };

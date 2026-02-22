@@ -1,5 +1,6 @@
 import { createEffect, onCleanup, onMount, Show } from 'solid-js';
 import Icon from './components/Icon';
+import DashboardView from './components/DashboardView';
 import DownloadView from './components/DownloadView';
 import LibraryView from './components/LibraryView';
 import SettingsView from './components/SettingsView';
@@ -350,6 +351,10 @@ function App() {
         </div>
 
         <nav class="flex-1 space-y-1">
+            <button onClick={() => setActiveTab('dashboard')} class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab() === 'dashboard' ? 'bg-blue-600/10 text-blue-400' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'}`}>
+                <Icon name="layout-dashboard" class="w-5 h-5" />
+                <span class="font-semibold text-sm">Dashboard</span>
+            </button>
             <button onClick={() => setActiveTab('download')} class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab() === 'download' ? 'bg-blue-600/10 text-blue-400' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'}`}>
                 <Icon name="plus-circle" class="w-5 h-5" />
                 <span class="font-semibold text-sm">New Download</span>
@@ -397,6 +402,9 @@ function App() {
             <div class={`max-w-4xl mx-auto ${activeTab() === 'download' ? '' : 'hidden'}`}>
                 <DownloadView onOpenLibrary={openLibrary} />
             </div>
+            <Show when={activeTab() === 'dashboard'}>
+              <DashboardView />
+            </Show>
             <Show when={activeTab() === 'library'}>
               <div class="max-w-4xl mx-auto">
                   <LibraryView
