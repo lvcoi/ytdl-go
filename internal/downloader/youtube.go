@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	youtube "github.com/lvcoi/ytdl-lib/v2"
+	"github.com/kkdai/youtube/v2"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -23,7 +23,7 @@ const (
 
 // adjustChunkSize picks a smaller chunk size for the YouTube client to keep
 // progress updates frequent without spawning thousands of requests.
-func adjustChunkSize(client YouTubeClient, contentLength int64) {
+func adjustChunkSize(client *youtube.Client, contentLength int64) {
 	if client == nil || contentLength <= 0 {
 		return
 	}
@@ -33,7 +33,7 @@ func adjustChunkSize(client YouTubeClient, contentLength int64) {
 	} else if chunk > maxChunkSize {
 		chunk = maxChunkSize
 	}
-	client.SetChunkSize(chunk)
+	client.ChunkSize = chunk
 }
 
 // ffmpegAvailable checks if ffmpeg is installed and accessible
@@ -43,7 +43,7 @@ func ffmpegAvailable() bool {
 }
 
 // downloadWithFFmpegFallback downloads a progressive format and extracts audio using ffmpeg
-func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath, baseDir string, progress *progressWriter) (downloadResult, error) {
+func downloadWithFFmpegFallback(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, printer *Printer, prefix string, audioOutputPath, baseDir string, progress *progressWriter) (downloadResult, error) {
 	result := downloadResult{}
 
 	// Find the best progressive format with high-quality audio
@@ -93,10 +93,9 @@ func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video
 	if err != nil {
 		return result, wrapCategory(CategoryFilesystem, err)
 	}
-	defer tempFile.Close()
 
 	var writer io.Writer = tempFile
-	if !opts.Quiet || opts.Renderer != nil {
+	if !opts.Quiet {
 		if progress != nil {
 			progress.Reset(size)
 		} else {
@@ -106,6 +105,7 @@ func downloadWithFFmpegFallback(ctx context.Context, client YouTubeClient, video
 	}
 
 	_, err = copyWithContext(ctx, writer, stream)
+	tempFile.Close()
 	if err != nil {
 		return result, wrapCategory(CategoryNetwork, fmt.Errorf("downloading progressive format: %w", err))
 	}
@@ -160,28 +160,24 @@ func extractAudio(inputPath, outputPath string) error {
 		Run()
 }
 
-func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (result downloadResult, err error) {
+func downloadVideo(ctx context.Context, client *youtube.Client, video *youtube.Video, opts Options, ctxInfo outputContext, printer *Printer, prefix string) (result downloadResult, err error) {
 	var (
 		format     *youtube.Format
 		outputPath string
 	)
 	defer func() {
-		if outputPath == "" || result.skipped {
+		if outputPath == "" {
 			return
 		}
 		status := "ok"
-		if err != nil {
+		if result.skipped {
+			status = "skipped"
+		} else if err != nil {
 			status = "error"
 		}
-
-		effectiveFormat := format
-		if result.format != nil {
-			effectiveFormat = result.format
-		}
-
-		metadata := buildItemMetadata(video, effectiveFormat, ctxInfo, outputPath, status, err)
-		if metaErr := finalizeDownloadMetadata(outputPath, opts.OutputDir, metadata, opts.AudioOnly, printer); metaErr != nil && err == nil {
-			err = metaErr
+		metadata := buildItemMetadata(video, format, ctxInfo, outputPath, status, err)
+		if opts.AudioOnly {
+			embedAudioTags(metadata, outputPath, printer)
 		}
 	}()
 
@@ -190,9 +186,7 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 	if err != nil {
 		if errorCategory(err) == CategoryUnsupported {
 			if video.HLSManifestURL != "" || video.DASHManifestURL != "" {
-				result, err = downloadAdaptive(ctx, client, video, opts, ctxInfo, printer, prefix, err)
-				outputPath = result.outputPath
-				return result, err
+				return downloadAdaptive(ctx, client, video, opts, ctxInfo, printer, prefix, err)
 			}
 		}
 		return result, err
@@ -239,7 +233,7 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 
 	var writer io.Writer = file
 	var progress *progressWriter
-	if !opts.Quiet || opts.Renderer != nil {
+	if !opts.Quiet {
 		progress = newProgressWriter(size, printer, prefix)
 		writer = io.MultiWriter(file, progress)
 	}
@@ -270,7 +264,7 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 			}
 
 			writer = file
-			if !opts.Quiet || opts.Renderer != nil {
+			if !opts.Quiet {
 				if progress != nil {
 					progress.Reset(size)
 				} else {

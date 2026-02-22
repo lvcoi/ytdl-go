@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240">
+  <defs>
+    <style>
+      .terminal-bg { fill: #1e1e1e; }
+      .terminal-text { fill: #d4d4d4; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
+      .terminal-prompt { fill: #4ec9b0; font-weight: bold; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
+      .terminal-success { fill: #6a9955; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
+      .terminal-info { fill: #569cd6; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
+      .terminal-error { fill: #f48771; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
+      .terminal-warning { fill: #ce9178; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; }
+      .terminal-header { fill: #808080; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <rect class="terminal-bg" width="900" height="240" rx="5"/>
+  
+  <!-- Window controls (macOS style) -->
+  <circle cx="20" cy="20" r="6" fill="#ff5f56"/>
+  <circle cx="40" cy="20" r="6" fill="#ffbd2e"/>
+  <circle cx="60" cy="20" r="6" fill="#27c93f"/>
+  
+  <!-- Title -->
+  <text class="terminal-header" x="450" y="25" text-anchor="middle">YouTube Music URL Conversion</text>
+  
+  <!-- Content -->
+  <text class="terminal-prompt" x="20" y="50">$ ytdl-go --audio &quot;https://music.youtube.com/playlist?list=PLxUALHb15RSAPuTLY&quot;</text>
+  <text class="terminal-info" x="20" y="68">INFO: Converting YouTube Music URL to regular YouTube URL</text>
+  <text class="terminal-text" x="20" y="86">URL: https://www.youtube.com/playlist?list=PLxUALHb15RSAPuTLY</text>
+  <text class="terminal-text" x="20" y="104"></text>
+  <text class="terminal-text" x="20" y="122">Fetching playlist info...</text>
+  <text class="terminal-text" x="20" y="140">Playlist: Chill Vibes (15 videos)</text>
+  <text class="terminal-text" x="20" y="158"></text>
+  <text class="terminal-text" x="20" y="176">[1/15] Downloading audio: Chill Song One</text>
+  <text class="terminal-text" x="20" y="194">Progress: [████████████████████████████████████] 100%</text>
+</svg>

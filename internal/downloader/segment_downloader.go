@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/kkdai/youtube/v2"
 )
 
 type segmentDownloadPlan struct {
@@ -42,7 +44,7 @@ func defaultSegmentConcurrency(value int) int {
 	return cpu * ioMultiplier
 }
 
-func downloadSegmentsParallel(ctx context.Context, client YouTubeClient, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
+func downloadSegmentsParallel(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
 	concurrency := defaultSegmentConcurrency(plan.Concurrency)
 	if concurrency < 2 || len(plan.URLs) < 2 {
 		return downloadSegmentsSequential(ctx, client, plan, writer, printer)
@@ -65,40 +67,32 @@ func downloadSegmentsParallel(ctx context.Context, client YouTubeClient, plan se
 		URL   string
 	}
 	jobs := make(chan job)
-
-	workerCtx, cancelCause := context.WithCancelCause(ctx)
-	defer cancelCause(nil)
-
 	var wg sync.WaitGroup
+	var firstErr atomic.Value
 
 	worker := func() {
 		defer wg.Done()
 		for j := range jobs {
-			if workerCtx.Err() != nil {
+			if firstErr.Load() != nil {
 				return
 			}
 			dest := filepath.Join(plan.TempDir, fmt.Sprintf("segment-%06d.part", j.Index))
 			if info, err := os.Stat(dest); err == nil && info.Size() > 0 {
 				continue
 			}
-			err := func() error {
-				file, err := os.Create(dest)
-				if err != nil {
-					return wrapCategory(CategoryFilesystem, fmt.Errorf("creating segment file: %w", err))
-				}
-				defer file.Close()
-				segmentWriter := io.Writer(file)
-				if progress != nil {
-					segmentWriter = io.MultiWriter(file, counter)
-				}
-				err = downloadSegmentWithRetry(workerCtx, client, j.URL, segmentWriter)
-				if err != nil {
-					return wrapCategory(CategoryNetwork, fmt.Errorf("segment %d failed: %w", j.Index+1, err))
-				}
-				return nil
-			}()
+			file, err := os.Create(dest)
 			if err != nil {
-				cancelCause(err)
+				firstErr.Store(wrapCategory(CategoryFilesystem, fmt.Errorf("creating segment file: %w", err)))
+				return
+			}
+			segmentWriter := io.Writer(file)
+			if progress != nil {
+				segmentWriter = io.MultiWriter(file, counter)
+			}
+			err = downloadSegmentWithRetry(ctx, client, j.URL, segmentWriter)
+			file.Close()
+			if err != nil {
+				firstErr.Store(wrapCategory(CategoryNetwork, fmt.Errorf("segment %d failed: %w", j.Index+1, err)))
 				return
 			}
 		}
@@ -110,19 +104,16 @@ func downloadSegmentsParallel(ctx context.Context, client YouTubeClient, plan se
 	}
 
 	for i, url := range plan.URLs {
-		select {
-		case jobs <- job{Index: i, URL: url}:
-		case <-workerCtx.Done():
-		}
+		jobs <- job{Index: i, URL: url}
 	}
 	close(jobs)
 	wg.Wait()
 
-	if cause := context.Cause(workerCtx); cause != nil {
+	if err := firstErr.Load(); err != nil {
 		if progress != nil {
 			progress.NewLine()
 		}
-		return atomic.LoadInt64(&totalBytes), cause
+		return atomic.LoadInt64(&totalBytes), err.(error)
 	}
 
 	if progress != nil {
@@ -130,21 +121,16 @@ func downloadSegmentsParallel(ctx context.Context, client YouTubeClient, plan se
 	}
 
 	for i := range plan.URLs {
-		err := func() error {
-			path := filepath.Join(plan.TempDir, fmt.Sprintf("segment-%06d.part", i))
-			file, err := os.Open(path)
-			if err != nil {
-				return wrapCategory(CategoryFilesystem, fmt.Errorf("opening segment: %w", err))
-			}
-			defer file.Close()
-			if _, err := io.Copy(writer, file); err != nil {
-				return wrapCategory(CategoryFilesystem, fmt.Errorf("assembling segments: %w", err))
-			}
-			return nil
-		}()
+		path := filepath.Join(plan.TempDir, fmt.Sprintf("segment-%06d.part", i))
+		file, err := os.Open(path)
 		if err != nil {
-			return atomic.LoadInt64(&totalBytes), err
+			return atomic.LoadInt64(&totalBytes), wrapCategory(CategoryFilesystem, fmt.Errorf("opening segment: %w", err))
 		}
+		if _, err := io.Copy(writer, file); err != nil {
+			file.Close()
+			return atomic.LoadInt64(&totalBytes), wrapCategory(CategoryFilesystem, fmt.Errorf("assembling segments: %w", err))
+		}
+		file.Close()
 	}
 
 	for i := range plan.URLs {
@@ -301,7 +287,7 @@ func validateSegmentTempDir(tempDir string) (string, error) {
 	return evalTemp, nil
 }
 
-func downloadSegmentsSequential(ctx context.Context, client YouTubeClient, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
+func downloadSegmentsSequential(ctx context.Context, client *youtube.Client, plan segmentDownloadPlan, writer io.Writer, printer *Printer) (int64, error) {
 	progress := (*progressWriter)(nil)
 	if printer != nil {
 		progress = newProgressWriter(0, printer, plan.Prefix)
