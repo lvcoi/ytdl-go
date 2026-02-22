@@ -7,6 +7,7 @@ import {
   X, PlayCircle, SkipBack, Pause, SkipForward,
   LayoutDashboard, History, ChevronRight, ChevronLeft,
   Eye, EyeOff, Pencil, Check, Settings2, User, Maximize2,
+  Home, BarChart2, Settings, Box, RefreshCw, RotateCcw, RotateCw, Plus, Info,
 } from 'lucide-solid';
 
 const iconMap = {
@@ -46,6 +47,15 @@ const iconMap = {
   'settings-2': Settings2,
   'user': User,
   'maximize-2': Maximize2,
+  'home': Home,
+  'bar-chart-2': BarChart2,
+  'settings': Settings,
+  'box': Box,
+  'refresh-cw': RefreshCw,
+  'rotate-ccw': RotateCcw,
+  'rotate-cw': RotateCw,
+  'plus': Plus,
+  'info': Info,
 };
 
 export default function Icon(props) {

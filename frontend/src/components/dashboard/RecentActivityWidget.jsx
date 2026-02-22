@@ -1,20 +1,21 @@
 import { For, Show } from 'solid-js';
+import { A } from '@solidjs/router';
 import Thumbnail from '../Thumbnail';
 import Icon from '../Icon';
 import logo from '../../assets/logo.png';
 
 export default function RecentActivityWidget(props) {
     return (
-        <div class="space-y-4">
+        <div class="space-y-4 h-full flex flex-col">
             <div class="flex items-center justify-between px-2">
                 <div class="flex items-center gap-2">
                     <h2 class="text-xl font-bold text-white">Recent Additions</h2>
                     <Icon name="history" class="w-4 h-4 text-accent-primary/60" />
                 </div>
-                <button onClick={() => props.onTabChange('library')} class="text-xs font-bold text-accent-primary hover:text-white transition-colors flex items-center gap-1">
+                <A href="/library" class="text-xs font-bold text-accent-primary hover:text-white transition-colors flex items-center gap-1 no-underline">
                     See All
                     <Icon name="chevron-right" class="w-3 h-3" />
-                </button>
+                </A>
             </div>
 
             <div class="relative group/carousel">

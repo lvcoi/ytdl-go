@@ -1,4 +1,5 @@
 import { createSignal, createMemo, Show } from 'solid-js';
+import { A } from '@solidjs/router';
 import Icon from './Icon';
 
 export default function QuickDownload(props) {
@@ -26,7 +27,7 @@ export default function QuickDownload(props) {
     };
 
     return (
-        <div class="rounded-[2rem] border border-white/5 bg-black/20 p-6 flex flex-col gap-4">
+        <div class="rounded-[2rem] border border-white/5 bg-black/20 p-6 flex flex-col gap-4 h-full">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <Icon name="zap" class="w-4 h-4 text-accent-primary" />
@@ -72,7 +73,7 @@ export default function QuickDownload(props) {
                 </Show>
             </form>
             <p class="text-[10px] text-gray-500 font-medium">
-                Downloads will use your default settings. Go to the <span class="text-gray-400 cursor-pointer hover:underline" onClick={() => props.onTabChange?.('download')}>Download</span> tab for more options.
+                Downloads will use your default settings. Go to the <A href="/download" class="text-gray-400 cursor-pointer hover:underline">Download</A> tab for more options.
             </p>
         </div>
     );

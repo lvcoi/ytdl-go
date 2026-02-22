@@ -8,6 +8,10 @@ const GAP = 12; // px
 export function Grid(props) {
     let gridRef;
 
+    // Use measured row height for square cells; fall back to default before measurement
+    const rowHeight = () => props.rowHeight || ROW_HEIGHT;
+    const tileSize = () => rowHeight() + GAP;
+
     return (
         <div 
             ref={(el) => {
@@ -18,18 +22,18 @@ export function Grid(props) {
             style={{
                 display: 'grid',
                 'grid-template-columns': `repeat(${GRID_COLS}, 1fr)`,
-                'grid-auto-rows': `${ROW_HEIGHT}px`,
+                'grid-auto-rows': `${rowHeight()}px`,
                 gap: `${GAP}px`,
-                'min-height': props.totalRows ? `${props.totalRows * (ROW_HEIGHT + GAP)}px` : 'auto'
+                'min-height': props.totalRows ? `${props.totalRows * tileSize()}px` : 'auto'
             }}
         >
-                        {/* Grid Lines Overlay */}
+            {/* Grid Lines Overlay */}
             <Show when={props.isEditMode}>
                 <div 
-                    class="dashboard-grid-lines absolute inset-0 pointer-events-none z-0 rounded-3xl"
+                    class="dashboard-grid-lines absolute inset-0 pointer-events-none -z-10 rounded-3xl"
                     style={{
-                        'background-size': `calc((100% + ${GAP}px) / ${GRID_COLS}) ${ROW_HEIGHT + GAP}px`,
-                        'background-position': `-${GAP/2}px -${GAP/2}px` // Offset for gap centering
+                        'background-size': `${tileSize()}px ${tileSize()}px`,
+                        'background-position': `-${GAP/2}px -${GAP/2}px`
                     }}
                 />
             </Show>
@@ -37,7 +41,7 @@ export function Grid(props) {
             {/* Ghost Preview */}
             <Show when={props.ghost}>
                 <div 
-                    class="absolute z-0 bg-accent-primary/20 border-2 border-accent-primary/50 rounded-[2rem] transition-all duration-200"
+                    class="z-0 bg-accent-primary/20 border-2 border-accent-primary/50 rounded-[2rem] transition-all duration-200 pointer-events-none"
                     style={{
                         'grid-column': `${props.ghost.x + 1} / span ${props.ghost.width}`,
                         'grid-row': `${props.ghost.y + 1} / span ${props.ghost.height}`
@@ -76,16 +80,16 @@ export function GridItem(props) {
             {/* Resize Handles - Only visible in edit mode */}
             <Show when={props.isEditMode}>
                 {/* Corners */}
-                <div class="absolute -top-1.5 -left-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('nw', e)} />
-                <div class="absolute -top-1.5 -right-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('ne', e)} />
-                <div class="absolute -bottom-1.5 -left-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('sw', e)} />
-                <div class="absolute -bottom-1.5 -right-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('se', e)} />
-                
+                <div role="button" tabindex="0" aria-label="Resize northwest" class="absolute -top-1.5 -left-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('nw', e)} />
+                <div role="button" tabindex="0" aria-label="Resize northeast" class="absolute -top-1.5 -right-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('ne', e)} />
+                <div role="button" tabindex="0" aria-label="Resize southwest" class="absolute -bottom-1.5 -left-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('sw', e)} />
+                <div role="button" tabindex="0" aria-label="Resize southeast" class="absolute -bottom-1.5 -right-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('se', e)} />
+
                 {/* Edges */}
-                <div class="absolute top-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('n', e)} />
-                <div class="absolute bottom-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('s', e)} />
-                <div class="absolute left-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('w', e)} />
-                <div class="absolute right-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('e', e)} />
+                <div role="button" tabindex="0" aria-label="Resize top" class="absolute top-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('n', e)} />
+                <div role="button" tabindex="0" aria-label="Resize bottom" class="absolute bottom-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('s', e)} />
+                <div role="button" tabindex="0" aria-label="Resize left" class="absolute left-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('w', e)} />
+                <div role="button" tabindex="0" aria-label="Resize right" class="absolute right-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('e', e)} />
             </Show>
         </div>
     );

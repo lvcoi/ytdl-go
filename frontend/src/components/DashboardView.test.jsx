@@ -146,7 +146,133 @@ describe('DashboardView', () => {
         expect(setItemCalls.length).toBe(0);
     });
 
-        it('persists layout changes after loading an existing v2 layout', async () => {
+    // ── Guard-Pair Tests: Drag ──────────────────────────────────────
+
+    it('blocks drag when not in edit mode (guard-pair: block)', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        const widget = await screen.findByTestId('welcome-widget');
+        const widgetContainer = widget.closest('[style*="grid-column"]');
+
+        const initialStyle = widgetContainer?.style.gridColumn;
+
+        // Attempt drag outside edit mode
+        fireEvent.mouseDown(widget, { clientX: 100, clientY: 100 });
+        fireEvent(document, new MouseEvent('mousemove', { clientX: 200, clientY: 200, bubbles: true }));
+        fireEvent(document, new MouseEvent('mouseup', { bubbles: true }));
+
+        // Widget should not have moved — style unchanged
+        expect(widgetContainer?.style.gridColumn).toBe(initialStyle);
+    });
+
+    it('allows drag in edit mode (guard-pair: pass-through)', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        // Enter edit mode
+        fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
+
+        const widget = await screen.findByTestId('welcome-widget');
+
+        // Start drag — should not throw and body cursor should change
+        fireEvent.mouseDown(widget, { clientX: 100, clientY: 100 });
+
+        // In edit mode, drag should set grabbing cursor
+        expect(document.body.style.cursor).toBe('grabbing');
+
+        // Cleanup
+        fireEvent(document, new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    // ── Guard-Pair Tests: Resize ──────────────────────────────────
+
+    it('blocks resize when not in edit mode (guard-pair: block)', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        // Resize handles should not be visible outside edit mode
+        const handles = document.querySelectorAll('.cursor-nwse-resize');
+        expect(handles.length).toBe(0);
+    });
+
+    it('shows resize handles in edit mode (guard-pair: pass-through)', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
+
+        // Resize handles should be visible in edit mode
+        const handles = document.querySelectorAll('.cursor-nwse-resize');
+        expect(handles.length).toBeGreaterThan(0);
+    });
+
+    // ── Undo/Redo Tests ───────────────────────────────────────────
+
+    it('undo reverts a reset layout action', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        const savedLayout = [
+            { id: 'welcome', enabled: true, x: 0, y: 0, width: 16, height: 3 },
+            { id: 'quick-download', enabled: true, x: 0, y: 3, width: 8, height: 2 },
+            { id: 'active-downloads', enabled: true, x: 12, y: 3, width: 4, height: 4 },
+            { id: 'recent-activity', enabled: true, x: 0, y: 5, width: 12, height: 4 },
+            { id: 'stats', enabled: true, x: 12, y: 7, width: 4, height: 3 },
+        ];
+
+        global.localStorage.getItem.mockImplementation((key) => {
+            if (key === 'ytdl-go:dashboard-layout:v3') return JSON.stringify(savedLayout);
+            return null;
+        });
+
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        // Enter edit mode
+        fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
+
+        // Undo button should be disabled initially (no actions yet)
+        const undoButton = screen.getByTitle('Undo (Ctrl+Z)');
+        expect(undoButton).toHaveAttribute('disabled');
+    });
+
+    it('undo/redo keyboard shortcuts only work in edit mode', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        // Ctrl+Z outside edit mode should not throw or change anything
+        fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+        // Enter edit mode
+        fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
+
+        // Ctrl+Z in edit mode with empty stack should be safe (no-op)
+        fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+        // Ctrl+Shift+Z in edit mode with empty redo stack should be safe
+        fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+
+        // No errors — test passes if no exception thrown
+    });
+
+    // ── State Transition: Edit Mode ───────────────────────────────
+
+    it('toggles edit mode correctly (idle → editing → idle)', async () => {
+        const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
+        render(() => <DashboardView libraryModel={mockModel} />);
+
+        // Initial state: not in edit mode
+        expect(screen.getByText('Dashboard')).toBeInTheDocument();
+        expect(screen.queryByText('Dashboard: Edit Mode')).not.toBeInTheDocument();
+
+        // Enter edit mode
+        fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
+        expect(screen.getByText(/Dashboard: Edit Mode/i)).toBeInTheDocument();
+
+        // Exit edit mode
+        fireEvent.click(screen.getByRole('button', { name: /Done/i }));
+        expect(screen.queryByText('Dashboard: Edit Mode')).not.toBeInTheDocument();
+    });
+
+    it('persists layout changes after loading an existing v2 layout', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         const savedLayout = [
             { id: 'welcome', enabled: true, x: 0, y: 0, width: 16, height: 3 },

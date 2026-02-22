@@ -1,4 +1,5 @@
 import { createMemo } from 'solid-js';
+import { A } from '@solidjs/router';
 import Icon from '../Icon';
 import logo from '../../assets/logo.png';
 
@@ -18,20 +19,20 @@ export default function WelcomeWidget(props) {
                 </p>
 
                 <div class="flex flex-wrap gap-3 pt-4">
-                    <button
-                        onClick={() => props.onTabChange('download')}
-                        class="px-6 py-3 rounded-xl bg-white text-black font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+                    <A
+                        href="/download"
+                        class="px-6 py-3 rounded-xl bg-white text-black font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg flex items-center gap-2 no-underline"
                     >
                         <Icon name="plus-circle" class="w-4 h-4" />
                         New Download
-                    </button>
-                    <button
-                        onClick={() => props.onTabChange('library')}
-                        class="px-6 py-3 rounded-xl bg-black/40 text-white border border-white/10 font-black uppercase tracking-widest hover:bg-black/60 transition-colors flex items-center gap-2"
+                    </A>
+                    <A
+                        href="/library"
+                        class="px-6 py-3 rounded-xl bg-black/40 text-white border border-white/10 font-black uppercase tracking-widest hover:bg-black/60 transition-colors flex items-center gap-2 no-underline"
                     >
                         <Icon name="layers" class="w-4 h-4" />
                         Browse Library
-                    </button>
+                    </A>
                 </div>
             </div>
         </div>

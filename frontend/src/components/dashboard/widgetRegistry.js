@@ -50,9 +50,9 @@ export const WIDGET_REGISTRY = {
         id: 'concurrency',
         label: 'Concurrency',
         icon: 'settings',
-        defaultW: 4,
+        defaultW: 6,
         defaultH: 4,
-        minW: 4,
+        minW: 5,
         minH: 2
     },
 };

@@ -5,7 +5,7 @@ import { WIDGET_REGISTRY } from './widgetRegistry';
 export default function WidgetDrawer(props) {
     return (
         <div 
-            class={`fixed inset-y-0 right-0 w-80 bg-surface-primary border-l border-white/10 shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${props.isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            class={`fixed inset-y-0 right-0 w-80 bg-[#0b111a] border-l border-white/10 shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${props.isOpen ? 'translate-x-0' : 'translate-x-full'}`}
         >
             <div class="p-6 border-b border-white/10 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-white">Add Widgets</h2>
@@ -20,8 +20,7 @@ export default function WidgetDrawer(props) {
             <div class="flex-1 overflow-y-auto p-6 space-y-4">
                 <For each={Object.values(WIDGET_REGISTRY)}>
                     {(item) => {
-                        const widget = props.widgets.find(w => w.id === item.id);
-                        const isEnabled = widget?.enabled;
+                        const isEnabled = () => props.widgets?.find(w => w.id === item.id)?.enabled ?? false;
                         
                         return (
                             <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-accent-primary/50 transition-colors group">
@@ -38,12 +37,12 @@ export default function WidgetDrawer(props) {
                                 </div>
                                 
                                 <button
-                                    onClick={() => isEnabled ? props.onRemove(item.id) : props.onAdd(item.id)}
-                                    class={`w-full py-2 rounded-lg text-sm font-bold transition-all ${isEnabled 
+                                    onClick={() => isEnabled() ? props.onRemove(item.id) : props.onAdd(item.id)}
+                                    class={`w-full py-2 rounded-lg text-sm font-bold transition-all ${isEnabled() 
                                         ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
                                         : 'bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30'}`}
                                 >
-                                    {isEnabled ? 'Remove Widget' : 'Add to Dashboard'}
+                                    {isEnabled() ? 'Remove Widget' : 'Add to Dashboard'}
                                 </button>
                             </div>
                         );
