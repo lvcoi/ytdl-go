@@ -5,6 +5,8 @@ import {
   AlertCircle, CheckCircle2, Loader, Terminal,
   Search, Filter, Film, Play, ExternalLink,
   X, PlayCircle, SkipBack, Pause, SkipForward,
+  LayoutDashboard, History, ChevronRight, ChevronLeft,
+  Eye, EyeOff, Pencil, Check, Settings2, User, Maximize2,
 } from 'lucide-solid';
 
 const iconMap = {
@@ -33,8 +35,20 @@ const iconMap = {
   'skip-back': SkipBack,
   'pause': Pause,
   'skip-forward': SkipForward,
+  'layout-dashboard': LayoutDashboard,
+  'history': History,
+  'chevron-right': ChevronRight,
+  'chevron-left': ChevronLeft,
+  'eye': Eye,
+  'eye-off': EyeOff,
+  'pencil': Pencil,
+  'check': Check,
+  'settings-2': Settings2,
+  'user': User,
+  'maximize-2': Maximize2,
 };
 
 export default function Icon(props) {
-  return <Dynamic component={iconMap[props.name]} class={props.class} />;
+  const component = iconMap[props.name] || iconMap['alert-circle'];
+  return <Dynamic component={component} class={props.class} />;
 }

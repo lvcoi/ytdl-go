@@ -5,6 +5,7 @@ const terminalDownloadStatuses = new Set(['complete', 'error']);
 export const normalizeDownloadStatus = (value) => {
   if (typeof value !== 'string') return '';
   const normalized = value.trim().toLowerCase();
+  if (normalized === 'done') return 'complete'; // Map 'done' to 'complete'
   return acceptedDownloadStatuses.has(normalized) ? normalized : '';
 };
 
