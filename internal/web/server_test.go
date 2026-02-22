@@ -1,7 +1,6 @@
 package web
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -56,20 +56,31 @@ func startWebServerForTest(t *testing.T, ctx context.Context) (baseURL string, w
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- ListenAndServe(ctx, addr)
+		errCh <- ListenAndServe(ctx, addr, 1)
 	}()
 
 	client := &http.Client{Timeout: 500 * time.Millisecond}
 	statusURL := fmt.Sprintf("http://%s/api/status", addr)
 	deadline := time.Now().Add(5 * time.Second)
 	for {
+		select {
+		case serveErr := <-errCh:
+			if serveErr != nil && !errors.Is(serveErr, context.Canceled) {
+				t.Fatalf("server failed before readiness: %v", serveErr)
+			}
+			t.Fatalf("server exited before readiness")
+		default:
+		}
+
 		if time.Now().After(deadline) {
 			t.Fatalf("server did not become ready in time")
 		}
 		resp, err := client.Get(statusURL)
 		if err == nil {
 			_ = resp.Body.Close()
-			break
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -192,6 +203,440 @@ func TestEnsureMediaLayoutCreatesRequiredSubdirs(t *testing.T) {
 			t.Fatalf("expected %s to be a directory", path)
 		}
 	}
+}
+
+func TestResolveWebMediaDirDefaultsToMediaFolder(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		resolved, err := resolveWebMediaDir()
+		if err != nil {
+			t.Fatalf("resolveWebMediaDir: %v", err)
+		}
+		want, err := filepath.Abs(defaultMediaDirName)
+		if err != nil {
+			t.Fatalf("abs default media dir: %v", err)
+		}
+		if resolved != want {
+			t.Fatalf("expected default media directory %q, got %q", want, resolved)
+		}
+	})
+}
+
+func TestResolveWebMediaDirPrefersFolderWithExistingMedia(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		defaultMediaDir := filepath.Join(tmpDir, defaultMediaDirName)
+		legacyMediaDir := filepath.Join(tmpDir, legacyMediaDirName)
+		if err := os.MkdirAll(defaultMediaDir, 0o755); err != nil {
+			t.Fatalf("mkdir default media dir: %v", err)
+		}
+		if err := os.MkdirAll(legacyMediaDir, 0o755); err != nil {
+			t.Fatalf("mkdir legacy media dir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(defaultMediaDir, "saved-playlists.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatalf("write default metadata file: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(legacyMediaDir, "existing-track.mp3"), []byte("audio"), 0o644); err != nil {
+			t.Fatalf("write legacy media file: %v", err)
+		}
+
+		resolved, err := resolveWebMediaDir()
+		if err != nil {
+			t.Fatalf("resolveWebMediaDir: %v", err)
+		}
+		expectedLegacyDir, err := filepath.Abs(legacyMediaDirName)
+		if err != nil {
+			t.Fatalf("abs legacy media dir: %v", err)
+		}
+		if resolved != expectedLegacyDir {
+			t.Fatalf("expected legacy media directory %q, got %q", expectedLegacyDir, resolved)
+		}
+	})
+}
+
+func TestResolveWebMediaDirRespectsEnvironmentOverride(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		overrideDir := filepath.Join(tmpDir, "custom-media")
+		t.Setenv(mediaDirEnvVar, overrideDir)
+
+		resolved, err := resolveWebMediaDir()
+		if err != nil {
+			t.Fatalf("resolveWebMediaDir: %v", err)
+		}
+		if resolved != overrideDir {
+			t.Fatalf("expected override media directory %q, got %q", overrideDir, resolved)
+		}
+	})
+}
+
+func TestListenWithPortFallbackUsesAlternatePortWhenBusy(t *testing.T) {
+	blocker, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen blocker: %v", err)
+	}
+	defer blocker.Close()
+
+	blockedAddr := blocker.Addr().String()
+	_, blockedPortText, err := net.SplitHostPort(blockedAddr)
+	if err != nil {
+		t.Fatalf("split blocked addr: %v", err)
+	}
+	blockedPort, err := strconv.Atoi(blockedPortText)
+	if err != nil {
+		t.Fatalf("parse blocked port: %v", err)
+	}
+
+	ln, fallbackCount, err := listenWithPortFallback(blockedAddr, 200)
+	if err != nil {
+		t.Fatalf("listenWithPortFallback: %v", err)
+	}
+	defer ln.Close()
+
+	if fallbackCount < 1 {
+		t.Fatalf("expected at least one fallback attempt, got %d", fallbackCount)
+	}
+
+	_, actualPortText, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatalf("split actual addr: %v", err)
+	}
+	actualPort, err := strconv.Atoi(actualPortText)
+	if err != nil {
+		t.Fatalf("parse actual port: %v", err)
+	}
+
+	expectedPort := blockedPort + fallbackCount
+	if actualPort != expectedPort {
+		t.Fatalf("expected fallback to bind port %d, got %d", expectedPort, actualPort)
+	}
+}
+
+func TestListenWithPortFallbackFailsWithoutRetries(t *testing.T) {
+	blocker, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen blocker: %v", err)
+	}
+	defer blocker.Close()
+
+	_, _, err = listenWithPortFallback(blocker.Addr().String(), 0)
+	if err == nil {
+		t.Fatalf("expected bind failure when fallback retries are disabled")
+	}
+}
+
+func TestListenWithPortFallbackStopsAtPortUpperBound(t *testing.T) {
+	const topPortAddr = "127.0.0.1:65535"
+
+	blocker, err := net.Listen("tcp", topPortAddr)
+	if err != nil {
+		t.Skipf("unable to reserve %s for overflow test: %v", topPortAddr, err)
+	}
+	defer blocker.Close()
+
+	_, _, err = listenWithPortFallback(topPortAddr, 10)
+	if err == nil {
+		t.Fatalf("expected bind failure at port upper bound")
+	}
+	if !strings.Contains(err.Error(), "after 1 attempt(s)") {
+		t.Fatalf("expected a single bind attempt at upper bound, got: %v", err)
+	}
+}
+
+func TestFormatWebURL(t *testing.T) {
+	tests := []struct {
+		name string
+		addr string
+		want string
+	}{
+		{name: "wildcard ipv4", addr: "0.0.0.0:8080", want: "http://127.0.0.1:8080"},
+		{name: "wildcard ipv6", addr: "[::]:8080", want: "http://127.0.0.1:8080"},
+		{name: "empty host", addr: ":8080", want: "http://127.0.0.1:8080"},
+		{name: "localhost", addr: "127.0.0.1:8080", want: "http://127.0.0.1:8080"},
+		{name: "ipv6 zone id", addr: "[fe80::1%en0]:8080", want: "http://[fe80::1%25en0]:8080"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := formatWebURL(tc.addr); got != tc.want {
+				t.Fatalf("formatWebURL(%q) = %q, want %q", tc.addr, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSavedPlaylistsAPIReplaceAndLoad(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		initialResp, err := client.Get(baseURL + "/api/library/playlists")
+		if err != nil {
+			t.Fatalf("request initial playlists: %v", err)
+		}
+		defer initialResp.Body.Close()
+		if initialResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for initial playlists, got %d", initialResp.StatusCode)
+		}
+		var initialState savedPlaylistState
+		if err := json.NewDecoder(initialResp.Body).Decode(&initialState); err != nil {
+			t.Fatalf("decode initial playlists: %v", err)
+		}
+		if len(initialState.Playlists) != 0 {
+			t.Fatalf("expected no saved playlists initially, got %d", len(initialState.Playlists))
+		}
+		if len(initialState.Assignments) != 0 {
+			t.Fatalf("expected no assignments initially, got %d", len(initialState.Assignments))
+		}
+
+		putPayload := `{
+			"playlists": [
+				{"id": "pl-1", "name": "  Road   Trip  ", "createdAt": "2026-02-07T10:00:00Z", "updatedAt": "2026-02-07T10:00:00Z"},
+				{"id": "pl-2", "name": "Chill Mix"},
+				{"id": "pl-2", "name": "Duplicate Id"},
+				{"id": "pl-3", "name": "Road Trip"}
+			],
+			"assignments": {
+				"video/road.mp4": "pl-1",
+				"video/ghost.mp4": "missing",
+				"": "pl-1"
+			}
+		}`
+		putReq, err := http.NewRequest(http.MethodPut, baseURL+"/api/library/playlists", strings.NewReader(putPayload))
+		if err != nil {
+			t.Fatalf("new put request: %v", err)
+		}
+		putReq.Header.Set("Content-Type", "application/json")
+
+		putResp, err := client.Do(putReq)
+		if err != nil {
+			t.Fatalf("put playlists: %v", err)
+		}
+		defer putResp.Body.Close()
+		if putResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for put playlists, got %d", putResp.StatusCode)
+		}
+
+		var savedState savedPlaylistState
+		if err := json.NewDecoder(putResp.Body).Decode(&savedState); err != nil {
+			t.Fatalf("decode put response: %v", err)
+		}
+		if len(savedState.Playlists) != 2 {
+			t.Fatalf("expected 2 normalized playlists, got %d", len(savedState.Playlists))
+		}
+		if savedState.Playlists[0].Name != "Road Trip" {
+			t.Fatalf("expected normalized first playlist name, got %q", savedState.Playlists[0].Name)
+		}
+		if savedState.Playlists[1].ID != "pl-2" {
+			t.Fatalf("expected second playlist id pl-2, got %q", savedState.Playlists[1].ID)
+		}
+		if len(savedState.Assignments) != 1 || savedState.Assignments["video/road.mp4"] != "pl-1" {
+			t.Fatalf("expected filtered assignments to keep only valid mapping, got %+v", savedState.Assignments)
+		}
+
+		playlistFile := filepath.Join(tmpDir, "media", mediaFolderData, savedPlaylistsFileName)
+		fileData, err := os.ReadFile(playlistFile)
+		if err != nil {
+			t.Fatalf("read saved playlist file: %v", err)
+		}
+		if len(fileData) == 0 {
+			t.Fatalf("expected saved playlist file to contain data")
+		}
+
+		reloadResp, err := client.Get(baseURL + "/api/library/playlists")
+		if err != nil {
+			t.Fatalf("request reloaded playlists: %v", err)
+		}
+		defer reloadResp.Body.Close()
+		if reloadResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for reloaded playlists, got %d", reloadResp.StatusCode)
+		}
+
+		var reloadedState savedPlaylistState
+		if err := json.NewDecoder(reloadResp.Body).Decode(&reloadedState); err != nil {
+			t.Fatalf("decode reloaded playlists: %v", err)
+		}
+		if len(reloadedState.Playlists) != 2 {
+			t.Fatalf("expected 2 playlists after reload, got %d", len(reloadedState.Playlists))
+		}
+		if reloadedState.Assignments["video/road.mp4"] != "pl-1" {
+			t.Fatalf("expected assignment to persist after reload, got %+v", reloadedState.Assignments)
+		}
+	})
+}
+
+func TestSavedPlaylistsMigrationEndpointSeedsOnlyWhenEmpty(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		migratePayload := `{
+			"playlists": [
+				{"id": "legacy-1", "name": "Legacy Mix"}
+			],
+			"assignments": {
+				"audio/legacy.mp3": "legacy-1"
+			}
+		}`
+
+		migrateReq, err := http.NewRequest(http.MethodPost, baseURL+"/api/library/playlists/migrate", strings.NewReader(migratePayload))
+		if err != nil {
+			t.Fatalf("new migrate request: %v", err)
+		}
+		migrateReq.Header.Set("Content-Type", "application/json")
+
+		migrateResp, err := client.Do(migrateReq)
+		if err != nil {
+			t.Fatalf("migrate request: %v", err)
+		}
+		defer migrateResp.Body.Close()
+		if migrateResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for first migrate request, got %d", migrateResp.StatusCode)
+		}
+
+		var firstMigration savedPlaylistMigrationResponse
+		if err := json.NewDecoder(migrateResp.Body).Decode(&firstMigration); err != nil {
+			t.Fatalf("decode first migration response: %v", err)
+		}
+		if !firstMigration.Migrated {
+			t.Fatalf("expected first migration request to migrate data")
+		}
+		if len(firstMigration.Playlists) != 1 || firstMigration.Playlists[0].ID != "legacy-1" {
+			t.Fatalf("expected migrated playlist to be returned, got %+v", firstMigration.Playlists)
+		}
+
+		secondPayload := `{
+			"playlists": [
+				{"id": "legacy-2", "name": "Should Not Replace"}
+			],
+			"assignments": {
+				"audio/new.mp3": "legacy-2"
+			}
+		}`
+		secondReq, err := http.NewRequest(http.MethodPost, baseURL+"/api/library/playlists/migrate", strings.NewReader(secondPayload))
+		if err != nil {
+			t.Fatalf("new second migrate request: %v", err)
+		}
+		secondReq.Header.Set("Content-Type", "application/json")
+
+		secondResp, err := client.Do(secondReq)
+		if err != nil {
+			t.Fatalf("second migrate request: %v", err)
+		}
+		defer secondResp.Body.Close()
+		if secondResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for second migrate request, got %d", secondResp.StatusCode)
+		}
+
+		var secondMigration savedPlaylistMigrationResponse
+		if err := json.NewDecoder(secondResp.Body).Decode(&secondMigration); err != nil {
+			t.Fatalf("decode second migration response: %v", err)
+		}
+		if secondMigration.Migrated {
+			t.Fatalf("expected second migration request to be ignored")
+		}
+		if len(secondMigration.Playlists) != 1 || secondMigration.Playlists[0].ID != "legacy-1" {
+			t.Fatalf("expected existing migrated data to remain unchanged, got %+v", secondMigration.Playlists)
+		}
+		if secondMigration.Assignments["audio/legacy.mp3"] != "legacy-1" {
+			t.Fatalf("expected existing assignment to remain unchanged, got %+v", secondMigration.Assignments)
+		}
+	})
+}
+
+func TestSavedPlaylistsEndpointMethodAndPayloadValidation(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		postReq, err := http.NewRequest(http.MethodPost, baseURL+"/api/library/playlists", strings.NewReader(`{}`))
+		if err != nil {
+			t.Fatalf("new invalid method request: %v", err)
+		}
+		postReq.Header.Set("Content-Type", "application/json")
+		postResp, err := client.Do(postReq)
+		if err != nil {
+			t.Fatalf("invalid method request failed: %v", err)
+		}
+		postResp.Body.Close()
+		if postResp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("expected 405 for POST /api/library/playlists, got %d", postResp.StatusCode)
+		}
+
+		getMigrateResp, err := client.Get(baseURL + "/api/library/playlists/migrate")
+		if err != nil {
+			t.Fatalf("invalid method migrate request failed: %v", err)
+		}
+		getMigrateResp.Body.Close()
+		if getMigrateResp.StatusCode != http.StatusMethodNotAllowed {
+			t.Fatalf("expected 405 for GET /api/library/playlists/migrate, got %d", getMigrateResp.StatusCode)
+		}
+
+		invalidJSONReq, err := http.NewRequest(http.MethodPut, baseURL+"/api/library/playlists", strings.NewReader(`{"playlists":`))
+		if err != nil {
+			t.Fatalf("new invalid json request: %v", err)
+		}
+		invalidJSONReq.Header.Set("Content-Type", "application/json")
+		invalidJSONResp, err := client.Do(invalidJSONReq)
+		if err != nil {
+			t.Fatalf("invalid json request failed: %v", err)
+		}
+		invalidJSONResp.Body.Close()
+		if invalidJSONResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400 for invalid JSON payload, got %d", invalidJSONResp.StatusCode)
+		}
+	})
+}
+
+func TestSavedPlaylistsEndpointReturnsServerErrorForEmptyDataFile(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		dataDir := filepath.Join(tmpDir, "media", mediaFolderData)
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
+			t.Fatalf("mkdir data dir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dataDir, savedPlaylistsFileName), []byte(" \n\t"), 0o644); err != nil {
+			t.Fatalf("write empty playlist file: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get(baseURL + "/api/library/playlists")
+		if err != nil {
+			t.Fatalf("request playlists: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("expected 500 for empty playlist file, got %d", resp.StatusCode)
+		}
+	})
 }
 
 func TestParseDownloadRequestNormalizesOutputTemplateForMediaLayout(t *testing.T) {
@@ -601,123 +1046,4 @@ func TestMediaTypeForExtension(t *testing.T) {
 			t.Fatalf("mediaTypeForExtension(%q): expected %q, got %q", tt.ext, tt.want, got)
 		}
 	}
-}
-
-func TestDownloadProgressStreamIncludesSnapshotAndSequencedEvents(t *testing.T) {
-	withTempCWD(t, func(_ string) {
-		tracker = &jobTracker{}
-		job := tracker.Create([]string{"https://example.com/watch?v=abc"})
-		defer job.CloseEvents()
-
-		if !job.enqueueCriticalEvent(ProgressEvent{
-			Type:  "register",
-			ID:    "task_1",
-			Label: "Track 1",
-			Total: 100,
-		}, time.Second) {
-			t.Fatalf("failed to enqueue register event")
-		}
-		if !job.enqueueCriticalEvent(ProgressEvent{
-			Type:    "progress",
-			ID:      "task_1",
-			Current: 10,
-			Total:   100,
-		}, time.Second) {
-			t.Fatalf("failed to enqueue progress event")
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		baseURL, wait := startWebServerForTest(t, ctx)
-		defer func() {
-			cancel()
-			wait()
-		}()
-
-		req, err := http.NewRequest(http.MethodGet, baseURL+"/api/download/progress?id="+job.ID, nil)
-		if err != nil {
-			t.Fatalf("new request for progress stream: %v", err)
-		}
-		client := &http.Client{Timeout: 5 * time.Second}
-		resp, err := client.Do(req)
-		if err != nil {
-			t.Fatalf("request progress stream: %v", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected 200 from progress stream, got %d", resp.StatusCode)
-		}
-
-		reader := bufio.NewReader(resp.Body)
-		readSSE := func() (idLine string, evt ProgressEvent, err error) {
-			var dataLine string
-			for {
-				line, readErr := reader.ReadString('\n')
-				if readErr != nil {
-					return "", ProgressEvent{}, readErr
-				}
-				trimmed := strings.TrimRight(line, "\r\n")
-				if trimmed == "" {
-					break
-				}
-				if strings.HasPrefix(trimmed, "id: ") {
-					idLine = strings.TrimPrefix(trimmed, "id: ")
-				}
-				if strings.HasPrefix(trimmed, "data: ") {
-					dataLine = strings.TrimPrefix(trimmed, "data: ")
-				}
-			}
-			if dataLine == "" {
-				return idLine, ProgressEvent{}, nil
-			}
-			if unmarshalErr := json.Unmarshal([]byte(dataLine), &evt); unmarshalErr != nil {
-				return idLine, ProgressEvent{}, unmarshalErr
-			}
-			return idLine, evt, nil
-		}
-
-		sawSnapshot := false
-		sawSnapshotID := false
-		sawSequenced := false
-		for i := 0; i < 8 && (!sawSnapshot || !sawSequenced); i++ {
-			idLine, evt, err := readSSE()
-			if err != nil {
-				t.Fatalf("read SSE event: %v", err)
-			}
-			if evt.Type == "" {
-				continue
-			}
-			if evt.Type == "snapshot" {
-				sawSnapshot = true
-				if idLine == "0" {
-					sawSnapshotID = true
-				}
-				if evt.Snapshot == nil {
-					t.Fatalf("snapshot event missing snapshot payload")
-				}
-				if evt.Snapshot.JobID != job.ID {
-					t.Fatalf("expected snapshot job id %q, got %q", job.ID, evt.Snapshot.JobID)
-				}
-				continue
-			}
-			if idLine != "" {
-				sawSequenced = true
-				if evt.Seq <= 0 {
-					t.Fatalf("expected positive sequence for event %q, got %d", evt.Type, evt.Seq)
-				}
-				if evt.JobID != job.ID {
-					t.Fatalf("expected event job id %q, got %q", job.ID, evt.JobID)
-				}
-			}
-		}
-
-		if !sawSnapshot {
-			t.Fatalf("expected snapshot event in SSE stream")
-		}
-		if !sawSnapshotID {
-			t.Fatalf("expected snapshot event to include SSE id")
-		}
-		if !sawSequenced {
-			t.Fatalf("expected at least one sequenced replay/live event with SSE id")
-		}
-	})
 }

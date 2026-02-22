@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -116,7 +115,10 @@ type Job struct {
 	taskState          map[string]ProgressTaskSnapshot `json:"-"`
 	logState           []ProgressLogSnapshot           `json:"-"`
 	duplicatePromptMap map[string]DuplicatePromptSnapshot
-	closeOnce          sync.Once `json:"-"`
+	ctx                context.Context    `json:"-"`
+	cancel             context.CancelFunc `json:"-"`
+	brokerStop         chan struct{}      `json:"-"`
+	closeOnce          sync.Once          `json:"-"`
 }
 
 // jobTracker manages active download jobs.
@@ -133,28 +135,51 @@ var (
 )
 
 const (
-	criticalEventTimeout    = 2 * time.Second
-	duplicatePromptTimeout  = 120 * time.Second
-	maxJobEventHistory      = 4096
+	criticalEventTimeout   = 2 * time.Second
+	duplicatePromptTimeout = 10 * time.Second // Short timeout for web duplicates
+	maxJobEventHistory     = 4096
+
 	maxJobLogHistory        = 200
 	baseSubscriberBufferLen = 128
 )
 
-func (jt *jobTracker) Create(urls []string) *Job {
+func (jt *jobTracker) Create(ctx context.Context, urls []string) *Job {
 	id := fmt.Sprintf("job_%d", jt.counter.Add(1))
 	urlCopy := append([]string(nil), urls...)
+	jobCtx, cancel := context.WithCancel(ctx)
 	job := &Job{
 		ID:                 id,
 		Status:             "queued",
 		URLs:               urlCopy,
 		CreatedAt:          time.Now(),
 		Events:             make(chan ProgressEvent, 256),
+		brokerStop:         make(chan struct{}),
 		pendingPrompt:      make(map[string]chan downloader.DuplicateDecision),
 		subscribers:        make(map[int64]chan ProgressEvent),
 		taskState:          make(map[string]ProgressTaskSnapshot),
 		duplicatePromptMap: make(map[string]DuplicatePromptSnapshot),
+		ctx:                jobCtx,
+		cancel:             cancel,
 	}
+
 	go job.runEventBroker()
+	go func() {
+		<-jobCtx.Done()
+		if errors.Is(jobCtx.Err(), context.Canceled) {
+			job.mu.Lock()
+			if job.Status == "queued" || job.Status == "running" {
+				job.setTerminalStatusLocked("error")
+				job.Error = "Cancelled by user"
+				status := job.Status
+				errMsg := job.Error
+				stats := job.Stats
+				job.mu.Unlock()
+				job.emitTerminalStatusEvent(status, errMsg, 130, stats)
+			} else {
+				job.mu.Unlock()
+			}
+		}
+	}()
 	job.emitStatusEvent("queued", "queued")
 	jt.jobs.Store(id, job)
 	return job
@@ -227,12 +252,26 @@ func (jt *jobTracker) StartCleanup(ctx context.Context, interval, completedTTL, 
 	}()
 }
 
+func (j *Job) Cancel() {
+	if j == nil || j.cancel == nil {
+		return
+	}
+	j.cancel()
+}
+
+func (j *Job) Context() context.Context {
+	if j == nil {
+		return context.Background()
+	}
+	return j.ctx
+}
+
 func (j *Job) CloseEvents() {
 	if j == nil {
 		return
 	}
 	j.closeOnce.Do(func() {
-		close(j.Events)
+		close(j.brokerStop)
 	})
 }
 
@@ -276,13 +315,23 @@ func (j *Job) SetOutcome(results []app.Result, exitCode int) string {
 
 	if exitCode != 0 {
 		j.setTerminalStatusLocked("error")
+		var firstErr string
+		failCount := 0
 		for _, result := range resultsCopy {
 			if result.Error != "" {
-				j.Error = result.Error
-				break
+				if firstErr == "" {
+					firstErr = result.Error
+				}
+				failCount++
 			}
 		}
+		if failCount > 1 {
+			j.Error = fmt.Sprintf("%d items failed. First error: %s", failCount, firstErr)
+		} else {
+			j.Error = firstErr
+		}
 		status := j.Status
+
 		errMsg := j.Error
 		statsCopy := j.Stats
 		j.mu.Unlock()
@@ -360,12 +409,6 @@ func (j *Job) enqueueCriticalEvent(evt ProgressEvent, maxWait time.Duration) (ok
 	if maxWait <= 0 {
 		maxWait = criticalEventTimeout
 	}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			log.Printf("web: dropping critical event for job %q after panic on send: %v", j.ID, recovered)
-			ok = false
-		}
-	}()
 	timer := time.NewTimer(maxWait)
 	defer timer.Stop()
 	select {
@@ -484,11 +527,25 @@ func (j *Job) closeDuplicatePrompts(defaultDecision downloader.DuplicateDecision
 }
 
 func (j *Job) runEventBroker() {
-	for evt := range j.Events {
-		normalized := j.normalizeEvent(evt)
-		j.recordEvent(normalized)
+	for {
+		select {
+		case evt := <-j.Events:
+			normalized := j.normalizeEvent(evt)
+			j.recordEvent(normalized)
+		case <-j.brokerStop:
+			// Drain any remaining events before shutting down
+			for {
+				select {
+				case evt := <-j.Events:
+					normalized := j.normalizeEvent(evt)
+					j.recordEvent(normalized)
+				default:
+					goto done
+				}
+			}
+		}
 	}
-
+done:
 	j.eventMu.Lock()
 	if j.eventClosed {
 		j.eventMu.Unlock()
@@ -541,8 +598,10 @@ func (j *Job) recordEvent(evt ProgressEvent) {
 		j.eventHistory = append([]ProgressEvent(nil), j.eventHistory[over:]...)
 	}
 	j.applyEventLocked(evt)
+	BroadcastEvent(evt)
 
 	subs := make([]chan ProgressEvent, 0, len(j.subscribers))
+
 	for _, sub := range j.subscribers {
 		subs = append(subs, sub)
 	}
@@ -829,29 +888,29 @@ func (p *webDuplicatePrompter) PromptDuplicate(path string) (downloader.Duplicat
 
 var _ downloader.DuplicatePrompter = (*webDuplicatePrompter)(nil)
 
-// webRenderer implements downloader.ProgressRenderer for SSE streaming.
+// webRenderer implements downloader.ProgressRenderer for WebSocket and internal tracking.
 type webRenderer struct {
 	events chan<- ProgressEvent
+	closed atomic.Bool
 }
 
-func safeEnqueueEvent(events chan<- ProgressEvent, evt ProgressEvent) {
-	if events == nil {
+func (w *webRenderer) Close() {
+	w.closed.Store(true)
+}
+
+func safeEnqueueEvent(w *webRenderer, evt ProgressEvent) {
+	if w == nil || w.events == nil || w.closed.Load() {
 		return
 	}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			log.Printf("web: dropped renderer event %q after panic on send: %v", evt.Type, recovered)
-		}
-	}()
 	select {
-	case events <- evt:
+	case w.events <- evt:
 	default:
 	}
 }
 
 func (w *webRenderer) Register(prefix string, size int64) string {
 	id := fmt.Sprintf("%s@%d", prefix, time.Now().UnixNano())
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "register", ID: id, Label: prefix, Total: size})
+	safeEnqueueEvent(w, ProgressEvent{Type: "register", ID: id, Label: prefix, Total: size})
 	return id
 }
 
@@ -860,11 +919,11 @@ func (w *webRenderer) Update(id string, current, total int64) {
 	if total > 0 {
 		percent = float64(current) * 100 / float64(total)
 	}
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "progress", ID: id, Current: current, Total: total, Percent: percent})
+	safeEnqueueEvent(w, ProgressEvent{Type: "progress", ID: id, Current: current, Total: total, Percent: percent})
 }
 
 func (w *webRenderer) Finish(id string) {
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "finish", ID: id})
+	safeEnqueueEvent(w, ProgressEvent{Type: "finish", ID: id})
 }
 
 func (w *webRenderer) Log(level downloader.LogLevel, msg string) {
@@ -877,7 +936,7 @@ func (w *webRenderer) Log(level downloader.LogLevel, msg string) {
 	case downloader.LogError:
 		levelStr = "error"
 	}
-	safeEnqueueEvent(w.events, ProgressEvent{Type: "log", Level: levelStr, Message: msg})
+	safeEnqueueEvent(w, ProgressEvent{Type: "log", Level: levelStr, Message: msg})
 }
 
 func parseProgressSeq(raw string) (int64, bool) {

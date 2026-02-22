@@ -1,0 +1,69 @@
+tasks:
+  install-go-deps:
+    name: Install Go dependencies
+    description: Download Go modules.
+    command: go mod download
+    triggeredBy:
+      - postDevcontainerStart
+
+  install-frontend-deps:
+    name: Install frontend dependencies
+    description: Install npm packages for the frontend.
+    command: cd frontend && npm install
+    triggeredBy:
+      - postDevcontainerStart
+
+  build-backend:
+    name: Build backend
+    description: Build the Go binary.
+    command: go build -o ./bin/yt .
+    dependsOn:
+      - install-go-deps
+    triggeredBy:
+      - postDevcontainerStart
+
+  build-frontend:
+    name: Build frontend
+    description: Build the Vite/SolidJS frontend into the backend assets folder.
+    command: cd frontend && npm run build
+    dependsOn:
+      - install-frontend-deps
+    triggeredBy:
+      - postDevcontainerStart
+
+  test-go:
+    name: Run Go tests
+    description: Run all Go unit tests.
+    command: go test -v ./...
+    triggeredBy:
+      - manual
+
+  test-frontend:
+    name: Run frontend tests
+    description: Run Vitest tests for the frontend.
+    command: cd frontend && npm test
+    triggeredBy:
+      - manual
+
+services:
+  backend:
+    name: Backend server
+    description: Go web server serving the API and built frontend assets.
+    triggeredBy:
+      - postDevcontainerStart
+    commands:
+      start: |
+        gitpod environment port open 8080 --name backend
+        go run main.go -web --host 0.0.0.0 --port 8080
+      ready: curl -sf http://localhost:8080/api/status
+
+  frontend-dev:
+    name: Frontend dev server
+    description: Vite dev server with HMR for frontend development.
+    triggeredBy:
+      - manual
+    commands:
+      start: |
+        gitpod environment port open 5173 --name frontend-dev
+        cd frontend && VITE_API_PROXY_TARGET=http://localhost:8080 npx vite --host 0.0.0.0
+      ready: curl -sf http://localhost:5173
