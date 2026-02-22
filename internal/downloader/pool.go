@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -50,10 +51,13 @@ func (p *Pool) Start(ctx context.Context) {
 }
 
 func (p *Pool) AddTask(t Task) {
+	p.wg.Add(1)
 	go func() {
 		select {
 		case p.TaskQueue <- t:
 		case <-p.ctx.Done():
+			log.Printf("pool: task %q dropped (context cancelled)", t.ID)
+			p.wg.Done()
 		}
 	}()
 }
@@ -67,7 +71,6 @@ func (p *Pool) worker() {
 			if !ok {
 				return
 			}
-			p.wg.Add(1)
 			p.processTask(task)
 			p.wg.Done()
 		}
