@@ -1,0 +1,90 @@
+site_name: ytdl-go Documentation
+site_url: https://lvcoi.github.io/ytdl-go/
+repo_url: https://github.com/lvcoi/ytdl-go
+repo_name: lvcoi/ytdl-go
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: red
+      accent: red
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: red
+      accent: red
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Getting Started:
+          - Installation: user-guide/installation.md
+          - Quick Start: user-guide/quick-start.md
+      - Usage:
+          - Basic Downloads: user-guide/basic-downloads.md
+          - Playlists: user-guide/playlists.md
+          - Audio-Only Mode: user-guide/audio-only.md
+          - Output Templates: user-guide/output-templates.md
+          - Format Selection: user-guide/format-selection.md
+          - Metadata & Sidecars: user-guide/metadata.md
+      - Troubleshooting:
+          - Common Issues: user-guide/troubleshooting.md
+          - FAQ: user-guide/faq.md
+  - Developer Guide:
+      - Architecture:
+          - Overview: developer-guide/architecture.md
+          - Backend Structure: developer-guide/backend-architecture.md
+          - Frontend Structure: developer-guide/frontend-architecture.md
+      - API Reference: developer-guide/api-reference.md
+      - Contributing: developer-guide/contributing.md
+      - Best Practices: developer-guide/best-practices.md
+      - Engineering Process: developer-guide/engineering-process.md
+      - Maintainers: developer-guide/maintainers.md
+  - Reference:
+      - CLI Options: reference/cli-options.md
+      - Roadmap: reference/roadmap.md
+      - Security: reference/security.md
+      - License: reference/license.md

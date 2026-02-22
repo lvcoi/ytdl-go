@@ -1,6 +1,6 @@
-# ytdl-go: Engineering Process
+# Engineering Process
 
-This document outlines the standardized engineering process for the `ytdl-go` project. This process is designed to be followed by any developer, including an AI, to ensure consistency, quality, and to minimize regressions.
+Standardized engineering process for the `ytdl-go` project.
 
 ## Guiding Principles
 
