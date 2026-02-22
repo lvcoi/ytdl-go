@@ -33,18 +33,21 @@ type consistentTransport struct {
 }
 
 func (t *consistentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Ensure consistent User-Agent across all requests
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", t.userAgent)
+	// Clone the request before modifying headers. RoundTrip must not mutate
+	// the original request per the http.RoundTripper contract; doing so can
+	// cause data races when the HTTP client retries or follows redirects.
+	clone := req.Clone(req.Context())
+
+	if clone.Header.Get("User-Agent") == "" {
+		clone.Header.Set("User-Agent", t.userAgent)
 	}
-	// Add browser-like headers
-	if req.Header.Get("Accept-Language") == "" {
-		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	if clone.Header.Get("Accept-Language") == "" {
+		clone.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	}
-	if req.Header.Get("Accept") == "" {
-		req.Header.Set("Accept", "*/*")
+	if clone.Header.Get("Accept") == "" {
+		clone.Header.Set("Accept", "*/*")
 	}
-	return t.base.RoundTrip(req)
+	return t.base.RoundTrip(clone)
 }
 
 // newHTTPClient creates an HTTP client with a consistent transport and given timeout
