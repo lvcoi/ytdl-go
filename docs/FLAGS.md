@@ -548,6 +548,7 @@ ytdl-go -log-level warn [URL]
 **Example:** `ytdl-go --web`
 
 Launches the web-based UI server instead of downloading from CLI.
+If the requested port is already in use, the server automatically retries on higher ports and logs the final address.
 
 **Usage:**
 
@@ -573,6 +574,7 @@ ytdl-go -web --web-addr "0.0.0.0:3000"
 
 Specifies the address and port for the web server.  
 For security reasons, you should normally bind the web server only to localhost (`127.0.0.1`) unless you fully understand the risks and have additional protections (such as host allowlisting and a reverse proxy) in place.
+On bind failure (for example, port already in use), ytdl-go automatically retries higher ports derived from this base port.
 
 **Format:** `host:port`
 
@@ -584,6 +586,12 @@ ytdl-go -web --web-addr "127.0.0.1:8080"
 
 # Custom port on localhost
 ytdl-go -web --web-addr "127.0.0.1:3000"
+```
+
+When running the frontend dev server (`npm run dev`), align the proxy target with the final backend address:
+
+```bash
+VITE_API_PROXY_TARGET=http://127.0.0.1:3001 npm run dev
 ```
 
 ## Flag Combinations
