@@ -16,9 +16,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -32,6 +32,7 @@ var (
 	globalHub  *ws.Hub
 	globalPool *downloader.Pool
 	globalDB   *db.DB
+	scanMu     sync.Mutex
 )
 
 //go:embed assets/*
@@ -375,6 +376,16 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	globalPool = downloader.NewPool(jobs, globalHub)
 	globalPool.Start(ctx)
 
+	// Populate the DB on startup
+	go func() {
+		log.Printf("Starting initial library scan...")
+		if err := scanMediaLibrary(mediaDir); err != nil {
+			log.Printf("Initial library scan failed: %v", err)
+		} else {
+			log.Printf("Initial library scan complete.")
+		}
+	}()
+
 	mux.HandleFunc("/ws", globalHub.HandleWS)
 
 	mux.HandleFunc("/api/download", func(w http.ResponseWriter, r *http.Request) {
@@ -405,6 +416,14 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 				Jobs:    jobs,
 				Execute: func(ctx context.Context, urls []string, opts downloader.Options, jobs int) ([]any, int) {
 					results, exitCode := app.Run(ctx, urls, opts, jobs)
+
+					// Trigger a background library scan to pick up new files
+					go func() {
+						if err := scanMediaLibrary(opts.OutputDir); err != nil {
+							log.Printf("Library scan after download failed: %v", err)
+						}
+					}()
+
 					anyResults := make([]any, len(results))
 					for i, res := range results {
 						anyResults[i] = res
@@ -570,13 +589,12 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 				return
 			}
 
-			allItems, err := listMediaFiles(mediaDir)
+			items, nextOffset, err := listLibrary(mediaDir, limit, offset)
 			if err != nil {
-				writeJSONError(w, http.StatusInternalServerError, "failed to read media directory")
+				writeJSONError(w, http.StatusInternalServerError, "failed to list library")
 				return
 			}
 
-			items, nextOffset := paginateMediaItems(allItems, offset, limit)
 			writeJSON(w, http.StatusOK, mediaListResponse{
 				Items:      items,
 				NextOffset: nextOffset,
@@ -909,13 +927,9 @@ func parseMediaListPagination(r *http.Request) (offset int, limit int, err error
 	return offset, limit, nil
 }
 
-func listMediaFiles(mediaDir string) ([]mediaItem, error) {
-	type enrichedMediaItem struct {
-		item    mediaItem
-		modTime time.Time
-	}
-
-	items := make([]enrichedMediaItem, 0, 128)
+func scanMediaLibrary(mediaDir string) error {
+	scanMu.Lock()
+	defer scanMu.Unlock()
 
 	err := filepath.WalkDir(mediaDir, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -962,49 +976,116 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 		}
 
 		itemID := firstNonEmpty(strings.TrimSpace(metadata.ID), relPath)
-		items = append(items, enrichedMediaItem{
-			item: mediaItem{
-				ID:              itemID,
-				Title:           title,
-				Artist:          artist,
-				Album:           strings.TrimSpace(metadata.Album),
-				Size:            formatBytes(info.Size()),
-				SizeBytes:       info.Size(),
-				Date:            date,
-				ModifiedAt:      info.ModTime().UTC().Format(time.RFC3339),
-				Type:            mediaTypeForExtension(ext),
-				Filename:        relPath,
-				RelativePath:    relPath,
-				Folder:          folder,
-				DurationSeconds: metadata.DurationSeconds,
-				SourceURL:       strings.TrimSpace(metadata.SourceURL),
-				ThumbnailURL:    strings.TrimSpace(metadata.ThumbnailURL),
-				Playlist:        metadata.Playlist,
-				HasSidecar:      hasSidecar,
-				Metadata:        metadata,
-			},
-			modTime: info.ModTime(),
-		})
+		item := mediaItem{
+			ID:              itemID,
+			Title:           title,
+			Artist:          artist,
+			Album:           strings.TrimSpace(metadata.Album),
+			Size:            formatBytes(info.Size()),
+			SizeBytes:       info.Size(),
+			Date:            date,
+			ModifiedAt:      info.ModTime().UTC().Format(time.RFC3339),
+			Type:            mediaTypeForExtension(ext),
+			Filename:        relPath,
+			RelativePath:    relPath,
+			Folder:          folder,
+			DurationSeconds: metadata.DurationSeconds,
+			SourceURL:       strings.TrimSpace(metadata.SourceURL),
+			ThumbnailURL:    strings.TrimSpace(metadata.ThumbnailURL),
+			Playlist:        metadata.Playlist,
+			HasSidecar:      hasSidecar,
+			Metadata:        metadata,
+		}
+		catalogMediaToDB(item)
 		return nil
 	})
+	return err
+}
+
+func listLibrary(mediaDir string, limit, offset int) ([]mediaItem, *int, error) {
+	if globalDB == nil {
+		return nil, nil, fmt.Errorf("database not initialized")
+	}
+
+	records, err := globalDB.ListMedia(limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("listing media: %w", err)
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].modTime.Equal(items[j].modTime) {
-			return items[i].item.Filename < items[j].item.Filename
+	items := make([]mediaItem, 0, len(records))
+	for _, r := range records {
+		// Construct ItemMetadata from record fields
+		meta := downloader.ItemMetadata{
+			ID:              r.VideoID,
+			Title:           r.Title,
+			Artist:          r.Artist,
+			Album:           r.Album,
+			DurationSeconds: r.Duration,
+			SourceURL:       r.SourceURL,
+			ThumbnailURL:    r.ThumbnailURL,
+			Format:          r.Format,
+			Quality:         r.Quality,
+			Output:          r.FilePath,
+			Track:           r.TrackNumber,
+			Extractor:       "library",
 		}
-		return items[i].modTime.After(items[j].modTime)
-	})
 
-	out := make([]mediaItem, 0, len(items))
-	for _, item := range items {
-		out = append(out, item.item)
-		// Lazily catalog items into the SQLite database
-		catalogMediaToDB(item.item)
+		hasSidecar := false
+		// Check sidecar existence
+		// Assuming sidecar path is mediaPath + ".json"
+		sidecarPath := filepath.Join(mediaDir, r.FilePath+".json")
+		if _, err := os.Stat(sidecarPath); err == nil {
+			hasSidecar = true
+		}
+
+		var playlistRef *downloader.PlaylistRef
+		if r.PlaylistID != "" {
+			playlistRef = &downloader.PlaylistRef{
+				ID:    r.PlaylistID,
+				Title: r.PlaylistTitle,
+				Index: r.PlaylistIndex,
+			}
+		}
+
+		folder := filepath.ToSlash(filepath.Dir(r.FilePath))
+		if folder == "." {
+			folder = ""
+		}
+
+		date := r.ReleaseDate
+		if date == "" {
+			date = r.CreatedAt.Format("2006-01-02")
+		}
+
+		items = append(items, mediaItem{
+			ID:              firstNonEmpty(r.VideoID, r.FilePath),
+			Title:           r.Title,
+			Artist:          r.Artist,
+			Album:           r.Album,
+			Size:            formatBytes(r.FileSize),
+			SizeBytes:       r.FileSize,
+			Date:            date,
+			ModifiedAt:      r.CreatedAt.UTC().Format(time.RFC3339),
+			Type:            r.MediaType,
+			Filename:        r.FilePath,
+			RelativePath:    r.FilePath,
+			Folder:          folder,
+			DurationSeconds: r.Duration,
+			SourceURL:       r.SourceURL,
+			ThumbnailURL:    r.ThumbnailURL,
+			Playlist:        playlistRef,
+			HasSidecar:      hasSidecar,
+			Metadata:        meta,
+		})
 	}
-	return out, nil
+
+	var nextOffset *int
+	if len(items) == limit {
+		n := offset + limit
+		nextOffset = &n
+	}
+
+	return items, nextOffset, nil
 }
 
 func loadMediaMetadata(mediaPath, relativePath string, info fs.FileInfo) (downloader.ItemMetadata, bool) {
@@ -1091,25 +1172,6 @@ func mediaTypeForExtension(ext string) string {
 	return "video"
 }
 
-func paginateMediaItems(items []mediaItem, offset int, limit int) ([]mediaItem, *int) {
-	total := len(items)
-	if offset >= total {
-		return []mediaItem{}, nil
-	}
-
-	end := offset + limit
-	if end > total {
-		end = total
-	}
-
-	page := append([]mediaItem(nil), items[offset:end]...)
-	if end >= total {
-		return page, nil
-	}
-
-	next := end
-	return page, &next
-}
 
 func resolveMediaPath(mediaDir, reqPath string) (string, int, error) {
 	cleaned := filepath.Clean(reqPath)
@@ -1189,6 +1251,10 @@ func catalogMediaToDB(item mediaItem) {
 		VideoID:      item.Metadata.ID,
 		TagsEmbedded: false,
 		TrackNumber:  item.Metadata.Track,
+		ReleaseDate:  item.Date,
+	}
+	if t, err := time.Parse(time.RFC3339, item.ModifiedAt); err == nil {
+		record.CreatedAt = t
 	}
 	if item.Playlist != nil {
 		record.PlaylistID = item.Playlist.ID

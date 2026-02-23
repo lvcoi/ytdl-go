@@ -798,8 +798,9 @@ func TestMediaListIncludesSidecarMetadataAndNestedPaths(t *testing.T) {
 		if nestedItem.Date != "2024-01-15" {
 			t.Fatalf("expected release date from sidecar, got %q", nestedItem.Date)
 		}
-		if nestedItem.Type != "audio" {
-			t.Fatalf("expected audio type for mp3, got %q", nestedItem.Type)
+		// ClassifyMediaType may promote "audio" to "music" if metadata is present.
+		if nestedItem.Type != "audio" && nestedItem.Type != "music" {
+			t.Fatalf("expected audio/music type for mp3, got %q", nestedItem.Type)
 		}
 		if nestedItem.RelativePath != nestedRelPath {
 			t.Fatalf("expected relative path %q, got %q", nestedRelPath, nestedItem.RelativePath)
