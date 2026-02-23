@@ -88,6 +88,7 @@ go mod download
 ```
 
 This downloads all required Go modules listed in `go.mod`:
+
 - `github.com/kkdai/youtube/v2` - YouTube API client
 - `github.com/charmbracelet/bubbletea` - Terminal UI framework
 - `github.com/charmbracelet/bubbles` - TUI components
@@ -339,11 +340,13 @@ This section covers contributions to the web UI under `frontend/`.
    cd frontend
    npm install
    ```
+
 2. Start the development server:
 
    ```sh
    npm run dev
    ```
+
 3. Implement your change in `frontend/src/`.
 4. Validate the frontend build:
 
@@ -419,6 +422,7 @@ For testing, use videos you control or well-known test videos:
 ## Architecture Resources
 
 For a deep dive into the codebase architecture:
+
 - Read the [Architecture Overview](architecture.md)
 - Study the Mermaid flowchart showing data flow
 - Understand the download strategy chain
