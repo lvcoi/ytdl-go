@@ -9,8 +9,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "@solidjs/router": "^0.15.4",
-    "lucide-solid": "^0.475.0",
+    "lucide-solid": "^0.575.0",
     "solid-js": "^1.9.4"
   },
   "devDependencies": {
