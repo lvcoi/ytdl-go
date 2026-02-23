@@ -86,6 +86,20 @@ claude/
 **claude/
 gemini/
 **gemini/
+.cursor/
+**.cursor/
+aider/
+**aider/
+.aider/
+**.aider/
+continue/
+**continue/
+.continue/
+**.continue/
+codeium/
+**codeium/
+.codeium/
+**.codeium/
 .openai/
 **.openai/
 .anthropic/
@@ -111,13 +125,27 @@ prompts/
 
 # Development tools
 .agents/
+.claude/
+**.claude/
+.devcontainer/
+**.devcontainer/
 .windsurf/
 **windsurf/
-**conductor/
+conductor/
 **.antigravity/
 .gemini/
 .github/
 **github/
+plans/
+**plans/
+
+# AI assistant markdown files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+spec.md
+*refactor*.md
+*overhaul*.md
 
 # =============================================================================
 # OS Generated Files
