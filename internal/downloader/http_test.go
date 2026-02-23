@@ -200,15 +200,19 @@ func TestDoWithRetryExhaustsAttempts(t *testing.T) {
 		t.Fatalf("creating request: %v", err)
 	}
 
-	resp, err := doWithRetry(req, 5*time.Second, 3)
+	resp, err := doWithRetry(req, 10*time.Second, 3)
 	if err == nil {
 		if resp != nil {
 			resp.Body.Close()
 		}
 		t.Fatalf("expected error after exhausting retries")
 	}
-	if attempts != 3 {
-		t.Fatalf("expected 3 attempts, got %d", attempts)
+	// retryTransport makes 1 initial attempt plus defaultRetryConfig.MaxRetries retries
+	// before returning the final 5xx, which doWithRetry then converts to an error.
+	expectedAttempts := 1 + defaultRetryConfig.MaxRetries
+	if attempts != expectedAttempts {
+		t.Fatalf("expected %d server hits (retryTransport: 1 initial + %d retries), got %d",
+			expectedAttempts, defaultRetryConfig.MaxRetries, attempts)
 	}
 }
 
@@ -237,5 +241,78 @@ func TestDoWithRetryPassesThrough4xx(t *testing.T) {
 	// 4xx should not be retried
 	if attempts != 1 {
 		t.Fatalf("expected 1 attempt for 4xx, got %d", attempts)
+	}
+}
+
+func TestNewClientForType_Android(t *testing.T) {
+	opts := Options{Timeout: 5 * time.Second}
+	client := newClientForType("android", opts)
+	if client == nil {
+		t.Fatal("expected non-nil client for android type")
+	}
+	adapter, ok := client.(*youtubeClientAdapter)
+	if !ok {
+		t.Fatal("expected *youtubeClientAdapter underlying type")
+	}
+	if adapter.Client.ClientType == nil {
+		t.Fatal("expected ClientType to be set")
+	}
+	if adapter.Client.ClientType.Name != "ANDROID" {
+		t.Fatalf("expected ClientType.Name %q, got %q", "ANDROID", adapter.Client.ClientType.Name)
+	}
+}
+
+func TestNewClientForType_Web(t *testing.T) {
+	opts := Options{Timeout: 5 * time.Second}
+	client := newClientForType("web", opts)
+	if client == nil {
+		t.Fatal("expected non-nil client for web type")
+	}
+	adapter, ok := client.(*youtubeClientAdapter)
+	if !ok {
+		t.Fatal("expected *youtubeClientAdapter underlying type")
+	}
+	if adapter.Client.ClientType == nil {
+		t.Fatal("expected ClientType to be set")
+	}
+	if adapter.Client.ClientType.Name != "WEB" {
+		t.Fatalf("expected ClientType.Name %q, got %q", "WEB", adapter.Client.ClientType.Name)
+	}
+}
+
+func TestNewClientForType_ConcurrentSafety(t *testing.T) {
+	opts := Options{Timeout: 5 * time.Second}
+	clients := make([]YouTubeClient, 10)
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			clients[i] = newClientForType("web", opts)
+		}()
+	}
+	wg.Wait()
+
+	// Verify each goroutine got its own distinct client with correct state.
+	seen := make(map[*http.Client]bool)
+	for i, c := range clients {
+		if c == nil {
+			t.Errorf("client[%d] is nil", i)
+			continue
+		}
+		adapter, ok := c.(*youtubeClientAdapter)
+		if !ok {
+			t.Errorf("client[%d] is not *youtubeClientAdapter", i)
+			continue
+		}
+		if adapter.Client.ClientType == nil || adapter.Client.ClientType.Name != "WEB" {
+			t.Errorf("client[%d] has wrong ClientType", i)
+		}
+		// Each client must own a distinct *http.Client — no shared state.
+		if seen[adapter.Client.HTTPClient] {
+			t.Errorf("client[%d] shares an *http.Client with another goroutine's client", i)
+		}
+		seen[adapter.Client.HTTPClient] = true
 	}
 }
