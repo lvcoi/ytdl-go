@@ -8,7 +8,7 @@ export default defineConfig({
     globals: true,
     server: {
       deps: {
-        inline: [/solid-js/, /lucide-solid/],
+        inline: [/solid-js/, /@solidjs\/router/, /lucide-solid/],
       },
     },
     setupFiles: ['./src/test/setup.js'],

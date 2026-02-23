@@ -312,11 +312,18 @@ func doWithRetry(req *http.Request, timeout time.Duration, maxAttempts int) (*ht
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		resp, err := client.Do(req)
-		if err == nil {
-			return resp, nil
+		if err != nil {
+			lastErr = err
+			time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
+			continue
 		}
-		lastErr = err
-		time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
+		// Treat server errors (5xx) as failures; retry behavior for these
+		// is handled by the HTTP client's retry transport.
+		if resp.StatusCode >= 500 {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+		}
+		return resp, nil
 	}
 	return nil, lastErr
 }

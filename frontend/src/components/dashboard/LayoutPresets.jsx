@@ -21,7 +21,7 @@ export default function LayoutPresets(props) {
                 onClick={() => setIsOpen(!isOpen())}
                 class="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all text-xs font-bold"
             >
-                <Icon name="layout" class="w-3.5 h-3.5" />
+                <Icon name="layout-grid" class="w-3.5 h-3.5" />
                 <span class="max-w-[100px] truncate">{props.activeLayoutName || 'Layouts'}</span>
                 <Icon name="chevron-down" class="w-3 h-3" />
             </button>

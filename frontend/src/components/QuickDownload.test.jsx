@@ -1,16 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@solidjs/testing-library';
+import { screen, fireEvent } from '@solidjs/testing-library';
+import { renderWithRouter } from '../test/renderWithRouter';
 import QuickDownload from './QuickDownload';
 
 describe('QuickDownload', () => {
     it('renders the input and button', () => {
-        render(() => <QuickDownload />);
+        renderWithRouter(() => <QuickDownload />);
         expect(screen.getByPlaceholderText(/Paste YouTube URL/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Download/i })).toBeInTheDocument();
     });
 
     it('updates input value on change', () => {
-        render(() => <QuickDownload />);
+        renderWithRouter(() => <QuickDownload />);
         const input = screen.getByPlaceholderText(/Paste YouTube URL/i);
         fireEvent.input(input, { target: { value: 'https://youtube.com/watch?v=123' } });
         expect(input).toHaveValue('https://youtube.com/watch?v=123');
@@ -18,7 +19,7 @@ describe('QuickDownload', () => {
 
     it('calls onDownload with trimmed URL when form is submitted', () => {
         const mockDownload = vi.fn();
-        render(() => <QuickDownload onDownload={mockDownload} />);
+        renderWithRouter(() => <QuickDownload onDownload={mockDownload} />);
         const input = screen.getByPlaceholderText(/Paste YouTube URL/i);
         const button = screen.getByRole('button', { name: /Download/i });
 
@@ -30,7 +31,7 @@ describe('QuickDownload', () => {
 
     it('calls onDownload with comma-separated URLs', () => {
         const mockDownload = vi.fn();
-        render(() => <QuickDownload onDownload={mockDownload} />);
+        renderWithRouter(() => <QuickDownload onDownload={mockDownload} />);
         const input = screen.getByPlaceholderText(/Paste YouTube URL/i);
         const button = screen.getByRole('button', { name: /Download/i });
 
@@ -43,7 +44,7 @@ describe('QuickDownload', () => {
 
     it('clears input after successful download', () => {
         const mockDownload = vi.fn();
-        render(() => <QuickDownload onDownload={mockDownload} />);
+        renderWithRouter(() => <QuickDownload onDownload={mockDownload} />);
         const input = screen.getByPlaceholderText(/Paste YouTube URL/i);
         const button = screen.getByRole('button', { name: /Download/i });
 
@@ -54,7 +55,7 @@ describe('QuickDownload', () => {
     });
 
     it('disables button when input is empty', () => {
-        render(() => <QuickDownload />);
+        renderWithRouter(() => <QuickDownload />);
         const button = screen.getByRole('button', { name: /Download/i });
         expect(button).toBeDisabled();
     });
