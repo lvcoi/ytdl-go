@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@solidjs/testing-library": "^0.8.9",
-    "@tailwindcss/vite": "^4.0.7",
+    "@tailwindcss/vite": "^4.2.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@vitest/coverage-v8": "^4.0.18",
     "jsdom": "^26.0.0",
