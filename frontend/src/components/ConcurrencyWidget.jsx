@@ -74,7 +74,7 @@ export default function ConcurrencyWidget(props) {
     };
 
     return (
-        <div class="rounded-2xl border border-white/5 bg-black/20 overflow-hidden">
+        <div class="rounded-2xl border border-white/5 bg-black/20 overflow-hidden h-full">
             {/* Toggle Header */}
             <button
                 class="w-full flex items-center justify-between px-5 py-3 text-sm font-bold text-slate-300 hover:text-white transition-colors"
