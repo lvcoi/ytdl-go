@@ -1,263 +1,122 @@
 <div align="center">
-<img src="img/ytdl-Gopher.png" alt="ytdl-gopher">
+<img src="img/ytdl-Gopher.png" alt="ytdl-gopher" width="200">
 
 # ytdl-go
----
-## **UNDER CONSTRUCTION**
----
 
-v0.2.0 is about to release with a new webUI that I think is pretty cool. The commandline is still available and works in this version but for those who are interested in UI or not as comfortable with a CLI, I think the next version will work out nicely for you.  thanks for your patience!!
+**A powerful, blazing-fast YouTube downloader written in Go — now with a full Web UI.**
 
-
-**A powerful, blazing fast YouTube downloader written in Go.** _Feature-rich, interactive._
-
+[![v0.2.0-beta](https://img.shields.io/badge/release-v0.2.0--beta-blueviolet?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/LICENSE)
-[![Release](https://img.shields.io/github/release/lvcoi/ytdl-go.svg?style=for-the-badge)](https://github.com/lvcoi/ytdl-go/releases)
-[![GoDoc](https://img.shields.io/badge/reference-go.dev-007d9c?style=for-the-badge&logo=go)](https://pkg.go.dev/github.com/lvcoi/ytdl-go)
-
-[Features](#-features-at-a-glance) • [Installation](#-installation) • [Usage](#-usage-guide) • [Options](#-command-line-options) • [Documentation](https://lvcoi.github.io/ytdl-go/)
+[![Docs](https://img.shields.io/badge/Wiki_&_Docs-blue?style=for-the-badge&logo=readthedocs&logoColor=white)](https://lvcoi.github.io/ytdl-go/)
 
 </div>
 
-## Table of Contents
+---
 
-- [✨ Features](#-features)
-- [🚀 Installation](#-installation)
-  - [🧰 One-command build script (build.sh)](#-one-command-build-script-buildsh)
-- [📖 Usage](#-usage)
-  - [🎯 Basic usage](#-basic-usage)
-  - [🎨 Output customization](#-output-customization)
-  - [📚 Playlist downloads](#-playlist-downloads)
-  - [⚙️ Advanced options](#️-advanced-options)
-- [📊 Command Line Options](#-command-line-options)
-- [🏷️ Output Template Placeholders](#️-output-template-placeholders)
-- [🧾 Metadata & Sidecars](#-metadata--sidecars)
-- [🎮 Interactive Features](#-interactive-features)
-- [🛡️ Error Handling](#️-error-handling)
-- [💡 Examples by Use Case](#-examples-by-use-case)
-- [📝 Notes / Limitations](#-notes--limitations)
-- [🔧 Troubleshooting](#-troubleshooting)
-- [⚡ Performance](#-performance)
-- [🙏 Acknowledgments](#-acknowledgments)
-- [📜 License](#-license)
+## TL;DR
 
-## ✨ Features at a Glance
+**ytdl-go** downloads YouTube videos, audio, and playlists — fast. Use it from the **command line** or launch the brand-new **Web UI** (`ytdl-go -web`). Parallel downloads, automatic retries, resume support, ID3 tagging, and an interactive TUI format selector are all built in.
 
-| Core Capabilities | Advanced Tools |
-| --- | --- |
-| **🚀 High Performance**<br>Parallel downloads, automatic retries, and resume capability. | **🎮 Interactive TUI**<br>Visual format selector to browse and pick specific quality streams. |
-| **📺 Broad Support**<br>Download Videos, Audio, Playlists, and YouTube Music URLs. | **🏷️ Rich Metadata**<br>Embeds ID3 tags, fetches structured JSON metadata, and handles sidecars. |
-| **🎨 Format Control**<br>Select by quality (`1080p`, `best`), container (`mp4`), or exact `itag`. | **⚙️ Automation Ready**<br>JSON output mode, custom output templates, and quiet modes for scripts. |
+> **v0.2.0 Beta is out!** This release introduces the Web UI, a customizable dashboard, a media library with built-in player, and real-time download progress — all served from a single binary. The CLI works exactly as before.
+>
+> 📖 **Full documentation lives on the [wiki](https://lvcoi.github.io/ytdl-go/)** — installation guides, CLI reference, architecture docs, and more.
 
 ---
 
-## 🚀 Installation
+## ✨ Features
 
-### Quick Install (Recommended)
+| | |
+| --- | --- |
+| 🚀 **Parallel Downloads** | Multiple concurrent downloads with retry & resume |
+| 🌐 **Web UI** | Dashboard, download queue, media library & player |
+| 🎮 **Interactive TUI** | Browse and pick formats visually with `-list-formats` |
+| 🎵 **Audio & Video** | Videos, audio-only, playlists, YouTube Music |
+| 🏷️ **Metadata** | Automatic ID3 tags, JSON sidecars, custom templates |
+| ⚙️ **Automation** | JSON output, quiet mode, custom output paths |
 
-Requires Go 1.24+ installed on your system.
+---
 
-```shell
+## 🚀 Quick Start
+
+```bash
+# Install (requires Go 1.24+)
 go install github.com/lvcoi/ytdl-go@latest
+
+# Download a video
+ytdl-go "https://youtube.com/watch?v=..."
+
+# Download audio only
+ytdl-go -audio "https://youtube.com/watch?v=..."
+
+# Launch the Web UI
+ytdl-go -web
 ```
 
-*Ensure your `$GOPATH/bin` is in your system `$PATH`.*
-
-### Build from Source
-
 <details>
-<summary>Click to expand build instructions</summary>
+<summary><b>Build from source (with Web UI)</b></summary>
 
-```shell
-# Clone the repository
-git clone https://github.com/lvcoi/ytdl-go.git
-cd ytdl-go
+```bash
+git clone https://github.com/lvcoi/ytdl-go.git && cd ytdl-go
 
-# Build the binary
-go build -o ytdl-go .
-
-# (Optional) Install to system path
-go install .
+# Build everything and launch the UI
+./build.sh --web
 ```
 
 </details>
 
-### 🧰 One-command build script (build.sh)
+---
 
-Use `build.sh` for an integrated repository build (Go binary + frontend assets).
+## 🌐 Web UI
 
-```bash
-# Build backend + frontend, then prompt to launch the UI
-./build.sh
+The v0.2.0 Web UI is a SolidJS single-page app served directly by the Go backend — no separate process needed.
 
-# Build and automatically launch backend + frontend UI
-./build.sh --web
-
-# Build and launch against a backend on a custom requested web address
-YTDL_WEB_ADDR=127.0.0.1:9090 ./build.sh --web
-
-# Build and launch UI against an explicit API proxy target
-VITE_API_PROXY_TARGET=http://127.0.0.1:9090 ./build.sh --web
-
-# Show script options
-./build.sh --help
-```
-
-What it does:
-
-- Builds the Go binary to `./bin/yt`
-- Builds frontend assets into `internal/web/assets/`
-- Prompts to launch backend + frontend dev UI unless `--web` is passed
-- Launches backend via `yt -web --web-addr "${YTDL_WEB_ADDR:-127.0.0.1:8080}"`
-- Uses `VITE_API_PROXY_TARGET` only when explicitly set; otherwise Vite auto-detects backend from `http://127.0.0.1:8080` + fallback ports
-- `ytdl-go -web` auto-falls back to the next available port if the requested port is already in use, and logs the final URL
-
-Options:
-
-| Option | Description |
-| --- | --- |
-| `-w`, `--web` | Automatically launch the UI after building |
-| `-h`, `--help` | Show help message |
-
-Automation example (non-interactive "do not launch UI" path):
+Launch it with:
 
 ```bash
-printf 'n\n' | ./build.sh
+ytdl-go -web
 ```
 
-## 📖 Usage
+**What you get:**
 
-### 🎯 Basic usage
-
-```bash
-# Download video with best quality
-ytdl-go https://www.youtube.com/watch?v=BaW_jenozKc
-```
-
-![Video download](screenshots/05-video-download.svg)
-
-```bash
-# Download audio-only
-ytdl-go --audio https://www.youtube.com/watch?v=BaW_jenozKc
-```
-
-![Audio download](screenshots/06-audio-download.svg)
-
-```bash
-# Get video metadata without downloading
-ytdl-go --info https://www.youtube.com/watch?v=BaW_jenozKc
-```
-
-## 📖 Usage Guide
-
-### 🎯 The Essentials
-
-| Goal | Command |
-| --- | --- |
-| **Download Best Video** | `ytdl-go "https://youtube.com/watch?v=..."` |
-| **Download Audio Only** | `ytdl-go -audio "https://youtube.com/watch?v=..."` |
-| **Interactive Mode** | `ytdl-go -list-formats "https://youtube.com/watch?v=..."` |
-| **Download Playlist** | `ytdl-go "https://youtube.com/playlist?list=..."` |
-
-### 🎮 Interactive Mode (TUI)
-
-Don't guess the quality code. Use `-list-formats` to browse streams visually.
-
-```shell
-ytdl-go -list-formats https://www.youtube.com/watch?v=BaW_jenozKc
-```
-
-> **Controls:** `↑/↓` to navigate, `Enter` to download, type digits for itag (e.g., `101`), repeat quickly to cycle.
-
-![Interactive Format Selector](screenshots/interactive-format-selector.svg)
-
-### 📂 File Organization & Templates
-
-Customize where files go using the `-o` flag with placeholders.
-
-**Organize Music by Artist:**
-
-```shell
-ytdl-go -audio -o "Music/{artist}/{album}/{title}.{ext}" URL
-```
-
-**Archive Playlists with Index:**
-
-```shell
-ytdl-go -o "Archive/{playlist-title}/{index} - {title}.{ext}" URL
-```
+- **Dashboard** — Customizable widget grid with drag-and-drop layout, recent activity, quick download, and system stats.
+- **Download View** — Paste one or more URLs, pick format & quality, and watch real-time progress via Server-Sent Events.
+- **Media Library** — Browse all downloaded media with thumbnail gallery, search, filters (Music / Videos / Podcasts), and sortable columns.
+- **Built-in Player** — Floating audio/video player with queue support and minimized mode.
+- **Settings** — Configure concurrency, storage paths, and upcoming auth options.
 
 ---
 
-## ⚙️ Advanced Usage
+## 📖 Documentation
 
-### 📺 Format Selection & Quality
+Everything beyond this README is on the **[documentation site](https://lvcoi.github.io/ytdl-go/)**:
 
-```shell
-# Specific resolution
-ytdl-go -quality 1080p URL
-
-# Specific container
-ytdl-go -format mp4 URL
-
-# Exact YouTube itag
-ytdl-go -itag 137 URL
-```
-
-### 🛠️ Network & Performance
-
-```shell
-# Parallel downloads (4 files at once)
-ytdl-go -jobs 4 URL1 URL2...
-
-# Custom Timeout
-ytdl-go -timeout 5m URL
-
-# Resume downloads
-ytdl-go URL  # (Automatic detection of .part files)
-```
-
-### 🤖 Scripting & Metadata
-
-```shell
-# Get JSON metadata (no download)
-ytdl-go -info -json URL
-
-# Override metadata manually
-ytdl-go -meta artist="My Artist" -meta title="Custom Title" URL
-
-# Quiet mode (no progress bars)
-ytdl-go -quiet URL
-```
-
----
-
-## 📊 Command Line Options
-
-For a comprehensive reference of all command-line flags, see the [Command-Line Flags Reference](./docs/FLAGS.md).
+| Section | What's There |
+| --- | --- |
+| **[User Guide](https://lvcoi.github.io/ytdl-go/user-guide/installation/)** | Installation, quick start, format selection, playlists, output templates, troubleshooting |
+| **[Developer Guide](https://lvcoi.github.io/ytdl-go/developer-guide/architecture/)** | Architecture, API reference, contributing, best practices |
+| **[CLI Reference](https://lvcoi.github.io/ytdl-go/reference/cli-options/)** | Full list of command-line flags |
 
 ---
 
 ## 🔧 Troubleshooting
 
 <details>
-<summary><b>Common Issues & Fixes</b></summary>
+<summary><b>Common issues</b></summary>
 
-- **403 Forbidden Errors:** The tool automatically retries with different methods. If persistent, check your IP reputation or try `-timeout 10m`.
-- **Restricted Content:** Private, age-gated, or member-only videos require authentication which is currently **not supported**.
-- **Playlists:** Empty videos or deleted entries in playlists are automatically skipped.
-- **Library Metadata/Thumbnails:** New downloads write sidecar metadata (`<media-file>.json`) used by the web UI for artist/album/thumbnail grouping. Legacy files without sidecars still load, but may appear under Unknown buckets until re-downloaded.
-- **Web Port Already in Use:** `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL and point Vite with `VITE_API_PROXY_TARGET=http://127.0.0.1:<port>`.
+- **403 Forbidden** — Automatic retries handle most cases. Try `-timeout 10m` if persistent.
+- **Restricted content** — Private / age-gated videos are not yet supported.
+- **Port in use** — `ytdl-go -web` auto-falls back to the next available port.
+- **Missing thumbnails** — Re-download to generate sidecar metadata used by the library.
 
 </details>
 
---
+---
 
 <div align="center">
 
 Made with ❤️ by the ytdl-go team
 
-[License](LICENSE) • [Report Issue](https://github.com/lvcoi/ytdl-go/issues)
+[License](LICENSE) · [Report Issue](https://github.com/lvcoi/ytdl-go/issues) · [Documentation](https://lvcoi.github.io/ytdl-go/)
 
 </div>
