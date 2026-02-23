@@ -165,7 +165,6 @@ docs/_build/
 site/
 *.geminiignore
 USER_IDENTIFIED_ISSUES.md
-AGENTS.md
 
 # Logs and temporary files
 *.log
