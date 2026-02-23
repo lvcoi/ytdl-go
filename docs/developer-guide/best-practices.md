@@ -1,6 +1,6 @@
-# ytdl-go: Best Practices
+# Best Practices
 
-This document provides a set of specific and actionable best practices for developing the `ytdl-go` project. These practices are designed to ensure that the code is high-quality, maintainable, and consistent, leaving no room for interpretation.
+Specific and actionable best practices for developing the `ytdl-go` project.
 
 ## Backend (Go)
 

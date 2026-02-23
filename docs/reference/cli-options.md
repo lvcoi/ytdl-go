@@ -1,6 +1,6 @@
-# Command-Line Flags Reference
+# CLI Options
 
-This comprehensive reference documents all command-line flags available in ytdl-go. For quick usage examples, see the main [README.md](../README.md).
+All command-line flags available in ytdl-go.
 
 ## Table of Contents
 
@@ -660,4 +660,4 @@ These combinations don't make sense:
 
 **Last Updated:** 2026-02-05  
 **Version:** 1.0  
-**See Also:** [README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md)
+**See Also:** [Architecture Overview](../developer-guide/architecture.md)

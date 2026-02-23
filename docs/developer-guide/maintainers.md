@@ -1,6 +1,6 @@
 # Maintainer's Guide
 
-This document is for maintainers and provides guidance on releases, dependency management, and handling recurring issues.
+Guidance on releases, dependency management, and handling recurring issues.
 
 ## Table of Contents
 

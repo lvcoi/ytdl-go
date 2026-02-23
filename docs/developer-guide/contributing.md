@@ -1,6 +1,6 @@
-# Contributing to ytdl-go
+# Contributing
 
-Thank you for your interest in contributing to ytdl-go! This guide will help you get your development environment set up and understand the project structure.
+Guide for setting up a development environment and understanding the project structure.
 
 ## Table of Contents
 
@@ -408,7 +408,7 @@ For testing, use videos you control or well-known test videos:
 ## Architecture Resources
 
 For a deep dive into the codebase architecture:
-- Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Read the [Architecture Overview](architecture.md)
 - Study the Mermaid flowchart showing data flow
 - Understand the download strategy chain
 - Learn about the TUI seamless transition model
@@ -437,7 +437,7 @@ cd scripts
 ./assign-milestones.sh -verbose
 ```
 
-For more details, see [`scripts/README.md`](scripts/README.md).
+For more details, see the `scripts/README.md` file in the repository.
 
 **Note**: You'll need a GitHub personal access token with `repo` scope. Never commit tokens to the repository!
 
@@ -456,7 +456,7 @@ For more details, see [`scripts/README.md`](scripts/README.md).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License (see [LICENSE](LICENSE) file).
+By contributing, you agree that your contributions will be licensed under the MIT License.
 
 --
 
