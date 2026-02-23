@@ -250,6 +250,16 @@ func TestNewClientForType_Android(t *testing.T) {
 	if client == nil {
 		t.Fatal("expected non-nil client for android type")
 	}
+	adapter, ok := client.(*youtubeClientAdapter)
+	if !ok {
+		t.Fatal("expected *youtubeClientAdapter underlying type")
+	}
+	if adapter.Client.ClientType == nil {
+		t.Fatal("expected ClientType to be set")
+	}
+	if adapter.Client.ClientType.Name != "ANDROID" {
+		t.Fatalf("expected ClientType.Name %q, got %q", "ANDROID", adapter.Client.ClientType.Name)
+	}
 }
 
 func TestNewClientForType_Web(t *testing.T) {
@@ -258,20 +268,51 @@ func TestNewClientForType_Web(t *testing.T) {
 	if client == nil {
 		t.Fatal("expected non-nil client for web type")
 	}
+	adapter, ok := client.(*youtubeClientAdapter)
+	if !ok {
+		t.Fatal("expected *youtubeClientAdapter underlying type")
+	}
+	if adapter.Client.ClientType == nil {
+		t.Fatal("expected ClientType to be set")
+	}
+	if adapter.Client.ClientType.Name != "WEB" {
+		t.Fatalf("expected ClientType.Name %q, got %q", "WEB", adapter.Client.ClientType.Name)
+	}
 }
 
 func TestNewClientForType_ConcurrentSafety(t *testing.T) {
 	opts := Options{Timeout: 5 * time.Second}
+	clients := make([]YouTubeClient, 10)
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
+		i := i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client := newClientForType("web", opts)
-			if client == nil {
-				t.Errorf("expected non-nil client from concurrent newClientForType")
-			}
+			clients[i] = newClientForType("web", opts)
 		}()
 	}
 	wg.Wait()
+
+	// Verify each goroutine got its own distinct client with correct state.
+	seen := make(map[*http.Client]bool)
+	for i, c := range clients {
+		if c == nil {
+			t.Errorf("client[%d] is nil", i)
+			continue
+		}
+		adapter, ok := c.(*youtubeClientAdapter)
+		if !ok {
+			t.Errorf("client[%d] is not *youtubeClientAdapter", i)
+			continue
+		}
+		if adapter.Client.ClientType == nil || adapter.Client.ClientType.Name != "WEB" {
+			t.Errorf("client[%d] has wrong ClientType", i)
+		}
+		// Each client must own a distinct *http.Client — no shared state.
+		if seen[adapter.Client.HTTPClient] {
+			t.Errorf("client[%d] shares an *http.Client with another goroutine's client", i)
+		}
+		seen[adapter.Client.HTTPClient] = true
+	}
 }
