@@ -159,14 +159,19 @@ export default function LibraryView(props) {
     return normalizeUiState(source);
   });
 
-  const model = createMemo(() => buildLibraryModel({
-    downloads: downloads(),
-    savedPlaylists: savedPlaylists(),
-    playlistAssignments: playlistAssignments(),
-    typeFilter: typeFilter(),
-    sortKey: sortKey(),
-    filters: filters(),
-  }));
+  const normalizedLibrary = createMemo(() => normalizeLibrary(
+    downloads(),
+    savedPlaylists(),
+    playlistAssignments()
+  ));
+
+  const model = createMemo(() => filterLibrary(
+    normalizedLibrary(),
+    savedPlaylists(),
+    typeFilter(),
+    sortKey(),
+    filters()
+  ));
 
   const setPlaylistFeedback = (tone, text) => {
     setPlaylistMessageTone(tone);

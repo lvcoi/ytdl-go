@@ -385,14 +385,7 @@ const uniqueSortedValues = (values) => (
     .sort(compareText)
 );
 
-export const buildLibraryModel = ({
-  downloads,
-  savedPlaylists,
-  playlistAssignments,
-  typeFilter,
-  sortKey,
-  filters,
-}) => {
+export const normalizeLibrary = (downloads, savedPlaylists, playlistAssignments) => {
   const normalizedDownloads = Array.isArray(downloads) ? downloads : [];
   const normalizedSavedPlaylists = Array.isArray(savedPlaylists) ? savedPlaylists : [];
   const assignments = playlistAssignments && typeof playlistAssignments === 'object' ? playlistAssignments : {};
@@ -400,6 +393,17 @@ export const buildLibraryModel = ({
   const savedPlaylistById = new Map(normalizedSavedPlaylists.map((playlist) => [String(playlist.id || '').trim(), playlist]));
   const normalizedItems = normalizedDownloads.map((entry) => normalizeItem(entry, savedPlaylistById, assignments));
   const anomalyItems = normalizedItems.filter((item) => item.hasAnomaly);
+
+  return {
+    items: normalizedItems,
+    anomalyItems,
+    anomalyCount: anomalyItems.length,
+  };
+};
+
+export const filterLibrary = (normalizedData, savedPlaylists, typeFilter, sortKey, filters) => {
+  const { items: normalizedItems, anomalyItems, anomalyCount } = normalizedData;
+  const normalizedSavedPlaylists = Array.isArray(savedPlaylists) ? savedPlaylists : [];
 
   const typeScopedItems = normalizedItems.filter((item) => (
     typeFilter === 'all' ? true : item.type === typeFilter
@@ -428,7 +432,7 @@ export const buildLibraryModel = ({
     items: normalizedItems,
     filteredItems: sortedItems,
     anomalyItems,
-    anomalyCount: anomalyItems.length,
+    anomalyCount,
     artists: artistGroups.groups,
     artistsByName: artistGroups.byName,
     videos: videoGroups.groups,
@@ -442,4 +446,16 @@ export const buildLibraryModel = ({
     savedPlaylists: playlistGroups.savedGroups,
     filterOptions,
   };
+};
+
+export const buildLibraryModel = ({
+  downloads,
+  savedPlaylists,
+  playlistAssignments,
+  typeFilter,
+  sortKey,
+  filters,
+}) => {
+  const normalized = normalizeLibrary(downloads, savedPlaylists, playlistAssignments);
+  return filterLibrary(normalized, savedPlaylists, typeFilter, sortKey, filters);
 };
