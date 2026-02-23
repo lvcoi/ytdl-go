@@ -17,7 +17,7 @@ export default function ActiveDownloads() {
     const hasTasks = createMemo(() => sortedTasks().length > 0);
 
     return (
-        <div class="rounded-[2rem] border border-white/5 bg-black/20 p-6 flex flex-col gap-4 h-full">
+        <div class="rounded-[2rem] border border-white/5 bg-black/20 p-6 flex flex-col gap-4 h-full overflow-hidden @container">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                     <Icon name="download-cloud" class="w-5 h-5 text-accent-primary" />
@@ -32,7 +32,7 @@ export default function ActiveDownloads() {
                 </div>
             }>
                 <div
-                    class="space-y-3 overflow-y-auto custom-scrollbar flex-1 pr-2 max-h-[300px]"
+                    class="space-y-3 overflow-y-auto custom-scrollbar flex-1 min-h-0 pr-2"
                     style={{
                         "mask-image": "linear-gradient(to bottom, black 0%, black 85%, transparent 100%)",
                         "-webkit-mask-image": "linear-gradient(to bottom, black 0%, black 85%, transparent 100%)"
