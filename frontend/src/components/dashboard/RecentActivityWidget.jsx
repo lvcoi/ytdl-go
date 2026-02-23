@@ -6,7 +6,7 @@ import logo from '../../assets/logo.png';
 
 export default function RecentActivityWidget(props) {
     return (
-        <div class="space-y-4 h-full flex flex-col">
+        <div class="space-y-4 h-full flex flex-col overflow-hidden @container">
             <div class="flex items-center justify-between px-2">
                 <div class="flex items-center gap-2">
                     <h2 class="text-xl font-bold text-white">Recent Additions</h2>
@@ -18,8 +18,8 @@ export default function RecentActivityWidget(props) {
                 </A>
             </div>
 
-            <div class="relative group/carousel">
-                <div class="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 custom-scrollbar snap-x scroll-smooth">
+            <div class="relative group/carousel flex-1 min-h-0">
+                <div class="flex gap-4 overflow-x-auto pb-4 pt-2 px-2 custom-scrollbar snap-x scroll-smooth h-full">
                     <For each={props.stats?.recentItems || []}>
                         {(item) => (
                             <div 

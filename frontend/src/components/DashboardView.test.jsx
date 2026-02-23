@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@solidjs/testing-library';
+import { screen, fireEvent, cleanup } from '@solidjs/testing-library';
+import { renderWithRouter } from '../test/renderWithRouter';
 import DashboardView from './DashboardView';
 
 // Mock child components to isolate DashboardView logic
@@ -23,7 +24,7 @@ describe('DashboardView', () => {
     it('renders all widgets within the grid', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
         
         // Check for all widgets
         expect(await screen.findByTestId('quick-download')).toBeInTheDocument();
@@ -36,7 +37,7 @@ describe('DashboardView', () => {
         it('enters edit mode when edit button is clicked', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
         
         // Find by role and name (more robust than exact text match which might be split by icons)
         const editButton = screen.getByRole('button', { name: /Edit Layout/i });
@@ -44,7 +45,7 @@ describe('DashboardView', () => {
         
         fireEvent.click(editButton);
         
-        expect(screen.getByRole('button', { name: /Done/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /Done/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Reset/i })).toBeInTheDocument();
         expect(screen.getByText(/Dashboard: Edit Mode/i)).toBeInTheDocument();
     });
@@ -52,7 +53,7 @@ describe('DashboardView', () => {
     it('shows reset button only in edit mode', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
         
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
         
         // Initially should not show reset button
         expect(screen.queryByRole('button', { name: /Reset/i })).not.toBeInTheDocument();
@@ -62,13 +63,14 @@ describe('DashboardView', () => {
         fireEvent.click(editButton);
         
         // Should show reset button
-        expect(screen.getByRole('button', { name: /Reset/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /Reset/i })).toBeInTheDocument();
         
         // Exit edit mode
         const doneButton = screen.getByRole('button', { name: /Done/i });
         fireEvent.click(doneButton);
         
         // Should hide reset button again
+        expect(await screen.findByRole('button', { name: /Edit Layout/i })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Reset/i })).not.toBeInTheDocument();
     });
 
@@ -81,7 +83,7 @@ describe('DashboardView', () => {
         
         global.localStorage.getItem.mockReturnValue(JSON.stringify(savedLayout));
         
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
         
         expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v3');
     });
@@ -99,7 +101,7 @@ describe('DashboardView', () => {
             return null;
         });
         
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
         
         // Should try to load both formats
         expect(global.localStorage.getItem).toHaveBeenCalledWith('ytdl-go:dashboard-layout:v3');
@@ -136,7 +138,7 @@ describe('DashboardView', () => {
             return null;
         });
 
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         // Should not call setItem when loading existing layout (no changes made)
         const setItemCalls = global.localStorage.setItem.mock.calls.filter(
@@ -150,7 +152,7 @@ describe('DashboardView', () => {
 
     it('blocks drag when not in edit mode (guard-pair: block)', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         const widget = await screen.findByTestId('welcome-widget');
         const widgetContainer = widget.closest('[style*="grid-column"]');
@@ -168,7 +170,7 @@ describe('DashboardView', () => {
 
     it('allows drag in edit mode (guard-pair: pass-through)', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         // Enter edit mode
         fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
@@ -189,7 +191,7 @@ describe('DashboardView', () => {
 
     it('blocks resize when not in edit mode (guard-pair: block)', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         // Resize handles should not be visible outside edit mode
         const handles = document.querySelectorAll('.cursor-nwse-resize');
@@ -198,11 +200,12 @@ describe('DashboardView', () => {
 
     it('shows resize handles in edit mode (guard-pair: pass-through)', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
 
-        // Resize handles should be visible in edit mode
+        // Wait for edit mode to activate, then check resize handles
+        await screen.findByRole('button', { name: /Done/i });
         const handles = document.querySelectorAll('.cursor-nwse-resize');
         expect(handles.length).toBeGreaterThan(0);
     });
@@ -224,19 +227,19 @@ describe('DashboardView', () => {
             return null;
         });
 
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         // Enter edit mode
         fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
 
         // Undo button should be disabled initially (no actions yet)
-        const undoButton = screen.getByTitle('Undo (Ctrl+Z)');
+        const undoButton = await screen.findByTitle('Undo (Ctrl+Z)');
         expect(undoButton).toHaveAttribute('disabled');
     });
 
     it('undo/redo keyboard shortcuts only work in edit mode', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         // Ctrl+Z outside edit mode should not throw or change anything
         fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
@@ -257,7 +260,7 @@ describe('DashboardView', () => {
 
     it('toggles edit mode correctly (idle → editing → idle)', async () => {
         const mockModel = { items: [], artists: [], videos: [], podcasts: [] };
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
 
         // Initial state: not in edit mode
         expect(screen.getByText('Dashboard')).toBeInTheDocument();
@@ -265,10 +268,11 @@ describe('DashboardView', () => {
 
         // Enter edit mode
         fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
-        expect(screen.getByText(/Dashboard: Edit Mode/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Dashboard: Edit Mode/i)).toBeInTheDocument();
 
         // Exit edit mode
         fireEvent.click(screen.getByRole('button', { name: /Done/i }));
+        expect(await screen.findByRole('button', { name: /Edit Layout/i })).toBeInTheDocument();
         expect(screen.queryByText('Dashboard: Edit Mode')).not.toBeInTheDocument();
     });
 
@@ -287,7 +291,7 @@ describe('DashboardView', () => {
             return null;
         });
 
-        render(() => <DashboardView libraryModel={mockModel} />);
+        renderWithRouter(() => <DashboardView libraryModel={mockModel} />);
         
         // Wait for queueMicrotask to complete
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -296,7 +300,8 @@ describe('DashboardView', () => {
 
         // Enter edit mode and reset layout
         fireEvent.click(screen.getByRole('button', { name: /Edit Layout/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
+        const resetButton = await screen.findByRole('button', { name: /Reset/i });
+        fireEvent.click(resetButton);
 
         const setItemCalls = global.localStorage.setItem.mock.calls.filter(
             ([key]) => key === 'ytdl-go:dashboard-layout:v3'

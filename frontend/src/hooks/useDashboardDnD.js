@@ -1,5 +1,5 @@
 import { createSignal, onCleanup } from 'solid-js';
-import { resolveCollisions, compactLayout } from '../components/dashboard/gridCollision';
+import { resolveCollisions, widgetsOverlap } from '../components/dashboard/gridCollision';
 import { WIDGET_REGISTRY, GRID_COLS } from '../components/dashboard/widgetRegistry';
 
 export function useDashboardDnD(props) {
@@ -131,7 +131,15 @@ export function useDashboardDnD(props) {
         const drag = dragState();
         if (!drag.isDragging) return;
 
-        setWidgets(prev => compactLayout(prev));
+        // Snap back if the final position still overlaps any other enabled widget
+        const current = widgets();
+        const dragged = current.find(w => w.id === drag.widgetId);
+        if (dragged && preInteractionWidgets) {
+            const hasOverlap = current.some(w => w.enabled && widgetsOverlap(dragged, w));
+            if (hasOverlap) {
+                setWidgets(preInteractionWidgets);
+            }
+        }
 
         preInteractionWidgets = null;
         setGhostPos(null);
@@ -195,8 +203,8 @@ export function useDashboardDnD(props) {
         const cell = cellSize();
         if (!cell.width) return;
 
-        const deltaX = Math.round((e.clientX - resize.startX) / cell.width);
-        const deltaY = Math.round((e.clientY - resize.startY) / cell.height);
+        const deltaX = Math.round((e.clientX - resize.startX) / cell.trackWidth);
+        const deltaY = Math.round((e.clientY - resize.startY) / cell.trackWidth);
 
         const reg = WIDGET_REGISTRY[resize.widgetId];
         const minW = reg?.minW || 1;
@@ -249,7 +257,15 @@ export function useDashboardDnD(props) {
         const resize = resizeState();
         if (!resize.isResizing) return;
 
-        setWidgets(prev => compactLayout(prev));
+        // Snap back if the resized widget now overlaps any other enabled widget
+        const current = widgets();
+        const resized = current.find(w => w.id === resize.widgetId);
+        if (resized && preInteractionWidgets) {
+            const hasOverlap = current.some(w => w.enabled && widgetsOverlap(resized, w));
+            if (hasOverlap) {
+                setWidgets(preInteractionWidgets);
+            }
+        }
 
         preInteractionWidgets = null;
         setGhostPos(null);

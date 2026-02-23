@@ -5,7 +5,7 @@ import logo from '../../assets/logo.png';
 
 export default function WelcomeWidget(props) {
     return (
-        <div class="rounded-[2rem] border border-accent-primary/20 glass-vibrant p-8 relative overflow-hidden group h-full">
+        <div class="rounded-[2rem] border border-accent-primary/20 glass-vibrant p-8 relative overflow-hidden group h-full @container">
             <div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
                 <img src={logo} alt="ytdl-go logo" class="w-48 h-48 rotate-12 object-contain" />
             </div>

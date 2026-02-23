@@ -5,7 +5,7 @@ import { WIDGET_REGISTRY } from './widgetRegistry';
 export default function WidgetDrawer(props) {
     return (
         <div 
-            class={`fixed inset-y-0 right-0 w-80 bg-[#0b111a] border-l border-white/10 shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${props.isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            class={`fixed inset-y-0 right-0 w-80 bg-[#060910]/95 backdrop-blur-xl border-l border-white/10 shadow-2xl transform transition-transform duration-300 z-[9999] flex flex-col ${props.isOpen ? 'translate-x-0' : 'translate-x-full'}`}
         >
             <div class="p-6 border-b border-white/10 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-white">Add Widgets</h2>

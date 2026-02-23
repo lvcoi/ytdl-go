@@ -1,4 +1,5 @@
 import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
+import Icon from './Icon';
 
 // Base layout constants
 const GRID_COLS = 16;
@@ -18,7 +19,7 @@ export function Grid(props) {
                 gridRef = el;
                 if (props.ref) props.ref(el);
             }}
-            class="relative w-full"
+            class={`relative w-full${props.isEditMode ? ' select-none' : ''}`}
             style={{
                 display: 'grid',
                 'grid-template-columns': `repeat(${GRID_COLS}, 1fr)`,
@@ -30,10 +31,10 @@ export function Grid(props) {
             {/* Grid Lines Overlay */}
             <Show when={props.isEditMode}>
                 <div 
-                    class="dashboard-grid-lines absolute inset-0 pointer-events-none -z-10 rounded-3xl"
+                    class="dashboard-grid-lines absolute inset-0 pointer-events-none z-0 rounded-3xl"
                     style={{
                         'background-size': `${tileSize()}px ${tileSize()}px`,
-                        'background-position': `-${GAP/2}px -${GAP/2}px`
+                        'background-position': `0 0`
                     }}
                 />
             </Show>
@@ -64,6 +65,14 @@ export function GridItem(props) {
         }
     };
 
+    const handleRemove = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (props.onRemove) {
+            props.onRemove(props.widgetId);
+        }
+    };
+
     return (
         <div
             class={`${props.class || ''} relative z-10`}
@@ -75,7 +84,22 @@ export function GridItem(props) {
             }}
             onMouseDown={props.onMouseDown}
         >
-            {props.children}
+            {/* Task 2: Content wrapper — pointer-events blocked in edit mode */}
+            <div class={`h-full${props.isEditMode ? ' pointer-events-none' : ''}`}>
+                {props.children}
+            </div>
+
+            {/* Task 9: Trash button — outside pointer-events-none wrapper */}
+            <Show when={props.isEditMode}>
+                <button
+                    onClick={handleRemove}
+                    class="absolute top-3 right-3 z-30 p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                    title="Remove widget"
+                    aria-label="Remove widget"
+                >
+                    <Icon name="trash-2" class="w-3.5 h-3.5" />
+                </button>
+            </Show>
             
             {/* Resize Handles - Only visible in edit mode */}
             <Show when={props.isEditMode}>

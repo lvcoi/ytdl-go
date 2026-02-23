@@ -362,6 +362,8 @@ export default function DashboardView(props) {
     const handleQuickDownload = (url) => {
         if (props.onDownload) {
             props.onDownload(url);
+        } else {
+            startDownload(url);
         }
     };
 
@@ -440,6 +442,7 @@ export default function DashboardView(props) {
     });
 
     return (
+        <>
         <div class="transition-smooth animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
             <div class="flex items-center justify-between px-2">
                 <div class="flex items-center gap-2">
@@ -545,31 +548,30 @@ export default function DashboardView(props) {
                                 widgetId={widget.id}
                                 isEditMode={isEditMode()}
                                 onResizeStart={handleResizeStart}
+                                onRemove={handleRemoveWidget}
                                 onMouseDown={(e) => handleDragStart(widget.id, e)}
-                                class={`relative group/widget transition-all duration-500 ${isEditMode() ? 'border-2 border-dashed border-white/20 rounded-[2rem]' : ''} ${dragState().isDragging && dragState().widgetId === widget.id ? 'opacity-0' : ''} ${resizeState().isResizing && resizeState().widgetId === widget.id ? 'opacity-0' : ''}`}
+                                class={`relative group/widget transition-all duration-500 ${isEditMode() ? 'ring-2 ring-dashed ring-white/20 rounded-[2rem] cursor-move' : ''} ${dragState().isDragging && dragState().widgetId === widget.id ? 'opacity-0' : ''} ${resizeState().isResizing && resizeState().widgetId === widget.id ? 'opacity-0' : ''}`}
                                 style={{ 'z-index': 10 + widget.y * GRID_COLS + widget.x }}
                             >
-                                <div 
-                                    class={`${isEditMode() && !widget.enabled ? 'opacity-30' : ''} h-full ${isEditMode() ? 'cursor-move' : ''}`}
-                                >
-                                    {renderWidget(widget)}
-                                </div>
+                                {renderWidget(widget)}
                             </GridItem>
                         </Show>
                     )}
                 </For>
             </Grid>
 
-            {/* Widget Drawer */}
-            <Show when={isEditMode()}>
-                <WidgetDrawer 
-                    isOpen={isDrawerOpen()} 
-                    onClose={() => setIsDrawerOpen(false)}
-                    widgets={widgets()}
-                    onAdd={handleAddWidget}
-                    onRemove={handleRemoveWidget}
-                />
-            </Show>
         </div>
+
+        {/* Task 7: Drawer rendered outside main div to avoid grid stacking context */}
+        <Show when={isEditMode()}>
+            <WidgetDrawer 
+                isOpen={isDrawerOpen()} 
+                onClose={() => setIsDrawerOpen(false)}
+                widgets={widgets()}
+                onAdd={handleAddWidget}
+                onRemove={handleRemoveWidget}
+            />
+        </Show>
+        </>
     );
 }
