@@ -66,6 +66,9 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		resp, err := t.base.RoundTrip(cloned)
 		if err != nil {
 			if !isRetryableError(err) {
+				if lastResp != nil {
+					lastResp.Body.Close()
+				}
 				return nil, err
 			}
 			lastErr = err
@@ -73,10 +76,16 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 
 		if !isRetryableStatus(resp.StatusCode) {
+			// Success or non-retryable status: close any previous retryable
+			// response before returning the new one.
+			if lastResp != nil {
+				lastResp.Body.Close()
+			}
 			return resp, nil
 		}
 
-		// Close the body before retrying to free the connection
+		// Retryable status: close the previous response and keep this one
+		// in case we exhaust retries and need to return it to the caller.
 		if lastResp != nil {
 			lastResp.Body.Close()
 		}
