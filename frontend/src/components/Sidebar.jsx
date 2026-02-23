@@ -1,8 +1,12 @@
 import Icon from './Icon';
 import logo from '../assets/logo.png';
+import { A, useLocation } from '@solidjs/router';
 
-export default function Sidebar(props) {
-    const activeTab = () => props.activeTab;
+export default function Sidebar() {
+    const location = useLocation();
+    const active = (path) => location.pathname === path ? 
+        'bg-accent-primary/10 text-accent-secondary shadow-sm shadow-accent-primary/5' : 
+        'text-gray-500 hover:bg-white/5 hover:text-gray-300';
 
     return (
         <aside class="w-72 bg-bg-surface/85 border-r border-white/10 flex flex-col p-6 backdrop-blur-xl transition-all duration-300">
@@ -15,56 +19,44 @@ export default function Sidebar(props) {
 
 
             <nav class="flex-1 space-y-2">
-                <button
-                    onClick={() => props.onTabChange('dashboard')}
-                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab() === 'dashboard'
-                        ? 'bg-accent-primary/10 text-accent-secondary shadow-sm shadow-accent-primary/5'
-                        : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
-                        }`}
+                <A
+                    href="/"
+                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${active('/')}`}
                 >
                     <Icon name="layout-dashboard" class="w-5 h-5" />
                     <span class="font-bold text-sm">Dashboard</span>
-                </button>
+                </A>
 
                 <div class="pt-4 pb-2 px-4 text-xs font-bold text-gray-600 uppercase tracking-widest">
                     Media
                 </div>
 
-                <button
-                    onClick={() => props.onTabChange('download')}
-                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab() === 'download'
-                        ? 'bg-accent-primary/10 text-accent-secondary shadow-sm shadow-accent-primary/5'
-                        : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
-                        }`}
+                <A
+                    href="/download"
+                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${active('/download')}`}
                 >
                     <Icon name="plus-circle" class="w-5 h-5" />
                     <span class="font-bold text-sm">New Download</span>
-                </button>
-                <button
-                    onClick={() => props.onTabChange('library')}
-                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab() === 'library'
-                        ? 'bg-accent-primary/10 text-accent-secondary shadow-sm shadow-accent-primary/5'
-                        : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
-                        }`}
+                </A>
+                <A
+                    href="/library"
+                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${active('/library')}`}
                 >
                     <Icon name="layers" class="w-5 h-5" />
                     <span class="font-bold text-sm">Library</span>
-                </button>
+                </A>
 
                 <div class="pt-4 pb-2 px-4 text-xs font-bold text-gray-600 uppercase tracking-widest">
                     System
                 </div>
 
-                <button
-                    onClick={() => props.onTabChange('settings')}
-                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab() === 'settings'
-                        ? 'bg-accent-primary/10 text-accent-secondary shadow-sm shadow-accent-primary/5'
-                        : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
-                        }`}
+                <A
+                    href="/settings"
+                    class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${active('/settings')}`}
                 >
                     <Icon name="sliders" class="w-5 h-5" />
                     <span class="font-bold text-sm">Settings</span>
-                </button>
+                </A>
             </nav>
 
             <div class="mt-auto relative has-tooltip">

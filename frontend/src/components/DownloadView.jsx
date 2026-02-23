@@ -1,7 +1,6 @@
 import { For, Show, onCleanup, onMount, createMemo } from 'solid-js';
 import Icon from './Icon';
 import Thumbnail from './Thumbnail';
-import { Grid, GridItem } from './Grid';
 import DuplicateModal from './DuplicateModal';
 import { MAX_JOBS, MAX_TIMEOUT_SECONDS, useAppStore } from '../store/appStore';
 import { downloadStore, setDownloadStore } from '../store/downloadStore';
@@ -200,7 +199,7 @@ export default function DownloadView(props = {}) {
         </div>
       </div>
 
-      <Grid class="!p-0 !gap-8">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div class="lg:col-span-3 space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-3">
@@ -286,7 +285,7 @@ export default function DownloadView(props = {}) {
           </Show>
         </div>
 
-        <GridItem class="lg:col-span-2">
+        <div class="lg:col-span-2">
           <Show when={jobStatus()}>
             <div class={`p-8 rounded-[2rem] border min-h-[400px] flex flex-col gap-6 transition-all duration-500 ${currentStatusTone().card}`}>
               <div class="flex items-center justify-between">
@@ -382,8 +381,8 @@ export default function DownloadView(props = {}) {
               <p class="font-medium">Ready to download</p>
             </div>
           </Show>
-        </GridItem>
-            </Grid>
+        </div>
+      </div>
     </div>
   );
 }

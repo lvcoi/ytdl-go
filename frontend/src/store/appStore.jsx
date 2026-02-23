@@ -75,6 +75,7 @@ const createDefaultState = () => ({
     active: false,
     selectedMedia: null,
     minimized: false,
+    queue: [],
   },
   download: {
     urlInput: '',
