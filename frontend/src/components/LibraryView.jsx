@@ -1,7 +1,6 @@
 import { For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import Icon from './Icon';
 import Thumbnail from './Thumbnail';
-import { Grid, GridItem } from './Grid';
 import { buildLibraryModel } from '../utils/libraryModel';
 
 const SECTION_OPTIONS = [
@@ -925,7 +924,7 @@ export default function LibraryView(props) {
                   when={explorerItems().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No media items match this view yet.</div>}
                 >
-                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     <For each={explorerItems()}>
                       {(item) => (
                         <div class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant">
@@ -971,7 +970,7 @@ export default function LibraryView(props) {
                         </div>
                       )}
                     </For>
-                  </Grid>
+                  </div>
                 </Show>
               )}
             >
@@ -980,7 +979,7 @@ export default function LibraryView(props) {
                   when={explorerCreators().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No creators available for this filter set.</div>}
                 >
-                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                     <For each={explorerCreators()}>
                       {(entry) => (
                         <button
@@ -1001,7 +1000,7 @@ export default function LibraryView(props) {
                         </button>
                       )}
                     </For>
-                  </Grid>
+                  </div>
                 </Show>
               </Show>
 
@@ -1010,7 +1009,7 @@ export default function LibraryView(props) {
                   when={explorerAlbums().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No albums available for this artist.</div>}
                 >
-                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                     <For each={explorerAlbums()}>
                       {(album) => (
                         <button
@@ -1031,7 +1030,7 @@ export default function LibraryView(props) {
                         </button>
                       )}
                     </For>
-                  </Grid>
+                  </div>
                 </Show>
               </Show>
 
@@ -1040,7 +1039,7 @@ export default function LibraryView(props) {
                   when={explorerPlaylists().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No playlists available for this filter set.</div>}
                 >
-                  <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     <For each={explorerPlaylists()}>
                       {(playlist) => (
                         <button
@@ -1070,7 +1069,7 @@ export default function LibraryView(props) {
                         </button>
                       )}
                     </For>
-                  </Grid>
+                  </div>
                 </Show>
               </Show>
             </Show>
@@ -1080,7 +1079,7 @@ export default function LibraryView(props) {
             <Show when={explorerLandingArtists().length > 0}>
               <div class="space-y-6">
                 <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-primary/80 ml-2">Artists</div>
-                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <For each={explorerLandingArtists()}>
                     {(artist) => (
                       <button
@@ -1101,14 +1100,14 @@ export default function LibraryView(props) {
                       </button>
                     )}
                   </For>
-                </Grid>
+                </div>
               </div>
             </Show>
 
             <Show when={explorerLandingVideos().length > 0}>
               <div class="space-y-6">
                 <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-primary/80 ml-2">YouTube Videos</div>
-                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <For each={explorerLandingVideos()}>
                     {(video) => (
                       <button
@@ -1132,7 +1131,7 @@ export default function LibraryView(props) {
                       </button>
                     )}
                   </For>
-                </Grid>
+                </div>
               </div>
             </Show>
 
@@ -1140,7 +1139,7 @@ export default function LibraryView(props) {
             <Show when={model().podcasts.length > 0}>
               <div class="space-y-6">
                 <div class="text-xs font-black uppercase tracking-[0.25em] text-emerald-500/80 ml-2">Podcasts</div>
-                <Grid class="!p-0 !gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                   <For each={model().podcasts}>
                     {(podcast) => (
                       <button
@@ -1164,7 +1163,7 @@ export default function LibraryView(props) {
                       </button>
                     )}
                   </For>
-                </Grid>
+                </div>
               </div>
             </Show>
           </div>

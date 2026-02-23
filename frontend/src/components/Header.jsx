@@ -1,13 +1,15 @@
 import Icon from './Icon';
+import { useLocation } from '@solidjs/router';
 
 export default function Header(props) {
+    const location = useLocation();
     const isAdvanced = () => props.isAdvanced;
     const title = () => {
-        switch (props.activeTab) {
-            case 'dashboard': return 'Dashboard';
-            case 'download': return 'New Download';
-            case 'library': return 'Media Library';
-            case 'settings': return 'Settings';
+        switch (location.pathname) {
+            case '/': return 'Dashboard';
+            case '/download': return 'New Download';
+            case '/library': return 'Media Library';
+            case '/settings': return 'Settings';
             default: return 'ytdl-go';
         }
     };
