@@ -134,8 +134,6 @@ prompts/
 conductor/
 **.antigravity/
 .gemini/
-.github/
-**github/
 plans/
 **plans/
 
@@ -252,6 +250,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+requirements.txt
+requirements-dev.txt
+requirements-docs.txt
 
 # PyInstaller
 *.manifest
