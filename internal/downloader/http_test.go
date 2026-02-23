@@ -200,7 +200,7 @@ func TestDoWithRetryExhaustsAttempts(t *testing.T) {
 		t.Fatalf("creating request: %v", err)
 	}
 
-	resp, err := doWithRetry(req, 30*time.Second, 3)
+	resp, err := doWithRetry(req, 10*time.Second, 3)
 	if err == nil {
 		if resp != nil {
 			resp.Body.Close()
