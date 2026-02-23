@@ -148,9 +148,12 @@ export default function DashboardView() {
   };
 
   const addWidget = (catalogItem) => {
-    const uuid = (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID)
+    const hasCrypto = typeof globalThis !== 'undefined' && globalThis.crypto;
+    const uuid = (hasCrypto && typeof globalThis.crypto.randomUUID === 'function')
       ? globalThis.crypto.randomUUID()
-      : `${catalogItem.type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      : (hasCrypto
+        ? `${catalogItem.type}-${Date.now()}-${globalThis.crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`
+        : `${catalogItem.type}-${Date.now()}`);
     const id = `${catalogItem.type}-${uuid}`;
     const newWidget = {
       id,
