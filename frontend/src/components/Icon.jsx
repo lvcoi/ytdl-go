@@ -5,11 +5,7 @@ import {
   AlertCircle, CheckCircle2, Loader, Terminal,
   Search, Filter, Film, Play, ExternalLink,
   X, PlayCircle, SkipBack, Pause, SkipForward,
-  LayoutDashboard, History, ChevronRight, ChevronLeft,
-  Eye, EyeOff, Pencil, Check, Settings2, User, Maximize2,
-  Home, BarChart2, Settings, Box, RefreshCw, RotateCcw, RotateCw, Plus, Info,
-  Download, FileAudio, Video, WifiOff, AlertTriangle, Image,
-  LayoutGrid, GripVertical, Scaling, Star,
+  LayoutDashboard, Move, GripVertical, Grid, Plus, Minus, Settings, BarChart2, HardDrive, Clock, Download, Edit2, Check, CornerRightDown,
 } from 'lucide-solid';
 
 const iconMap = {
@@ -39,44 +35,25 @@ const iconMap = {
   'pause': Pause,
   'skip-forward': SkipForward,
   'layout-dashboard': LayoutDashboard,
-  'history': History,
-  'chevron-right': ChevronRight,
-  'chevron-left': ChevronLeft,
-  'eye': Eye,
-  'eye-off': EyeOff,
-  'pencil': Pencil,
-  'check': Check,
-  'settings-2': Settings2,
-  'user': User,
-  'maximize-2': Maximize2,
-  'home': Home,
-  'bar-chart-2': BarChart2,
-  'settings': Settings,
-  'box': Box,
-  'refresh-cw': RefreshCw,
-  'rotate-ccw': RotateCcw,
-  'rotate-cw': RotateCw,
-  'plus': Plus,
-  'info': Info,
-  'download': Download,
-  'file-audio': FileAudio,
-  'video': Video,
-  'wifi-off': WifiOff,
-  'alert-triangle': AlertTriangle,
-  'image': Image,
-  'layout-grid': LayoutGrid,
+  'move': Move,
   'grip': GripVertical,
-  'scaling': Scaling,
-  'star': Star,
+  'grid': Grid,
+  'plus': Plus,
+  'minus': Minus,
+  'settings': Settings,
+  'bar-chart': BarChart2,
+  'hard-drive': HardDrive,
+  'clock': Clock,
+  'download': Download,
+  'edit-2': Edit2,
+  'check': Check,
+  'corner-right-down': CornerRightDown,
 };
 
 export default function Icon(props) {
   const component = iconMap[props.name];
   if (!component) {
-    if (import.meta.env.DEV) {
-      console.warn(`[Icon] Unknown icon name: "${props.name}"`);
-    }
-    return <Dynamic component={iconMap['alert-circle']} class={props.class} />;
+    return <svg class={props.class} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>;
   }
   return <Dynamic component={component} class={props.class} />;
 }
