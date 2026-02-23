@@ -26,7 +26,7 @@
 
 ## ✨ Features
 
-| | |
+| Feature | Description |
 | --- | --- |
 | 🚀 **Parallel Downloads** | Multiple concurrent downloads with retry & resume |
 | 🌐 **Web UI** | Dashboard, download queue, media library & player |
@@ -80,10 +80,46 @@ ytdl-go -web
 **What you get:**
 
 - **Dashboard** — Customizable widget grid with drag-and-drop layout, recent activity, quick download, and system stats.
-- **Download View** — Paste one or more URLs, pick format & quality, and watch real-time progress via Server-Sent Events.
+- **Download View** — Paste one or more URLs, pick format & quality, and watch real-time progress over a WebSocket connection.
 - **Media Library** — Browse all downloaded media with thumbnail gallery, search, filters (Music / Videos / Podcasts), and sortable columns.
 - **Built-in Player** — Floating audio/video player with queue support and minimized mode.
 - **Settings** — Configure concurrency, storage paths, and upcoming auth options.
+
+### Screenshots
+
+> **Note:** Screenshots below show the UI with sample data. Your instance will look similar after downloading content.
+
+| Dashboard | Download | Library |
+| :---: | :---: | :---: |
+| ![Dashboard](img/screenshots/dashboard.png) | ![Download](img/screenshots/download.png) | ![Library](img/screenshots/library.png) |
+
+*Glassmorphic dark UI with cyan/emerald accents — sidebar navigation, drag-and-drop dashboard widgets, real-time download progress, and a thumbnail gallery with built-in player.*
+
+### Interactive CLI (TUI)
+
+The command-line interface includes a visual format selector:
+
+```bash
+ytdl-go -list-formats "https://youtube.com/watch?v=..."
+```
+
+![Interactive Format Selector](img/interactive-format-selector.svg)
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| **Backend** | [Go](https://golang.org/) 1.24 |
+| **Frontend** | [SolidJS](https://www.solidjs.com/) + [Tailwind CSS](https://tailwindcss.com/) v4 |
+| **TUI** | [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss) |
+| **Database** | [SQLite](https://www.sqlite.org/) via [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) (pure Go) |
+| **Real-time** | WebSocket ([gorilla/websocket](https://github.com/gorilla/websocket)) |
+| **Media** | [FFmpeg](https://ffmpeg.org/) (muxing & metadata), [ID3v2](https://github.com/bogem/id3v2) (audio tags) |
+| **Icons** | [Lucide](https://lucide.dev/) |
+| **Docs** | [Zensical](https://zensical.org/) (Material Design docs) |
+| **Build** | [Vite](https://vitejs.dev/) (frontend), `go build` (backend) |
 
 ---
 
@@ -110,6 +146,19 @@ Everything beyond this README is on the **[documentation site](https://lvcoi.git
 - **Missing thumbnails** — Re-download to generate sidecar metadata used by the library.
 
 </details>
+
+---
+
+## 🙏 Acknowledgments
+
+ytdl-go stands on the shoulders of these projects:
+
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — The gold standard YouTube downloader. ytdl-go was heavily inspired by yt-dlp's feature set and approach.
+- **[kkdai/youtube](https://github.com/kkdai/youtube)** — The original Go YouTube library that ytdl-go forked and extended as [ytdl-lib](https://github.com/lvcoi/ytdl-lib).
+- **[Charm](https://charm.sh/)** — [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Bubbles](https://github.com/charmbracelet/bubbles), and [Lip Gloss](https://github.com/charmbracelet/lipgloss) power the interactive terminal UI.
+- **[SolidJS](https://www.solidjs.com/)** — The reactive framework behind the Web UI.
+- **[Zensical](https://zensical.org/)** — Documentation site generator (Material Design).
+- **[Gorilla WebSocket](https://github.com/gorilla/websocket)** — Real-time communication in the Web UI.
 
 ---
 
