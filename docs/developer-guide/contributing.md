@@ -19,6 +19,7 @@ Before you begin, ensure you have the following installed:
 ### Required
 
 - **Go 1.24+** - [Download and install Go](https://golang.org/dl/)
+
   ```bash
   go version  # Should show 1.24 or higher
   ```
@@ -26,6 +27,7 @@ Before you begin, ensure you have the following installed:
 ### Recommended
 
 - **FFmpeg** (optional but recommended for audio extraction fallback)
+
   ```bash
   # macOS
   brew install ffmpeg
@@ -40,6 +42,7 @@ Before you begin, ensure you have the following installed:
   FFmpeg enables the audio extraction fallback strategy when YouTube blocks direct audio-only downloads. The tool works without it, but some downloads may fail that would otherwise succeed.
 
 - **Make** (if using Makefile - currently not present but may be added)
+
   ```bash
   # macOS (included in Xcode Command Line Tools)
   xcode-select -install
@@ -54,6 +57,7 @@ Before you begin, ensure you have the following installed:
 ### Development Tools
 
 - **golangci-lint** (for code linting)
+
   ```bash
   # macOS
   brew install golangci-lint
@@ -63,6 +67,7 @@ Before you begin, ensure you have the following installed:
   ```
 
 - **Git** (for version control)
+
   ```bash
   git -version
   ```
@@ -125,7 +130,7 @@ go build .
 
 Understanding the project layout will help you navigate the codebase:
 
-```
+```text
 ytdl-go/
 ├── main.go                          # Entry point, CLI flag parsing
 ├── go.mod                           # Go module definition
@@ -158,7 +163,6 @@ ytdl-go/
 ├── README.md                        # User-facing documentation
 ├── LICENSE                          # MIT License
 └── SECURITY.md                      # Security policy
-
 ```
 
 ### Key Directories
@@ -260,6 +264,7 @@ go vet ./...
 ### Pre-Commit Checklist
 
 Before committing, ensure:
+
 - [ ] Code is formatted: `go fmt ./...`
 - [ ] No vet warnings: `go vet ./...`
 - [ ] Linter passes: `golangci-lint run`
@@ -304,6 +309,7 @@ git commit -m "Brief description of your change"
 ```
 
 **Commit Message Guidelines:**
+
 - Use present tense ("Add feature" not "Added feature")
 - Be concise but descriptive
 - Reference issue numbers if applicable (#123)
@@ -315,6 +321,7 @@ git push origin feature/your-feature-name
 ```
 
 Then open a pull request on GitHub with:
+
 - Clear description of changes
 - Motivation and context
 - Any related issues
@@ -326,34 +333,37 @@ This section covers contributions to the web UI under `frontend/`.
 
 ### Frontend Workflow
 
-1.  Install frontend dependencies:
-    ```sh
-    cd frontend
-    npm install
-    ```
-2.  Start the development server:
-    ```sh
-    npm run dev
-    ```
-3.  Implement your change in `frontend/src/`.
-4.  Validate the frontend build:
-    ```sh
-    npm run build
-    ```
+1. Install frontend dependencies:
+
+   ```sh
+   cd frontend
+   npm install
+   ```
+2. Start the development server:
+
+   ```sh
+   npm run dev
+   ```
+3. Implement your change in `frontend/src/`.
+4. Validate the frontend build:
+
+   ```sh
+   npm run build
+   ```
 
 ### Frontend Conventions
 
-*   **Components**: keep components focused and colocate related logic where practical.
-*   **Naming**: PascalCase for component files, camelCase for helpers/utilities.
-*   **Styling**: prefer Tailwind utility classes, keeping global CSS in `frontend/index.css` minimal.
-*   **Icons**: use `lucide-solid` through `frontend/src/components/Icon.jsx`; add icons by importing them there and extending `iconMap`.
+- **Components**: keep components focused and colocate related logic where practical.
+- **Naming**: PascalCase for component files, camelCase for helpers/utilities.
+- **Styling**: prefer Tailwind utility classes, keeping global CSS in `frontend/index.css` minimal.
+- **Icons**: use `lucide-solid` through `frontend/src/components/Icon.jsx`; add icons by importing them there and extending `iconMap`.
 
 ### Dependency Policy
 
 Keep dependencies lean.
 
-*   **Preferred**: small focused libraries.
-*   **Avoid by default**: large UI frameworks and heavy libraries that increase bundle size significantly.
+- **Preferred**: small focused libraries.
+- **Avoid by default**: large UI frameworks and heavy libraries that increase bundle size significantly.
 
 ## Submitting Changes
 
@@ -395,6 +405,7 @@ The codebase uses standard Go `net/http`. You can add debug prints to `internal/
 ### Test with Specific Videos
 
 For testing, use videos you control or well-known test videos:
+
 - Public YouTube videos (avoid copyrighted content)
 - Short videos to speed up testing
 - Videos with various formats available

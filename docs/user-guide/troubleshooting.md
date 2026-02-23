@@ -64,9 +64,8 @@ Verify: `which ffmpeg` (Linux/macOS) or `where ffmpeg` (Windows).
 
 `ytdl-go -web` retries on higher ports automatically. Check startup logs for the selected URL. When running the frontend dev server, align the proxy target:
 
-```bash
-VITE_API_PROXY_TARGET=http://127.0.0.1:<port> npm run dev
-```
+    VITE_API_PROXY_TARGET=http://127.0.0.1:<port> npm run dev
+    ```
 
 ## Library Metadata/Thumbnails Missing
 
@@ -76,6 +75,5 @@ New downloads write sidecar metadata used by the web UI. Legacy files without si
 
 For detailed diagnostics:
 
-```bash
-ytdl-go -log-level debug URL
-```
+    ytdl-go -log-level debug URL
+    ```
