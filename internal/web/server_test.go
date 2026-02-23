@@ -1025,6 +1025,136 @@ func TestSecurityHeadersPresentOnResponses(t *testing.T) {
 	})
 }
 
+func TestDeleteMediaEndpoint(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		mediaDir := filepath.Join(tmpDir, "media")
+		audioDir := filepath.Join(mediaDir, "audio")
+		if err := os.MkdirAll(audioDir, 0o755); err != nil {
+			t.Fatalf("mkdir audio: %v", err)
+		}
+
+		// Create a media file and its sidecar.
+		mediaPath := filepath.Join(audioDir, "song.mp3")
+		if err := os.WriteFile(mediaPath, []byte("audio"), 0o644); err != nil {
+			t.Fatalf("write media: %v", err)
+		}
+		sidecarPath := mediaPath + ".json"
+		if err := os.WriteFile(sidecarPath, []byte(`{"title":"Song"}`), 0o644); err != nil {
+			t.Fatalf("write sidecar: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		// DELETE the file.
+		delReq, err := http.NewRequest(http.MethodDelete, baseURL+"/api/media/audio/song.mp3", nil)
+		if err != nil {
+			t.Fatalf("new delete request: %v", err)
+		}
+		delResp, err := client.Do(delReq)
+		if err != nil {
+			t.Fatalf("delete request: %v", err)
+		}
+		defer delResp.Body.Close()
+		if delResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 for delete, got %d", delResp.StatusCode)
+		}
+
+		// Media file should be gone.
+		if _, err := os.Stat(mediaPath); !os.IsNotExist(err) {
+			t.Fatalf("expected media file to be deleted")
+		}
+		// Sidecar should also be gone.
+		if _, err := os.Stat(sidecarPath); !os.IsNotExist(err) {
+			t.Fatalf("expected sidecar file to be deleted")
+		}
+
+		// Deleting again should return 404.
+		delReq2, err := http.NewRequest(http.MethodDelete, baseURL+"/api/media/audio/song.mp3", nil)
+		if err != nil {
+			t.Fatalf("new second delete request: %v", err)
+		}
+		delResp2, err := client.Do(delReq2)
+		if err != nil {
+			t.Fatalf("second delete request: %v", err)
+		}
+		defer delResp2.Body.Close()
+		if delResp2.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404 for second delete, got %d", delResp2.StatusCode)
+		}
+	})
+}
+
+func TestDeleteMediaEndpointRejectsTraversal(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		mediaDir := filepath.Join(tmpDir, "media")
+		if err := os.MkdirAll(mediaDir, 0o755); err != nil {
+			t.Fatalf("mkdir media: %v", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		// Traversal attempt.
+		delReq, err := http.NewRequest(http.MethodDelete, baseURL+"/api/media/%2e%2e%2foutside.txt", nil)
+		if err != nil {
+			t.Fatalf("new traversal delete request: %v", err)
+		}
+		delResp, err := client.Do(delReq)
+		if err != nil {
+			t.Fatalf("traversal delete request: %v", err)
+		}
+		defer delResp.Body.Close()
+		if delResp.StatusCode != http.StatusBadRequest && delResp.StatusCode != http.StatusForbidden {
+			t.Fatalf("expected 400/403 for traversal delete, got %d", delResp.StatusCode)
+		}
+	})
+}
+
+func TestDeleteMediaEndpointRequiresPath(t *testing.T) {
+	withTempCWD(t, func(tmpDir string) {
+		tracker = &jobTracker{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		baseURL, wait := startWebServerForTest(t, ctx)
+		defer func() {
+			cancel()
+			wait()
+		}()
+
+		client := &http.Client{Timeout: 3 * time.Second}
+
+		delReq, err := http.NewRequest(http.MethodDelete, baseURL+"/api/media/", nil)
+		if err != nil {
+			t.Fatalf("new empty path delete request: %v", err)
+		}
+		delResp, err := client.Do(delReq)
+		if err != nil {
+			t.Fatalf("empty path delete request: %v", err)
+		}
+		defer delResp.Body.Close()
+		if delResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400 for empty path delete, got %d", delResp.StatusCode)
+		}
+	})
+}
+
 func TestMediaTypeForExtension(t *testing.T) {
 	tests := []struct {
 		ext  string

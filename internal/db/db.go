@@ -238,6 +238,77 @@ func (d *DB) ListMedia(limit, offset int) ([]MediaRecord, error) {
 	return records, rows.Err()
 }
 
+// DeleteMediaByPath deletes a media record by its file_path and returns
+// whether a row was actually removed.
+func (d *DB) DeleteMediaByPath(filePath string) (bool, error) {
+	if d == nil || d.db == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	result, err := d.db.Exec("DELETE FROM media WHERE file_path = ?", filePath)
+	if err != nil {
+		return false, fmt.Errorf("deleting media by path %q: %w", filePath, err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("checking rows affected: %w", err)
+	}
+	return n > 0, nil
+}
+
+// AllFilePaths returns every file_path stored in the media table.
+func (d *DB) AllFilePaths() ([]string, error) {
+	if d == nil || d.db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	rows, err := d.db.Query("SELECT file_path FROM media")
+	if err != nil {
+		return nil, fmt.Errorf("querying file paths: %w", err)
+	}
+	defer rows.Close()
+
+	var paths []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("scanning file path: %w", err)
+		}
+		paths = append(paths, p)
+	}
+	return paths, rows.Err()
+}
+
+// PruneOrphanedMedia deletes records whose file_path is not in the provided
+// set of live paths. Returns the number of records removed.
+func (d *DB) PruneOrphanedMedia(livePaths map[string]struct{}) (int, error) {
+	if d == nil || d.db == nil {
+		return 0, fmt.Errorf("database not initialized")
+	}
+
+	allPaths, err := d.AllFilePaths()
+	if err != nil {
+		return 0, err
+	}
+
+	pruned := 0
+	for _, p := range allPaths {
+		if _, ok := livePaths[p]; !ok {
+			deleted, delErr := d.DeleteMediaByPath(p)
+			if delErr != nil {
+				return pruned, delErr
+			}
+			if deleted {
+				pruned++
+			}
+		}
+	}
+	return pruned, nil
+}
+
 // Count returns the total number of media records.
 func (d *DB) Count() (int, error) {
 	if d == nil || d.db == nil {
