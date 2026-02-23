@@ -5,7 +5,7 @@ repo_name: lvcoi/ytdl-go
 edit_uri: edit/main/docs/
 
 theme:
-  name: material
+  name: modern
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -19,17 +19,17 @@ theme:
       primary: red
       accent: red
       toggle:
-        icon: material/brightness-4
+        icon: material/brightness-7
         name: Switch to light mode
   features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.expand
-    - navigation.top
-    - search.highlight
-    - search.suggest
-    - content.code.copy
-    - content.action.edit
+     navigation.tabs
+     navigation.sections
+     navigation.expand
+     navigation.top
+     search.highlight
+     search.suggest
+     content.code.copy
+     content.action.edit
   icon:
     repo: fontawesome/brands/github
 
@@ -40,7 +40,6 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
