@@ -12,7 +12,7 @@ import (
 
 func createTestJob(t *testing.T, jt *jobTracker, urls []string) *Job {
 	t.Helper()
-	job := jt.Create(urls)
+	job := jt.Create(context.Background(), urls)
 	t.Cleanup(func() {
 		job.CloseEvents()
 	})

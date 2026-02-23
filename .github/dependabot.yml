@@ -17,7 +17,7 @@ updates:
       interval: "daily"
 
   # Enable version updates for Docker
-  - package-ecosystem: "go-mod"
+  - package-ecosystem: "gomod"
     # Look for a `Dockerfile` in the `root` directory
     directory: "/"
     # Check for updates once a week

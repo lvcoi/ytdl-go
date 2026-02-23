@@ -1,326 +1,795 @@
-import { createSignal, createMemo, For, Show } from 'solid-js';
+import { createMemo, lazy, Suspense, createSignal, For, Show, onMount, createEffect, onCleanup } from 'solid-js';
+import { useNavigate, useSearchParams } from '@solidjs/router';
 import { useAppStore } from '../store/appStore';
+import { useLibraryModel } from '../hooks/useLibraryModel';
+import { usePlayerController } from '../hooks/usePlayerController';
+import { useDownloadManager } from '../hooks/useDownloadManager';
+import { useDashboardDnD } from '../hooks/useDashboardDnD';
+import ActiveDownloads from './ActiveDownloads';
+import { Grid, GridItem } from './Grid';
+import WelcomeWidget from './dashboard/WelcomeWidget';
+import StatsWidget from './dashboard/StatsWidget';
+import RecentActivityWidget from './dashboard/RecentActivityWidget';
 import Icon from './Icon';
-import WidgetContainer from './widgets/WidgetContainer';
-import QuickDownloadWidget from './widgets/QuickDownloadWidget';
-import RecentDownloadsWidget from './widgets/RecentDownloadsWidget';
-import SystemStatsWidget from './widgets/SystemStatsWidget';
-import StorageWidget from './widgets/StorageWidget';
+import ConcurrencyWidget from './ConcurrencyWidget';
+import { 
+    WIDGET_REGISTRY, 
+    DEFAULT_LAYOUT_WIDGETS, 
+    GRID_COLS,
+    GRID_GAP_PX
+} from './dashboard/widgetRegistry';
+import { resolveCollisions, compactLayout, findOpenPosition } from './dashboard/gridCollision';
+import WidgetDrawer from './dashboard/WidgetDrawer';
+import LayoutPresets from './dashboard/LayoutPresets';
 
-const ROW_HEIGHT = 80;
-const GAP = 8;
-const COLS = 12;
-const MIN_COL_SPAN = 2;
-const MIN_ROW_SPAN = 1;
+const QuickDownload = lazy(() => import('./QuickDownload'));
 
-const WIDGET_CATALOG = [
-  { type: 'quick-download', label: 'Quick Download', icon: 'download', description: 'Paste a URL and start downloading', defaultColSpan: 4, defaultRowSpan: 2 },
-  { type: 'recent-downloads', label: 'Recent Downloads', icon: 'clock', description: 'See your most recent media', defaultColSpan: 6, defaultRowSpan: 3 },
-  { type: 'system-stats', label: 'System Stats', icon: 'bar-chart', description: 'Active and completed downloads', defaultColSpan: 4, defaultRowSpan: 2 },
-  { type: 'storage', label: 'Storage', icon: 'hard-drive', description: 'Media library statistics', defaultColSpan: 4, defaultRowSpan: 2 },
-];
+const DASHBOARD_LAYOUT_KEY_V3 = 'ytdl-go:dashboard-layout:v3';
+const DASHBOARD_LAYOUT_LEGACY_KEY_V2 = 'ytdl-go:dashboard-layout:v2';
+const DASHBOARD_LAYOUT_LEGACY_KEY_V1 = 'ytdl-go:dashboard-layout:v1';
 
-function renderWidget(type, rowSpan, colSpan) {
-  switch (type) {
-    case 'quick-download': return <QuickDownloadWidget rowSpan={rowSpan} colSpan={colSpan} />;
-    case 'recent-downloads': return <RecentDownloadsWidget rowSpan={rowSpan} colSpan={colSpan} />;
-    case 'system-stats': return <SystemStatsWidget rowSpan={rowSpan} colSpan={colSpan} />;
-    case 'storage': return <StorageWidget rowSpan={rowSpan} colSpan={colSpan} />;
-    default: return <div class="text-gray-500 text-sm">Unknown widget</div>;
-  }
-}
+export default function DashboardView(props) {
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { state } = useAppStore();
+    const libraryModelHook = useLibraryModel();
+    const { openPlayer } = usePlayerController();
+    const { startDownload } = useDownloadManager();
 
-export default function DashboardView() {
-  const { state, setState } = useAppStore();
-  const [isEditing, setIsEditing] = createSignal(false);
-  const [showDrawer, setShowDrawer] = createSignal(false);
-  const [dragging, setDragging] = createSignal(null);
-  const [resizing, setResizing] = createSignal(null);
-  const [dragPreview, setDragPreview] = createSignal(null);
-  const [resizePreview, setResizePreview] = createSignal(null);
-
-  let gridRef;
-
-  const widgets = createMemo(() => state.dashboard?.widgets || []);
-
-  const setWidgets = (updater) => {
-    setState('dashboard', 'widgets', updater);
-  };
-
-  const getCellDimensions = () => {
-    if (!gridRef) return { cellW: 0, cellH: ROW_HEIGHT + GAP };
-    const rect = gridRef.getBoundingClientRect();
-    const totalGapWidth = GAP * (COLS - 1);
-    const cellW = (rect.width - totalGapWidth) / COLS;
-    const cellH = ROW_HEIGHT + GAP;
-    return { cellW, cellH, rect };
-  };
-
-  const getGridCell = (mouseX, mouseY) => {
-    const { cellW, cellH, rect } = getCellDimensions();
-    if (!rect || cellW <= 0) return { col: 1, row: 1 };
-    const relX = mouseX - rect.left;
-    const relY = mouseY - rect.top;
-    const col = Math.max(1, Math.min(COLS, Math.floor(relX / (cellW + GAP)) + 1));
-    const row = Math.max(1, Math.floor(relY / cellH) + 1);
-    return { col, row };
-  };
-
-  const handleGridMouseMove = (e) => {
-    const drag = dragging();
-    const resize = resizing();
-
-    if (drag) {
-      const { col, row } = getGridCell(e.clientX, e.clientY);
-      const widget = widgets().find(w => w.id === drag.widgetId);
-      if (!widget) return;
-      const newCol = Math.max(1, Math.min(COLS - widget.colSpan + 1, col));
-      const newRow = Math.max(1, row);
-      setDragPreview({ col: newCol, row: newRow });
-    }
-
-    if (resize) {
-      const widget = widgets().find(w => w.id === resize.widgetId);
-      if (!widget) return;
-      const { cellW, cellH, rect } = getCellDimensions();
-      if (!rect || cellW <= 0) return;
-      const dx = e.clientX - resize.startMouseX;
-      const dy = e.clientY - resize.startMouseY;
-      const dCols = Math.round(dx / (cellW + GAP));
-      const dRows = Math.round(dy / cellH);
-      const newColSpan = Math.max(MIN_COL_SPAN, Math.min(COLS - widget.col + 1, resize.startColSpan + dCols));
-      const newRowSpan = Math.max(MIN_ROW_SPAN, resize.startRowSpan + dRows);
-      setResizePreview({ colSpan: newColSpan, rowSpan: newRowSpan });
-    }
-  };
-
-  const handleGridMouseUp = () => {
-    const drag = dragging();
-    const resize = resizing();
-
-    if (drag) {
-      const preview = dragPreview();
-      if (preview) {
-        setWidgets((prev) =>
-          prev.map(w => w.id === drag.widgetId ? { ...w, col: preview.col, row: preview.row } : w)
-        );
-      }
-      setDragging(null);
-      setDragPreview(null);
-    }
-
-    if (resize) {
-      const preview = resizePreview();
-      if (preview) {
-        setWidgets((prev) =>
-          prev.map(w => w.id === resize.widgetId ? { ...w, colSpan: preview.colSpan, rowSpan: preview.rowSpan } : w)
-        );
-      }
-      setResizing(null);
-      setResizePreview(null);
-    }
-  };
-
-  const handleDragStart = (e, widgetId) => {
-    const widget = widgets().find(w => w.id === widgetId);
-    if (!widget) return;
-    setDragging({
-      widgetId,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startCol: widget.col,
-      startRow: widget.row,
-    });
-    setDragPreview({ col: widget.col, row: widget.row });
-  };
-
-  const handleResizeStart = (e, widgetId) => {
-    const widget = widgets().find(w => w.id === widgetId);
-    if (!widget) return;
-    setResizing({
-      widgetId,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startColSpan: widget.colSpan,
-      startRowSpan: widget.rowSpan,
-    });
-    setResizePreview({ colSpan: widget.colSpan, rowSpan: widget.rowSpan });
-  };
-
-  const addWidget = (catalogItem) => {
-    const hasCrypto = typeof globalThis !== 'undefined' && globalThis.crypto;
-    const uuid = (hasCrypto && typeof globalThis.crypto.randomUUID === 'function')
-      ? globalThis.crypto.randomUUID()
-      : (hasCrypto
-        ? `${catalogItem.type}-${Date.now()}-${globalThis.crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`
-        : `${catalogItem.type}-${Date.now()}`);
-    const id = `${catalogItem.type}-${uuid}`;
-    const newWidget = {
-      id,
-      type: catalogItem.type,
-      col: 1,
-      row: 1,
-      colSpan: catalogItem.defaultColSpan,
-      rowSpan: catalogItem.defaultRowSpan,
+    // Derived state for edit mode from URL
+    const isEditMode = () => searchParams.edit === 'true';
+    const setIsEditMode = (enabled) => {
+        setSearchParams({ edit: enabled ? 'true' : undefined });
     };
-    setWidgets((prev) => [...prev, newWidget]);
-    setShowDrawer(false);
-  };
 
-  const getEffectiveWidget = (widget) => {
-    const drag = dragging();
-    const resize = resizing();
-    let result = { ...widget };
+    const libraryModel = createMemo(() => {
+        if (props.libraryModel) {
+            return typeof props.libraryModel === 'function' ? props.libraryModel() : props.libraryModel;
+        }
+        return libraryModelHook();
+    });
 
-    if (drag && drag.widgetId === widget.id) {
-      const preview = dragPreview();
-      if (preview) {
-        result = { ...result, col: preview.col, row: preview.row };
-      }
-    }
-    if (resize && resize.widgetId === widget.id) {
-      const preview = resizePreview();
-      if (preview) {
-        result = { ...result, colSpan: preview.colSpan, rowSpan: preview.rowSpan };
-      }
-    }
-    return result;
-  };
+    const handleTabChange = (tab) => {
+        if (props.onTabChange) {
+            props.onTabChange(tab);
+            return;
+        }
+        const routes = {
+            'dashboard': '/',
+            'download': '/download',
+            'library': '/library',
+            'settings': '/settings'
+        };
+        if (routes[tab]) navigate(routes[tab]);
+    };
 
-  return (
-    <div class="relative w-full min-h-full">
-      {/* Toolbar */}
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
-          <h1 class="text-xl font-bold text-white">Dashboard</h1>
-          <Show when={isEditing()}>
-            <span class="px-2 py-0.5 bg-orange-500/15 text-orange-400 text-xs font-bold rounded-full border border-orange-500/20">
-              Editing
-            </span>
-          </Show>
-        </div>
-        <div class="flex items-center gap-2">
-          <Show when={isEditing()}>
-            <button
-              onClick={() => setShowDrawer(v => !v)}
-              class="flex items-center gap-2 px-3 py-2 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 text-sm font-semibold rounded-xl border border-blue-500/20 transition-all"
-            >
-              <Icon name="plus" class="w-4 h-4" />
-              Add Widget
-            </button>
-          </Show>
-          <button
-            onClick={() => {
-              const wasEditing = isEditing();
-              setIsEditing(v => !v);
-              if (wasEditing) {
-                setShowDrawer(false);
-                setDragging(null);
-                setResizing(null);
-                setDragPreview(null);
-                setResizePreview(null);
-              }
-            }}
-            class={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl border transition-all ${
-              isEditing()
-                ? 'bg-green-600/15 hover:bg-green-600/25 text-green-400 border-green-500/20'
-                : 'bg-white/5 hover:bg-white/10 text-gray-400 border-white/10'
-            }`}
-          >
-            <Icon name={isEditing() ? 'check' : 'edit-2'} class="w-4 h-4" />
-            {isEditing() ? 'Done' : 'Edit'}
-          </button>
-        </div>
-      </div>
+    const handleDownload = (url) => {
+        if (props.onDownload) {
+            props.onDownload(url);
+        } else {
+            startDownload(url);
+        }
+    };
 
-      {/* Grid area */}
-      <div class="relative">
-        {/* Edit mode grid overlay */}
-        <Show when={isEditing()}>
-          <div
-            class="absolute inset-0 pointer-events-none z-0 rounded-xl overflow-hidden"
-            style={{
-              'background-image': 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-              'background-size': `calc((100% + ${GAP}px) / ${COLS}) ${ROW_HEIGHT + GAP}px`,
-              'background-position': '0 0',
-            }}
-          />
-        </Show>
+    const handlePlay = (item) => {
+        if (props.onPlay) {
+            props.onPlay(item);
+        } else {
+            // Default to playing from all downloads if no specific queue provided via props
+            openPlayer(item, state.library.downloads);
+        }
+    };
 
-        {/* Main grid */}
-        <div
-          ref={gridRef}
-          class="relative"
-          style={{
-            display: 'grid',
-            'grid-template-columns': `repeat(${COLS}, 1fr)`,
-            'grid-auto-rows': `${ROW_HEIGHT}px`,
-            gap: `${GAP}px`,
-            'min-height': `${ROW_HEIGHT * 7 + GAP * 6}px`,
-            cursor: dragging() ? 'grabbing' : 'default',
-          }}
-          onMouseMove={handleGridMouseMove}
-          onMouseUp={handleGridMouseUp}
-          onMouseLeave={handleGridMouseUp}
-        >
-          <For each={widgets()}>
-            {(widget) => {
-              const effective = () => getEffectiveWidget(widget);
-              const isDraggingThis = () => dragging()?.widgetId === widget.id;
-              const isResizingThis = () => resizing()?.widgetId === widget.id;
+    const [hasLoaded, setHasLoaded] = createSignal(false);
+    const [isDrawerOpen, setIsDrawerOpen] = createSignal(false);
+    const [widgets, setWidgets] = createSignal([...DEFAULT_LAYOUT_WIDGETS]);
+    const [layoutState, setLayoutState] = createSignal({
+        version: 3,
+        activeLayoutId: 'default',
+        layouts: {
+            'default': { id: 'default', name: 'Default', widgets: [...DEFAULT_LAYOUT_WIDGETS], isFactory: true }
+        }
+    });
+    const [cellSize, setCellSize] = createSignal({ width: 0, height: 0, trackWidth: 0 });
+    
+    // Undo/Redo Stacks
+    const [undoStack, setUndoStack] = createSignal([]);
+    const [redoStack, setRedoStack] = createSignal([]);
 
-              return (
-                <WidgetContainer
-                  widget={effective()}
-                  isEditing={isEditing()}
-                  isDragging={isDraggingThis()}
-                  isResizing={isResizingThis()}
-                  onDragStart={handleDragStart}
-                  onResizeStart={handleResizeStart}
-                >
-                  {renderWidget(widget.type, effective().rowSpan, effective().colSpan)}
-                </WidgetContainer>
-              );
-            }}
-          </For>
-        </div>
-      </div>
+    const pushUndo = (currentWidgets) => {
+        const stack = undoStack();
+        const trimmed = stack.length >= 50 ? stack.slice(1) : stack;
+        setUndoStack([...trimmed, structuredClone(currentWidgets)]);
+        setRedoStack([]);
+    };
 
-      {/* Widget Drawer */}
-      <Show when={showDrawer() && isEditing()}>
-        <div
-          class="fixed inset-y-0 right-0 w-72 bg-[#0a0c14] border-l border-white/10 z-50 flex flex-col shadow-2xl"
-          style={{ top: 0, bottom: 0 }}
-        >
-          <div class="flex items-center justify-between px-5 py-4 border-b border-white/10">
-            <span class="font-bold text-white text-sm">Add Widget</span>
-            <button
-              onClick={() => setShowDrawer(false)}
-              class="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              <Icon name="x" class="w-4 h-4" />
-            </button>
-          </div>
-          <div class="flex-1 overflow-y-auto p-4 space-y-3">
-            <For each={WIDGET_CATALOG}>
-              {(item) => (
-                <button
-                  onClick={() => addWidget(item)}
-                  class="w-full text-left p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
-                >
-                  <div class="flex items-center gap-3 mb-1">
-                    <div class="w-8 h-8 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                      <Icon name={item.icon} class="w-4 h-4 text-blue-400" />
+    const undo = () => {
+        const stack = undoStack();
+        if (stack.length === 0) return;
+        
+        const previous = stack[stack.length - 1];
+        const newStack = stack.slice(0, -1);
+        
+        setRedoStack([...redoStack(), structuredClone(widgets())]);
+        setUndoStack(newStack);
+        setWidgets(previous);
+    };
+
+    const redo = () => {
+        const stack = redoStack();
+        if (stack.length === 0) return;
+        
+        const next = stack[stack.length - 1];
+        const newStack = stack.slice(0, -1);
+        
+        setUndoStack([...undoStack(), structuredClone(widgets())]);
+        setRedoStack(newStack);
+        setWidgets(next);
+    };
+
+    // Keyboard shortcuts
+    onMount(() => {
+        const handleKeyDown = (e) => {
+            if (!isEditMode()) return;
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    redo();
+                } else {
+                    undo();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
+    });
+
+    // We wrap gridRef in an object so we can pass it by reference to the hook.
+    // gridRefContainer.current is populated by the Grid ref callback after mount.
+    const gridRefContainer = { current: null };
+
+    // Use Custom Hook for Drag and Drop
+    const {
+        dragState,
+        resizeState,
+        ghostPos,
+        handleDragStart,
+        handleResizeStart
+    } = useDashboardDnD({
+        isEditMode,
+        widgets,
+        setWidgets,
+        cellSize,
+        gridRef: gridRefContainer,
+        onPushUndo: pushUndo
+    });
+
+    // Measure grid on resize — compute square cell dimensions
+    onMount(() => {
+        const el = gridRefContainer.current;
+        if (!el) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const containerWidth = entry.contentRect.width;
+                // Track width = actual cell width (excluding gaps)
+                const trackWidth = (containerWidth - (GRID_COLS - 1) * GRID_GAP_PX) / GRID_COLS;
+                // Tile size = track + gap, used for drag/resize snapping
+                const tileSize = trackWidth + GRID_GAP_PX;
+                setCellSize({ width: tileSize, height: tileSize, trackWidth: Math.round(trackWidth) });
+            }
+        });
+        observer.observe(el);
+        onCleanup(() => observer.disconnect());
+    });
+
+    // Helper function to migrate legacy positions (v1/v2 4-col -> v3 16-col)
+    const migratePositions = (legacyWidgets) => {
+        const cols = 4;
+        let cursorX = 0;
+        let cursorY = 0;
+        
+        // First pass: resolve 4-col positions if they don't exist
+        const resolved4Col = legacyWidgets.map((widget) => {
+            // If x/y exist (v2), keep them. If not (v1), compute flow layout.
+            let x = widget.x;
+            let y = widget.y;
+            const span = widget.span || widget.width || 1;
+            
+            if (x === undefined || y === undefined) {
+                if (cursorX + span > cols) {
+                    cursorX = 0;
+                    cursorY += 2;
+                }
+                x = cursorX;
+                y = cursorY;
+                
+                cursorX += span;
+                if (cursorX >= cols) {
+                    cursorX = 0;
+                    cursorY += 2;
+                }
+            }
+            
+            return { ...widget, x, y, span };
+        });
+
+        // Second pass: convert to 16-col
+        return resolved4Col.map(widget => ({
+            id: widget.id,
+            enabled: widget.enabled !== false,
+            // 4-col -> 16-col: multiply X and Width by 4
+            x: widget.x * 4,
+            y: widget.y, // Rows stay same height (roughly) or mapped 1:1 if row height matches
+            width: (widget.span || 1) * 4,
+            height: widget.height || 2 // Default height from v2 was usually 2
+        }));
+    };
+
+    // Load layout from localStorage with migration support
+    onMount(() => {
+        if (typeof localStorage === 'undefined' || typeof localStorage.getItem !== 'function') return;
+        
+        // Try v3 format first
+        let saved = localStorage.getItem(DASHBOARD_LAYOUT_KEY_V3);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                // Basic validation for v3 structure
+                if (Array.isArray(parsed) || (parsed.version === 3 && Array.isArray(parsed.layouts?.default?.widgets))) {
+                    const loadedWidgets = Array.isArray(parsed) ? parsed : parsed.layouts[parsed.activeLayoutId || 'default'].widgets;
+                    // Validate every widget has required numeric grid fields
+                    const isValid = loadedWidgets.every(w =>
+                        w.id && typeof w.x === 'number' && typeof w.y === 'number' &&
+                        typeof w.width === 'number' && w.width > 0 &&
+                        typeof w.height === 'number' && w.height > 0
+                    );
+                    if (isValid) {
+                        setWidgets(compactLayout(loadedWidgets));
+                        setHasLoaded(true);
+                        return;
+                    }
+                    console.warn('Invalid v3 layout data — missing grid fields, using defaults');
+                }
+            } catch (e) {
+                console.warn('Failed to load v3 dashboard layout:', e);
+            }
+        }
+        
+        // Fallback to legacy formats and migrate
+        saved = localStorage.getItem(DASHBOARD_LAYOUT_LEGACY_KEY_V2) || localStorage.getItem(DASHBOARD_LAYOUT_LEGACY_KEY_V1);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    // Migrate legacy format to new format
+                    const migrated = migratePositions(parsed);
+                    setWidgets(migrated);
+                    // Save in new format
+                    const v3Data = {
+                        version: 3,
+                        activeLayoutId: 'default',
+                        layouts: {
+                            'default': { name: 'Default', widgets: migrated, isFactory: false }
+                        }
+                    };
+                    // For now, just save array to keep simple until full preset support
+                    localStorage.setItem(DASHBOARD_LAYOUT_KEY_V3, JSON.stringify(migrated));
+                }
+            } catch (e) {
+                console.warn('Failed to load legacy dashboard layout:', e);
+            }
+        }
+        
+        setHasLoaded(true);
+    });
+
+    // Auto-save layout changes
+    let skipNextSave = true;
+    createEffect(() => {
+        const w = widgets();
+        const loaded = hasLoaded();
+        if (!loaded) return;
+        if (skipNextSave) {
+            skipNextSave = false;
+            return;
+        }
+        if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
+            localStorage.setItem(DASHBOARD_LAYOUT_KEY_V3, JSON.stringify(w));
+        }
+    });
+
+    // Layout Management Functions
+    const handleSaveLayout = (name) => {
+        const id = crypto.randomUUID();
+        const newLayout = { id, name, widgets: structuredClone(widgets()), isFactory: false };
+        
+        setLayoutState(prev => ({
+            ...prev,
+            activeLayoutId: id,
+            layouts: { ...prev.layouts, [id]: newLayout }
+        }));
+        setWidgets(newLayout.widgets);
+    };
+
+    const handleLoadLayout = (id) => {
+        const layout = layoutState().layouts[id];
+        if (layout) {
+            pushUndo(widgets());
+            setLayoutState(prev => ({ ...prev, activeLayoutId: id }));
+            setWidgets(structuredClone(layout.widgets));
+        }
+    };
+
+    const handleDeleteLayout = (id) => {
+        if (id === 'default') return; // Cannot delete default
+        
+        const state = layoutState();
+        const newLayouts = { ...state.layouts };
+        delete newLayouts[id];
+        
+        let newActiveId = state.activeLayoutId;
+        if (state.activeLayoutId === id) {
+            newActiveId = 'default';
+            setWidgets(structuredClone(newLayouts['default'].widgets));
+        }
+        
+        setLayoutState(prev => ({
+            ...prev,
+            activeLayoutId: newActiveId,
+            layouts: newLayouts
+        }));
+    };
+
+    const handleSetPrimary = (id) => {
+        setLayoutState(prev => {
+            const newLayouts = {};
+            for (const key in prev.layouts) {
+                newLayouts[key] = { ...prev.layouts[key], isPrimary: key === id };
+            }
+            return { ...prev, layouts: newLayouts };
+        });
+    };
+
+    const stats = createMemo(() => {
+        const model = libraryModel();
+        return {
+            totalItems: model?.items?.length || 0,
+            totalCreators: (model?.artists?.length || 0) + (model?.videos?.length || 0) + (model?.podcasts?.length || 0),
+            recentItems: model?.items?.slice(0, 4) || [], // Latest 4 items
+        };
+    });
+
+    const handleQuickDownload = (url) => {
+        if (props.onDownload) {
+            props.onDownload(url);
+        } else {
+            startDownload(url);
+        }
+    };
+
+    const handleAddWidget = (id) => {
+        pushUndo(widgets());
+        
+        const template = WIDGET_REGISTRY[id];
+        const existing = widgets().find(w => w.id === id);
+        
+        if (existing) {
+            // Re-enable existing and resolve any collisions
+            const reEnabled = { ...existing, enabled: true };
+            const withEnabled = widgets().map(w => w.id === id ? reEnabled : w);
+            const resolved = resolveCollisions(withEnabled, reEnabled);
+            setWidgets(compactLayout(resolved));
+        } else {
+            // Find non-overlapping spot for new widget
+            const enabledWidgets = widgets().filter(w => w.enabled);
+            const pos = findOpenPosition(enabledWidgets, template.defaultW, template.defaultH, GRID_COLS);
+            const newWidget = {
+                id,
+                enabled: true,
+                x: pos.x,
+                y: pos.y,
+                width: template.defaultW,
+                height: template.defaultH
+            };
+            const withNew = [...widgets(), newWidget];
+            const resolved = resolveCollisions(withNew, newWidget);
+            setWidgets(compactLayout(resolved));
+        }
+    };
+
+    const handleRemoveWidget = (id) => {
+        pushUndo(widgets());
+        setWidgets(prev => prev.map(w => w.id === id ? { ...w, enabled: false } : w));
+    };
+
+    const resetLayout = () => {
+        pushUndo(widgets());
+        setWidgets([...DEFAULT_LAYOUT_WIDGETS]);
+    };
+
+    // Drag functionality
+    const handleDragStart = (widgetId, e) => {
+        if (!isEditMode()) return;
+        
+        const widget = widgets().find(w => w.id === widgetId);
+        if (!widget) return;
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'grabbing';
+
+        setDragState({
+            isDragging: true,
+            widgetId,
+            startX: e.clientX,
+            startY: e.clientY,
+            originalX: widget.x,
+            originalY: widget.y,
+            currentX: widget.x,
+            currentY: widget.y
+        });
+
+        e.preventDefault();
+    };
+
+    const handleDragMove = (e) => {
+        const drag = dragState();
+        if (!drag.isDragging) return;
+
+        const cellWidthPx = cellSize().width || (window.innerWidth / GRID_COLS);
+        const cellHeightPx = cellSize().height || (GRID_ROW_HEIGHT_PX + GRID_GAP_PX);
+
+        const deltaX = Math.round((e.clientX - drag.startX) / cellWidthPx);
+        const deltaY = Math.round((e.clientY - drag.startY) / cellHeightPx);
+
+        const widget = widgets().find(w => w.id === drag.widgetId);
+        const widgetWidth = widget?.width || 1;
+        const newX = Math.max(0, Math.min(GRID_COLS - widgetWidth, drag.originalX + deltaX));
+        const newY = Math.max(0, drag.originalY + deltaY);
+
+        setDragState(prev => ({
+            ...prev,
+            currentX: newX,
+            currentY: newY
+        }));
+    };
+
+    const handleDragEnd = () => {
+        const drag = dragState();
+        if (!drag.isDragging) return;
+
+        setWidgets(prev => prev.map(w => 
+            w.id === drag.widgetId 
+                ? { ...w, x: drag.currentX, y: drag.currentY }
+                : w
+        ));
+
+        setDragState({
+            isDragging: false,
+            widgetId: null,
+            startX: 0,
+            startY: 0,
+            originalX: 0,
+            originalY: 0,
+            currentX: 0,
+            currentY: 0
+        });
+
+        if (!resizeState().isResizing) {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        }
+    };
+
+    // Resize functionality
+    const handleResizeStart = (widgetId, direction, e) => {
+        if (!isEditMode()) return;
+        
+        const widget = widgets().find(w => w.id === widgetId);
+        if (!widget) return;
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = getResizeCssCursor(direction);
+
+        setResizeState({
+            isResizing: true,
+            widgetId,
+            direction,
+            startX: e.clientX,
+            startY: e.clientY,
+            originalWidth: widget.width,
+            originalHeight: widget.height,
+            originalX: widget.x,
+            originalY: widget.y,
+            currentWidth: widget.width,
+            currentHeight: widget.height,
+            currentX: widget.x,
+            currentY: widget.y
+        });
+
+        e.preventDefault();
+    };
+
+    const handleResizeMove = (e) => {
+        const resize = resizeState();
+        if (!resize.isResizing) return;
+
+        const cellWidthPx = cellSize().width || (window.innerWidth / GRID_COLS);
+        const cellHeightPx = cellSize().height || (GRID_ROW_HEIGHT_PX + GRID_GAP_PX);
+
+        const deltaX = Math.round((e.clientX - resize.startX) / cellWidthPx);
+        const deltaY = Math.round((e.clientY - resize.startY) / cellHeightPx);
+
+        let newWidth = resize.originalWidth;
+        let newHeight = resize.originalHeight;
+        let newX = resize.originalX;
+        let newY = resize.originalY;
+
+        // Handle different resize directions
+        if (resize.direction.includes('e')) {
+            newWidth = Math.max(1, Math.min(GRID_COLS - resize.originalX, resize.originalWidth + deltaX));
+        }
+        if (resize.direction.includes('w')) {
+            newWidth = Math.max(1, Math.min(resize.originalX + resize.originalWidth, resize.originalWidth - deltaX));
+            newX = resize.originalX + resize.originalWidth - newWidth;
+        }
+        if (resize.direction.includes('s')) {
+            newHeight = Math.max(1, resize.originalHeight + deltaY);
+        }
+        if (resize.direction.includes('n')) {
+            newHeight = Math.max(1, resize.originalHeight - deltaY);
+            newY = resize.originalY + resize.originalHeight - newHeight;
+        }
+
+        setResizeState(prev => ({
+            ...prev,
+            currentWidth: newWidth,
+            currentHeight: newHeight,
+            currentX: newX,
+            currentY: newY
+        }));
+    };
+
+    const handleResizeEnd = () => {
+        const resize = resizeState();
+        if (!resize.isResizing) return;
+
+        setWidgets(prev => prev.map(w => 
+            w.id === resize.widgetId 
+                ? { 
+                    ...w, 
+                    width: resize.currentWidth, 
+                    height: resize.currentHeight,
+                    x: resize.currentX,
+                    y: resize.currentY
+                }
+                : w
+        ));
+
+        setResizeState({
+            isResizing: false,
+            widgetId: null,
+            direction: null,
+            startX: 0,
+            startY: 0,
+            originalWidth: 0,
+            originalHeight: 0,
+            originalX: 0,
+            originalY: 0,
+            currentWidth: 0,
+            currentHeight: 0,
+            currentX: 0,
+            currentY: 0
+        });
+
+        if (!dragState().isDragging) {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        }
+    };
+
+    // Global mouse event handlers
+    const handleMouseMove = (e) => {
+        handleDragMove(e);
+        handleResizeMove(e);
+    };
+
+    const handleMouseUp = () => {
+        handleDragEnd();
+        handleResizeEnd();
+    };
+
+    // Helper to map resize direction to CSS cursor
+    const getResizeCssCursor = (direction) => {
+        const map = {
+            'n': 'ns-resize', 's': 'ns-resize',
+            'e': 'ew-resize', 'w': 'ew-resize',
+            'ne': 'nesw-resize', 'sw': 'nesw-resize',
+            'nw': 'nwse-resize', 'se': 'nwse-resize'
+        };
+        return map[direction] || 'nwse-resize';
+    };
+
+    // Component cleanup
+    onCleanup(() => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+    });
+
+    const renderWidget = (widget) => {
+        switch (widget.id) {
+            case 'welcome':
+                return <WelcomeWidget stats={stats()} />;
+            case 'quick-download':
+                return (
+                    <Suspense fallback={<div class="rounded-[2rem] border border-dashed border-white/10 bg-black/20 p-6 h-[148px] animate-pulse" />}>
+                        <QuickDownload onDownload={handleQuickDownload} />
+                    </Suspense>
+                );
+            case 'active-downloads':
+                return <div class="h-full"><ActiveDownloads /></div>;
+            case 'recent-activity':
+                return <RecentActivityWidget stats={stats()} onPlay={props.onPlay} />;
+            case 'stats':
+                return <StatsWidget stats={stats()} />;
+            case 'concurrency':
+                return <ConcurrencyWidget />;
+            default:
+                return null;
+        }
+    };
+
+    // Calculate total rows needed
+    const totalRows = createMemo(() => {
+        let maxRow = 0;
+        widgets().forEach(w => {
+            if (w.enabled) {
+                maxRow = Math.max(maxRow, w.y + w.height);
+            }
+        });
+        return Math.max(maxRow, 6); // Min 6 rows
+    });
+
+    return (
+        <>
+        <div class="transition-smooth animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+            <div class="flex items-center justify-between px-2">
+                <div class="flex items-center gap-2">
+                    <div class={`w-2 h-2 rounded-full ${isEditMode() ? 'bg-amber-500 animate-pulse' : 'bg-accent-primary'}`} />
+                    <span class="text-xs font-black uppercase tracking-widest text-gray-500">
+                        {isEditMode() ? 'Dashboard: Edit Mode' : 'Dashboard'}
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Show when={isEditMode()}>
+                        <button
+                            onClick={resetLayout}
+                            class="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all text-xs font-bold"
+                        >
+                            <Icon name="refresh-cw" class="w-3.5 h-3.5" />
+                            Reset
+                        </button>
+                        <div class="h-4 w-px bg-white/10 mx-1" />
+                        <button
+                            onClick={undo}
+                            disabled={undoStack().length === 0}
+                            class="p-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            title="Undo (Ctrl+Z)"
+                            aria-label="Undo"
+                        >
+                            <Icon name="rotate-ccw" class="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={redo}
+                            disabled={redoStack().length === 0}
+                            class="p-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            title="Redo (Ctrl+Shift+Z)"
+                            aria-label="Redo"
+                        >
+                            <Icon name="rotate-cw" class="w-3.5 h-3.5" />
+                        </button>
+                        <div class="h-4 w-px bg-white/10 mx-1" />
+                        <LayoutPresets 
+                            activeLayoutId={layoutState().activeLayoutId}
+                            activeLayoutName={layoutState().layouts[layoutState().activeLayoutId]?.name}
+                            layouts={Object.values(layoutState().layouts)}
+                            onSave={handleSaveLayout}
+                            onLoad={handleLoadLayout}
+                            onDelete={handleDeleteLayout}
+                            onSetPrimary={handleSetPrimary}
+                        />
+                        <div class="h-4 w-px bg-white/10 mx-1" />
+                        <button
+                            onClick={() => setIsDrawerOpen(!isDrawerOpen())}
+                            class={`p-2 rounded-xl border transition-all ${isDrawerOpen()
+                                ? 'bg-accent-primary/20 border-accent-primary/30 text-accent-primary'
+                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                            title="Add Widgets"
+                            aria-label="Add Widgets"
+                            aria-expanded={isDrawerOpen()}
+                        >
+                            <Icon name="plus" class="w-3.5 h-3.5" />
+                        </button>
+                    </Show>
+                    <button
+                        onClick={() => setIsEditMode(!isEditMode())}
+                        class={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 text-xs font-bold ${isEditMode()
+                            ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                            }`}
+                    >
+                        <Icon name={isEditMode() ? 'check' : 'pencil'} class="w-3.5 h-3.5" />
+                        {isEditMode() ? 'Done' : 'Edit Layout'}
+                    </button>
+                    <div class="relative group">
+                        <button
+                            class="p-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all"
+                            title="Dashboard Settings Info"
+                            aria-label="Dashboard settings info"
+                        >
+                            <Icon name="info" class="w-3.5 h-3.5" />
+                        </button>
+                        <div class="absolute right-0 top-full mt-2 w-80 p-4 rounded-xl bg-[#0b111a] border border-white/10 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <h3 class="text-sm font-bold text-white mb-2">Default Settings</h3>
+                            <p class="text-xs text-gray-400 leading-relaxed">
+                                Downloads use your default settings. Go to the <span class="text-accent-primary">Download</span> tab for more options.
+                            </p>
+                        </div>
                     </div>
-                    <span class="text-sm font-semibold text-white">{item.label}</span>
-                  </div>
-                  <p class="text-xs text-gray-500 ml-11">{item.description}</p>
-                </button>
-              )}
-            </For>
-          </div>
+                </div>
+            </div>
+
+            <Grid 
+                isEditMode={isEditMode()} 
+                totalRows={totalRows()} 
+                ghost={ghostPos()} 
+                rowHeight={cellSize().trackWidth}
+                ref={(el) => gridRefContainer.current = el}
+            >
+                <For each={widgets()}>
+                    {(widget) => (
+                        <Show when={widget.enabled}>
+                            <GridItem 
+                                x={widget.x}
+                                y={widget.y}
+                                width={widget.width}
+                                height={widget.height}
+                                widgetId={widget.id}
+                                isEditMode={isEditMode()}
+                                onResizeStart={handleResizeStart}
+                                onRemove={handleRemoveWidget}
+                                onMouseDown={(e) => handleDragStart(widget.id, e)}
+                                class={`relative group/widget transition-all duration-500 ${isEditMode() ? 'ring-2 ring-dashed ring-white/20 rounded-[2rem] cursor-move' : ''} ${dragState().isDragging && dragState().widgetId === widget.id ? 'opacity-0' : ''} ${resizeState().isResizing && resizeState().widgetId === widget.id ? 'opacity-0' : ''}`}
+                                style={{ 'z-index': 10 + widget.y * GRID_COLS + widget.x }}
+                            >
+                                {renderWidget(widget)}
+                            </GridItem>
+                        </Show>
+                    )}
+                </For>
+            </Grid>
+
         </div>
-      </Show>
-    </div>
-  );
+
+        {/* Task 7: Drawer rendered outside main div to avoid grid stacking context */}
+        <Show when={isEditMode()}>
+            <WidgetDrawer 
+                isOpen={isDrawerOpen()} 
+                onClose={() => setIsDrawerOpen(false)}
+                widgets={widgets()}
+                onAdd={handleAddWidget}
+                onRemove={handleRemoveWidget}
+            />
+        </Show>
+        </>
+    );
 }
