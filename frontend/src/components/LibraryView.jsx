@@ -1,7 +1,7 @@
 import { For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import Icon from './Icon';
 import Thumbnail from './Thumbnail';
-import { buildLibraryModel } from '../utils/libraryModel';
+import { normalizeLibrary, filterLibrary } from '../utils/libraryModel';
 
 const SECTION_OPTIONS = [
   { value: 'artists', label: 'Music' },
@@ -256,8 +256,8 @@ export default function LibraryView(props) {
   };
 
   const handleDismissMetadataBanner = () => {
-    if (typeof props.onDismissMetadataBanner === 'function') {
-      props.onDismissMetadataBanner();
+    if (typeof props.onUiStateChange === 'function') {
+      props.onUiStateChange('metadataBannerDismissed', true);
     }
   };
 
