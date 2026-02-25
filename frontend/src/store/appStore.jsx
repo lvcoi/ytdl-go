@@ -1,7 +1,7 @@
 import { createContext, createEffect, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
-const APP_STATE_STORAGE_KEY = 'ytdl-go:app-state:v1';
+const APP_STATE_STORAGE_KEY_PREFIX = 'ytdl-go:app-state:v1:';
 const VALID_TABS = new Set(['download', 'library', 'settings', 'dashboard']);
 const VALID_DUPLICATE_POLICIES = new Set(['prompt', 'overwrite', 'skip', 'rename']);
 const VALID_LIBRARY_SECTIONS = new Set(['artists', 'channels', 'playlists', 'all_media']);
@@ -54,6 +54,8 @@ const createDefaultState = () => ({
   ui: {
     activeTab: 'dashboard',
     isAdvanced: false,
+    isSidebarCollapsed: false,
+    activeAccount: 'Personal',
   },
   settings: { ...defaultSettings },
   library: {
@@ -103,6 +105,8 @@ const getPersistedState = (state) => ({
   ui: {
     activeTab: state.ui.activeTab,
     isAdvanced: state.ui.isAdvanced,
+    isSidebarCollapsed: state.ui.isSidebarCollapsed,
+    activeAccount: state.ui.activeAccount,
   },
   settings: {
     ...state.settings,
@@ -307,13 +311,14 @@ const sanitizeDashboardWidgets = (rawWidgets) => {
   return out.length > 0 ? out : null;
 };
 
-const readPersistedState = () => {
+const readPersistedState = (accountName = 'Personal') => {
   if (typeof window === 'undefined') {
     return null;
   }
 
   try {
-    const raw = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
+    const storageKey = `${APP_STATE_STORAGE_KEY_PREFIX}${accountName}`;
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       return null;
     }
@@ -327,11 +332,11 @@ const readPersistedState = () => {
   }
 };
 
-const getInitialState = () => {
+const getInitialState = (accountName = 'Personal') => {
   const baseState = createDefaultState();
-  const persisted = readPersistedState();
+  const persisted = readPersistedState(accountName);
   if (!persisted || typeof persisted !== 'object') {
-    return baseState;
+    return { ...baseState, ui: { ...baseState.ui, activeAccount: accountName } };
   }
 
   const activeTab = VALID_TABS.has(persisted?.ui?.activeTab)
@@ -340,6 +345,9 @@ const getInitialState = () => {
   const isAdvanced = typeof persisted?.ui?.isAdvanced === 'boolean'
     ? persisted.ui.isAdvanced
     : baseState.ui.isAdvanced;
+  const isSidebarCollapsed = typeof persisted?.ui?.isSidebarCollapsed === 'boolean'
+    ? persisted.ui.isSidebarCollapsed
+    : baseState.ui.isSidebarCollapsed;
 
   const persistedSettings = sanitizeSettings(persisted.settings);
   const persistedLibrary = sanitizeLibrary(persisted.library);
@@ -358,6 +366,8 @@ const getInitialState = () => {
     ui: {
       activeTab,
       isAdvanced,
+      isSidebarCollapsed,
+      activeAccount: accountName,
     },
     settings: {
       ...persistedSettings,
@@ -386,7 +396,7 @@ const getInitialState = () => {
 };
 
 export function AppStoreProvider(props) {
-  const [state, setState] = createStore(getInitialState());
+  const [state, setState] = createStore(getInitialState('Personal'));
   let hasLoggedStorageWriteError = false;
 
   createEffect(() => {
@@ -395,7 +405,8 @@ export function AppStoreProvider(props) {
     }
 
     try {
-      window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(getPersistedState(state)));
+      const storageKey = `${APP_STATE_STORAGE_KEY_PREFIX}${state.ui.activeAccount}`;
+      window.localStorage.setItem(storageKey, JSON.stringify(getPersistedState(state)));
       hasLoggedStorageWriteError = false;
     } catch (error) {
       if (!hasLoggedStorageWriteError) {
@@ -404,6 +415,16 @@ export function AppStoreProvider(props) {
       }
     }
   });
+
+  // Hydrate state automatically when the account is switched
+  createEffect((prevAccount) => {
+    const currentAccount = state.ui.activeAccount;
+    if (prevAccount && prevAccount !== currentAccount) {
+        const newState = getInitialState(currentAccount);
+        setState(newState);
+    }
+    return currentAccount;
+  }, state.ui.activeAccount);
 
   return (
     <AppStoreContext.Provider value={{ state, setState }}>

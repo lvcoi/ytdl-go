@@ -8,12 +8,14 @@ import {
   LayoutDashboard, LayoutGrid, Move, GripVertical, Grid3x3, Plus, Minus, Settings, Settings2, BarChart2, ChartNoAxesColumn, HardDrive, Clock, Download, Edit2, Pen, Check, CornerRightDown,
   RefreshCw, RotateCcw, RotateCw, History, Info, Key, Star, User,
   Image, Video, FileAudio, WifiOff, Maximize2, Pencil,
+  PanelLeftOpen, PanelLeftClose, Wifi, ChevronsUpDown, ArrowLeft,
+  ListPlus, ListMusic, CirclePlus,
 } from 'lucide-solid';
 
 const iconMap = {
   'zap': Zap,
   'plus-circle': PlusCircle,
-  'circle-plus': PlusCircle,
+  'circle-plus': CirclePlus,
   'layers': Layers,
   'sliders': Sliders,
   'sliders-vertical': SlidersVertical,
@@ -79,6 +81,13 @@ const iconMap = {
   'wifi-off': WifiOff,
   'maximize-2': Maximize2,
   'pencil': Pencil,
+  'panel-left-open': PanelLeftOpen,
+  'panel-left-close': PanelLeftClose,
+  'wifi': Wifi,
+  'chevrons-up-down': ChevronsUpDown,
+  'arrow-left': ArrowLeft,
+  'list-plus': ListPlus,
+  'list-music': ListMusic,
 };
 
 export default function Icon(props) {
