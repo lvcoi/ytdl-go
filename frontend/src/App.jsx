@@ -12,10 +12,13 @@ import { Download } from './routes/Download';
 import { Library } from './routes/Library';
 import { Settings } from './routes/Settings';
 
+// Lazy loaded contextual routes
+const NetworkSettings = lazy(() => import('./routes/NetworkSettings'));
+
 function App() {
   const { initialize: initializeSavedPlaylists } = useSavedPlaylists();
   useLibrarySync();
-  const { listenForProgress } = useDownloadManager(); // Ensure listeners are active
+  const { listenForProgress } = useDownloadManager();
 
   onMount(() => {
     void initializeSavedPlaylists();
@@ -27,7 +30,12 @@ function App() {
       <Route path="/" component={Dashboard} />
       <Route path="/download" component={Download} />
       <Route path="/library" component={Library} />
-      <Route path="/settings" component={Settings} />
+
+      {/* Nested Settings Routing Context */}
+      <Route path="/settings">
+        <Route path="/" component={Settings} />
+        <Route path="/network" component={NetworkSettings} />
+      </Route>
     </Router>
   );
 }

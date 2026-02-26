@@ -8,32 +8,32 @@ import (
 	"testing"
 )
 
-// TestMkDocsConfigExists verifies mkdocs.yml is present and contains required keys.
-func TestMkDocsConfigExists(t *testing.T) {
+// TestDocsConfigExists verifies zensical.toml is present and contains required keys.
+func TestDocsConfigExists(t *testing.T) {
 	root := findRepoRoot(t)
-	path := filepath.Join(root, "mkdocs.yml")
+	path := filepath.Join(root, "zensical.toml")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("mkdocs.yml not found: %v", err)
+		t.Fatalf("zensical.toml not found: %v", err)
 	}
 
 	content := string(data)
-	requiredKeys := []string{"site_name:", "theme:", "nav:", "plugins:"}
+	requiredKeys := []string{"[project]", "site_name =", "nav = [", "[project.theme]", "features = ["}
 	for _, key := range requiredKeys {
 		if !strings.Contains(content, key) {
-			t.Errorf("mkdocs.yml missing required key: %s", key)
+			t.Errorf("zensical.toml missing required key: %s", key)
 		}
 	}
 }
 
-// TestRequiredDocsExist verifies all .md pages referenced in mkdocs.yml nav exist on disk.
+// TestRequiredDocsExist verifies all .md pages referenced in zensical.toml nav exist on disk.
 func TestRequiredDocsExist(t *testing.T) {
 	root := findRepoRoot(t)
-	pages := extractNavPagesFromFile(t, filepath.Join(root, "mkdocs.yml"))
+	pages := extractNavPagesFromFile(t, filepath.Join(root, "zensical.toml"))
 
 	if len(pages) == 0 {
-		t.Fatal("no pages found in mkdocs.yml nav")
+		t.Fatal("no pages found in zensical.toml nav")
 	}
 
 	docsDir := filepath.Join(root, "docs")
@@ -48,20 +48,22 @@ func TestRequiredDocsExist(t *testing.T) {
 // TestDocsWorkflowExists verifies the GitHub Actions docs workflow is present and correct.
 func TestDocsWorkflowExists(t *testing.T) {
 	root := findRepoRoot(t)
-	path := filepath.Join(root, ".github", "workflows", "docs.yml")
+	path := filepath.Join(root, ".github", "workflows", "Publish.yml")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf(".github/workflows/docs.yml not found: %v", err)
+		t.Fatalf(".github/workflows/Publish.yml not found: %v", err)
 	}
 
 	content := string(data)
 	requiredStrings := []string{
-		"mkdocs",
-		"gh-deploy",
-		"requirements-docs.txt",
+		"Documentation",
+		"actions/configure-pages",
 		"actions/checkout",
 		"actions/setup-python",
+		"pip install zensical",
+		"zensical build --clean",
+		"actions/deploy-pages",
 	}
 	for _, s := range requiredStrings {
 		if !strings.Contains(content, s) {
@@ -70,35 +72,19 @@ func TestDocsWorkflowExists(t *testing.T) {
 	}
 }
 
-// TestRequirementsDocsExists verifies the Python requirements file for docs is present.
-func TestRequirementsDocsExists(t *testing.T) {
-	root := findRepoRoot(t)
-	path := filepath.Join(root, "requirements-docs.txt")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("requirements-docs.txt not found: %v", err)
-	}
-
-	content := string(data)
-	if !strings.Contains(content, "mkdocs-material") {
-		t.Error("requirements-docs.txt missing mkdocs-material dependency")
-	}
-}
-
 // TestNavStructureHasRequiredSections verifies the nav has all required top-level sections.
 func TestNavStructureHasRequiredSections(t *testing.T) {
 	root := findRepoRoot(t)
-	data, err := os.ReadFile(filepath.Join(root, "mkdocs.yml"))
+	data, err := os.ReadFile(filepath.Join(root, "zensical.toml"))
 	if err != nil {
-		t.Fatalf("mkdocs.yml not found: %v", err)
+		t.Fatalf("zensical.toml not found: %v", err)
 	}
 
 	content := string(data)
-	requiredSections := []string{"Home:", "User Guide:", "Developer Guide:", "Reference:"}
+	requiredSections := []string{"{\"Home\" = \"index.md\"}", "{\"User Guide\" = [", "{\"Developer Guide\" = [", "{\"Reference\" = ["}
 	for _, section := range requiredSections {
 		if !strings.Contains(content, section) {
-			t.Errorf("mkdocs.yml nav missing required section: %s", section)
+			t.Errorf("zensical.toml nav missing required section: %s", section)
 		}
 	}
 }
@@ -107,7 +93,7 @@ func TestNavStructureHasRequiredSections(t *testing.T) {
 func TestDocsNoOrphanedFiles(t *testing.T) {
 	root := findRepoRoot(t)
 	navPages := make(map[string]bool)
-	for _, page := range extractNavPagesFromFile(t, filepath.Join(root, "mkdocs.yml")) {
+	for _, page := range extractNavPagesFromFile(t, filepath.Join(root, "zensical.toml")) {
 		navPages[page] = true
 	}
 
@@ -126,7 +112,7 @@ func TestDocsNoOrphanedFiles(t *testing.T) {
 			}
 			relPath := filepath.Join(dir, entry.Name())
 			if !navPages[relPath] {
-				t.Errorf("docs/%s exists but is not referenced in mkdocs.yml nav", relPath)
+				t.Errorf("docs/%s exists but is not referenced in zensical.toml nav", relPath)
 			}
 		}
 	}
@@ -154,36 +140,34 @@ func TestIndexPageHasLinks(t *testing.T) {
 	}
 }
 
-// TestMkDocsThemeConfig verifies theme configuration matches issue requirements.
-func TestMkDocsThemeConfig(t *testing.T) {
+// TestDocsThemeConfig verifies theme configuration matches project requirements.
+func TestDocsThemeConfig(t *testing.T) {
 	root := findRepoRoot(t)
-	data, err := os.ReadFile(filepath.Join(root, "mkdocs.yml"))
+	data, err := os.ReadFile(filepath.Join(root, "zensical.toml"))
 	if err != nil {
-		t.Fatalf("mkdocs.yml not found: %v", err)
+		t.Fatalf("zensical.toml not found: %v", err)
 	}
 
 	content := string(data)
 
 	checks := map[string]string{
-		"material theme":    "name: material",
-		"red primary color": "primary: red",
-		"search plugin":     "- search",
-		"navigation tabs":   "navigation.tabs",
-		"search highlight":  "search.highlight",
-		"code copy":         "content.code.copy",
-		"mermaid support":   "mermaid",
-		"site URL":          "lvcoi.github.io/ytdl-go",
-		"repo URL":          "github.com/lvcoi/ytdl-go",
+		"theme section":    "[project.theme]",
+		"default palette":  "scheme = \"default\"",
+		"dark palette":     "scheme = \"slate\"",
+		"navigation tabs":  "\"navigation.tabs\"",
+		"search highlight": "\"search.highlight\"",
+		"code copy":        "\"content.code.copy\"",
+		"repo URL":         "link = \"https://github.com/lvcoi/ytdl-go\"",
 	}
 
 	for desc, expected := range checks {
 		if !strings.Contains(content, expected) {
-			t.Errorf("mkdocs.yml missing %s (expected %q)", desc, expected)
+			t.Errorf("zensical.toml missing %s (expected %q)", desc, expected)
 		}
 	}
 }
 
-// extractNavPagesFromFile extracts all .md file paths from mkdocs.yml nav using regex.
+// extractNavPagesFromFile extracts all .md file paths from zensical.toml nav using regex.
 func extractNavPagesFromFile(t *testing.T, path string) []string {
 	t.Helper()
 	data, err := os.ReadFile(path)
@@ -191,25 +175,13 @@ func extractNavPagesFromFile(t *testing.T, path string) []string {
 		t.Fatalf("cannot read %s: %v", path, err)
 	}
 
-	// Match patterns like "  - Something: path/to/file.md" in the nav section
-	re := regexp.MustCompile(`:\s+([a-zA-Z0-9_\-/]+\.md)\s*$`)
+	// Match TOML nav entries like {"Title" = "path/to/file.md"}
+	re := regexp.MustCompile(`=\s*"([a-zA-Z0-9_\-/]+\.md)"`)
 	var pages []string
-	inNav := false
 	for _, line := range strings.Split(string(data), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "nav:" {
-			inNav = true
-			continue
-		}
-		// End of nav section: a top-level key that isn't indented
-		if inNav && len(line) > 0 && line[0] != ' ' && line[0] != '-' {
-			break
-		}
-		if inNav {
-			matches := re.FindStringSubmatch(line)
-			if len(matches) > 1 {
-				pages = append(pages, matches[1])
-			}
+		matches := re.FindStringSubmatch(line)
+		if len(matches) > 1 {
+			pages = append(pages, matches[1])
 		}
 	}
 	return pages

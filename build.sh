@@ -19,6 +19,7 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
     echo "  -w, --web    Automatically launch the UI after building"
+    echo "  -d, --dev    Build Go backend then launch Vite dev server (skips frontend production build)"
     echo "  -h, --help   Show this help message"
     exit 1
 }
@@ -40,6 +41,7 @@ fi
 
 # Flag handling
 AUTO_LAUNCH=false
+DEV_MODE=false
 WEB_HOST="127.0.0.1"
 WEB_PORT="8080"
 
@@ -47,6 +49,10 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         -w|--web) 
             AUTO_LAUNCH=true 
+            ;;
+        -d|--dev)
+            DEV_MODE=true
+            AUTO_LAUNCH=true
             ;;
         -p|--port)
             WEB_PORT="$2"
@@ -135,11 +141,15 @@ shopt -s expand_aliases
 alias yt="$BIN_DIR/$BINARY_NAME"
 
 # 4. Build Frontend
-if [ -d "$FRONTEND_DIR" ]; then
-    cd "$FRONTEND_DIR" || exit
-    run_with_feedback "Building NPM Frontend" run_frontend_build
+if [ "$DEV_MODE" = false ]; then
+    if [ -d "$FRONTEND_DIR" ]; then
+        cd "$FRONTEND_DIR" || exit
+        run_with_feedback "Building NPM Frontend" run_frontend_build
+    else
+        echo -e "${RED}Warning: Frontend directory not found.${NC}"
+    fi
 else
-    echo -e "${RED}Warning: Frontend directory not found.${NC}"
+    cd "$FRONTEND_DIR" || exit
 fi
 
 # 5. Launch Logic

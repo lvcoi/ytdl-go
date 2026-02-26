@@ -556,43 +556,97 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	})
 
 	mux.HandleFunc("/api/media/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-			return
-		}
 		reqPath := strings.TrimPrefix(r.URL.Path, "/api/media/")
 
-		// If no filename provided, list all media files
-		if reqPath == "" {
-			offset, limit, err := parseMediaListPagination(r)
-			if err != nil {
-				writeJSONError(w, http.StatusBadRequest, err.Error())
+		switch r.Method {
+		case http.MethodGet:
+			// If no filename provided, list all media files
+			if reqPath == "" {
+				offset, limit, err := parseMediaListPagination(r)
+				if err != nil {
+					writeJSONError(w, http.StatusBadRequest, err.Error())
+					return
+				}
+
+				allItems, err := listMediaFiles(mediaDir)
+				if err != nil {
+					writeJSONError(w, http.StatusInternalServerError, "failed to read media directory")
+					return
+				}
+
+				items, nextOffset := paginateMediaItems(allItems, offset, limit)
+				writeJSON(w, http.StatusOK, mediaListResponse{
+					Items:      items,
+					NextOffset: nextOffset,
+				})
 				return
 			}
 
-			allItems, err := listMediaFiles(mediaDir)
+			fullPath, status, err := resolveMediaPath(mediaDir, reqPath)
 			if err != nil {
-				writeJSONError(w, http.StatusInternalServerError, "failed to read media directory")
+				if status == 0 {
+					status = http.StatusBadRequest
+				}
+				writeJSONError(w, status, err.Error())
+				return
+			}
+			http.ServeFile(w, r, fullPath)
+
+		case http.MethodDelete:
+			if reqPath == "" {
+				writeJSONError(w, http.StatusBadRequest, "file path is required")
 				return
 			}
 
-			items, nextOffset := paginateMediaItems(allItems, offset, limit)
-			writeJSON(w, http.StatusOK, mediaListResponse{
-				Items:      items,
-				NextOffset: nextOffset,
+			fullPath, status, err := resolveMediaPath(mediaDir, reqPath)
+			if err != nil {
+				if status == 0 {
+					status = http.StatusBadRequest
+				}
+				writeJSONError(w, status, err.Error())
+				return
+			}
+
+			if _, statErr := os.Stat(fullPath); os.IsNotExist(statErr) {
+				broadcastLibraryError("delete_failed", reqPath, "file not found")
+				writeJSONError(w, http.StatusNotFound, "file not found")
+				return
+			}
+
+			if err := os.Remove(fullPath); err != nil {
+				log.Printf("failed to delete media file %q: %v", fullPath, err)
+				broadcastLibraryError("delete_failed", reqPath, "failed to delete file")
+				writeJSONError(w, http.StatusInternalServerError, "failed to delete file")
+				return
+			}
+
+			// Remove the sidecar metadata file if it exists.
+			sidecarPath := fullPath + ".json"
+			if _, statErr := os.Stat(sidecarPath); statErr == nil {
+				if err := os.Remove(sidecarPath); err != nil {
+					log.Printf("failed to delete sidecar %q: %v", sidecarPath, err)
+				}
+			}
+
+			// Remove the database record.
+			relPath := filepath.ToSlash(reqPath)
+			if globalDB != nil {
+				if _, err := globalDB.DeleteMediaByPath(relPath); err != nil {
+					log.Printf("failed to delete media DB record for %q: %v", relPath, err)
+				}
+			}
+
+			// Notify connected clients so the UI refreshes.
+			broadcastLibraryUpdate("deleted", relPath)
+
+			writeJSON(w, http.StatusOK, map[string]string{
+				"status":  "ok",
+				"message": fmt.Sprintf("Deleted %s", reqPath),
 			})
-			return
-		}
 
-		fullPath, status, err := resolveMediaPath(mediaDir, reqPath)
-		if err != nil {
-			if status == 0 {
-				status = http.StatusBadRequest
-			}
-			writeJSONError(w, status, err.Error())
-			return
+		default:
+			writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
-		http.ServeFile(w, r, fullPath)
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -626,6 +680,15 @@ func ListenAndServe(ctx context.Context, addr string, jobs int) error {
 	}
 	go globalHub.Run()
 	tracker.StartCleanup(ctx, jobCleanupInterval, jobCompletedTTL, jobErroredTTL)
+
+	// Start filesystem watcher for real-time external change detection.
+	mw, watchErr := newMediaWatcher(mediaDir)
+	if watchErr != nil {
+		log.Printf("WARNING: failed to start media file watcher: %v (external changes will only be detected on library refresh)", watchErr)
+	} else {
+		go mw.Run(ctx)
+		log.Printf("Media file watcher started for %s", mediaDir)
+	}
 
 	actualAddr := listener.Addr().String()
 	server.Addr = actualAddr
@@ -999,11 +1062,23 @@ func listMediaFiles(mediaDir string) ([]mediaItem, error) {
 	})
 
 	out := make([]mediaItem, 0, len(items))
+	livePaths := make(map[string]struct{}, len(items))
 	for _, item := range items {
 		out = append(out, item.item)
+		livePaths[item.item.RelativePath] = struct{}{}
 		// Lazily catalog items into the SQLite database
 		catalogMediaToDB(item.item)
 	}
+
+	// Prune database records whose files no longer exist on disk.
+	if globalDB != nil {
+		if pruned, err := globalDB.PruneOrphanedMedia(livePaths); err != nil {
+			log.Printf("failed to prune orphaned media records: %v", err)
+		} else if pruned > 0 {
+			log.Printf("pruned %d orphaned media record(s) from database", pruned)
+		}
+	}
+
 	return out, nil
 }
 
@@ -1156,6 +1231,37 @@ func resolveRealPath(path string) (string, error) {
 		return "", parentErr
 	}
 	return filepath.Join(realParent, filepath.Base(cleaned)), nil
+}
+
+// broadcastLibraryUpdate sends a library_update event to all connected
+// WebSocket clients so the UI can refresh its media list.
+func broadcastLibraryUpdate(action, filePath string) {
+	if globalHub == nil {
+		return
+	}
+	globalHub.Broadcast(ws.WSMessage{
+		Type: "library_update",
+		Payload: map[string]string{
+			"action":    action,
+			"file_path": filePath,
+		},
+	})
+}
+
+// broadcastLibraryError sends a library_error event to all connected
+// WebSocket clients so the UI can display an error notification.
+func broadcastLibraryError(action, filePath, message string) {
+	if globalHub == nil {
+		return
+	}
+	globalHub.Broadcast(ws.WSMessage{
+		Type: "library_error",
+		Payload: map[string]string{
+			"action":    action,
+			"file_path": filePath,
+			"message":   message,
+		},
+	})
 }
 
 // catalogMediaToDB inserts or updates a media item in the SQLite catalog.

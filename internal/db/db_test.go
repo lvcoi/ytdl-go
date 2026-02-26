@@ -143,6 +143,132 @@ func TestCount(t *testing.T) {
 	}
 }
 
+func TestDeleteMediaByPath(t *testing.T) {
+	dir := t.TempDir()
+	d, err := Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer d.Close()
+
+	_, err = d.InsertMedia(MediaRecord{
+		Title:    "Song A",
+		FilePath: "audio/a.mp3",
+	})
+	if err != nil {
+		t.Fatalf("InsertMedia failed: %v", err)
+	}
+	_, err = d.InsertMedia(MediaRecord{
+		Title:    "Song B",
+		FilePath: "audio/b.mp3",
+	})
+	if err != nil {
+		t.Fatalf("InsertMedia failed: %v", err)
+	}
+
+	deleted, err := d.DeleteMediaByPath("audio/a.mp3")
+	if err != nil {
+		t.Fatalf("DeleteMediaByPath failed: %v", err)
+	}
+	if !deleted {
+		t.Fatalf("expected row to be deleted")
+	}
+
+	count, err := d.Count()
+	if err != nil {
+		t.Fatalf("Count failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 record after delete, got %d", count)
+	}
+
+	// Deleting a non-existent path should return false, no error.
+	deleted, err = d.DeleteMediaByPath("audio/nonexistent.mp3")
+	if err != nil {
+		t.Fatalf("DeleteMediaByPath for missing path failed: %v", err)
+	}
+	if deleted {
+		t.Fatalf("expected no row deleted for non-existent path")
+	}
+}
+
+func TestAllFilePaths(t *testing.T) {
+	dir := t.TempDir()
+	d, err := Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer d.Close()
+
+	paths, err := d.AllFilePaths()
+	if err != nil {
+		t.Fatalf("AllFilePaths failed: %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("expected 0 paths, got %d", len(paths))
+	}
+
+	for _, fp := range []string{"audio/a.mp3", "video/b.mp4"} {
+		_, err := d.InsertMedia(MediaRecord{Title: "T", FilePath: fp})
+		if err != nil {
+			t.Fatalf("InsertMedia failed: %v", err)
+		}
+	}
+
+	paths, err = d.AllFilePaths()
+	if err != nil {
+		t.Fatalf("AllFilePaths failed: %v", err)
+	}
+	if len(paths) != 2 {
+		t.Fatalf("expected 2 paths, got %d", len(paths))
+	}
+}
+
+func TestPruneOrphanedMedia(t *testing.T) {
+	dir := t.TempDir()
+	d, err := Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer d.Close()
+
+	for _, fp := range []string{"audio/keep.mp3", "audio/orphan1.mp3", "video/orphan2.mp4"} {
+		_, err := d.InsertMedia(MediaRecord{Title: "T", FilePath: fp})
+		if err != nil {
+			t.Fatalf("InsertMedia failed: %v", err)
+		}
+	}
+
+	live := map[string]struct{}{
+		"audio/keep.mp3": {},
+	}
+
+	pruned, err := d.PruneOrphanedMedia(live)
+	if err != nil {
+		t.Fatalf("PruneOrphanedMedia failed: %v", err)
+	}
+	if pruned != 2 {
+		t.Fatalf("expected 2 pruned, got %d", pruned)
+	}
+
+	count, err := d.Count()
+	if err != nil {
+		t.Fatalf("Count failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 record remaining, got %d", count)
+	}
+
+	// Pruning with all paths live should remove nothing.
+	pruned, err = d.PruneOrphanedMedia(map[string]struct{}{"audio/keep.mp3": {}})
+	if err != nil {
+		t.Fatalf("PruneOrphanedMedia (no-op) failed: %v", err)
+	}
+	if pruned != 0 {
+		t.Fatalf("expected 0 pruned on second pass, got %d", pruned)
+	}
+}
+
 func TestDuplicateFilePathReturnsError(t *testing.T) {
 	dir := t.TempDir()
 	d, err := Open(filepath.Join(dir, "test.db"))
