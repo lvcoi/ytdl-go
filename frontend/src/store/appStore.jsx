@@ -1,7 +1,8 @@
 import { createContext, createEffect, useContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, reconcile } from 'solid-js/store';
 
 const APP_STATE_STORAGE_KEY_PREFIX = 'ytdl-go:app-state:v1:';
+const LEGACY_STORAGE_KEY = 'ytdl-go:app-state:v1';
 const VALID_TABS = new Set(['download', 'library', 'settings', 'dashboard']);
 const VALID_DUPLICATE_POLICIES = new Set(['prompt', 'overwrite', 'skip', 'rename']);
 const VALID_LIBRARY_SECTIONS = new Set(['artists', 'channels', 'playlists', 'all_media']);
@@ -137,6 +138,10 @@ const getPersistedState = (state) => ({
     urlInput: state.download.urlInput,
     activeJobId: state.download.activeJobId,
   },
+  player: {
+    queue: state.player.queue,
+    selectedMedia: state.player.selectedMedia,
+  },
   dashboard: {
     widgets: state.dashboard.widgets,
   },
@@ -222,11 +227,22 @@ const sanitizePlaylistAssignments = (rawAssignments, validSavedPlaylistIds) => {
   const out = {};
   for (const [mediaKey, value] of Object.entries(raw)) {
     const normalizedMediaKey = String(mediaKey || '').trim();
-    const savedPlaylistId = toString(value, '').trim();
-    if (normalizedMediaKey === '' || savedPlaylistId === '' || !validSavedPlaylistIds.has(savedPlaylistId)) {
+    if (normalizedMediaKey === '') continue;
+
+    // Migrate legacy flat string → array, or validate existing array
+    let ids;
+    if (typeof value === 'string') {
+      ids = value.trim() ? [value.trim()] : [];
+    } else if (Array.isArray(value)) {
+      ids = value.map((v) => toString(v, '').trim()).filter(Boolean);
+    } else {
       continue;
     }
-    out[normalizedMediaKey] = savedPlaylistId;
+
+    const valid = ids.filter((id) => validSavedPlaylistIds.has(id));
+    if (valid.length > 0) {
+      out[normalizedMediaKey] = valid;
+    }
   }
   return out;
 };
@@ -332,7 +348,25 @@ const readPersistedState = (accountName = 'Personal') => {
   }
 };
 
+const migrateLegacyState = (accountName) => {
+  if (typeof window === 'undefined' || accountName !== 'Personal') return;
+  try {
+    const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyRaw) {
+      const newKey = `${APP_STATE_STORAGE_KEY_PREFIX}Personal`;
+      // Only migrate if the new key doesn't already have data
+      if (!window.localStorage.getItem(newKey)) {
+        window.localStorage.setItem(newKey, legacyRaw);
+      }
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.warn('Failed to migrate legacy app state:', e);
+  }
+};
+
 const getInitialState = (accountName = 'Personal') => {
+  migrateLegacyState(accountName);
   const baseState = createDefaultState();
   const persisted = readPersistedState(accountName);
   if (!persisted || typeof persisted !== 'object') {
@@ -361,6 +395,11 @@ const getInitialState = (accountName = 'Personal') => {
   const persistedDashboardWidgets = sanitizeDashboardWidgets(persisted?.dashboard?.widgets)
     ?? baseState.dashboard.widgets;
 
+  const persistedQueue = Array.isArray(persisted?.player?.queue)
+    ? persisted.player.queue
+    : baseState.player.queue;
+  const persistedSelectedMedia = persisted?.player?.selectedMedia ?? baseState.player.selectedMedia;
+
   return {
     ...baseState,
     ui: {
@@ -383,6 +422,12 @@ const getInitialState = (accountName = 'Personal') => {
       savedPlaylists: persistedLibrary.savedPlaylists,
       playlistAssignments: persistedLibrary.playlistAssignments,
       ui: persistedLibrary.ui,
+    },
+    player: {
+      ...baseState.player,
+      queue: persistedQueue,
+      selectedMedia: persistedSelectedMedia,
+      active: persistedQueue.length > 0,
     },
     download: {
       ...baseState.download,
@@ -421,7 +466,7 @@ export function AppStoreProvider(props) {
     const currentAccount = state.ui.activeAccount;
     if (prevAccount && prevAccount !== currentAccount) {
         const newState = getInitialState(currentAccount);
-        setState(newState);
+        setState(reconcile(newState));
     }
     return currentAccount;
   }, state.ui.activeAccount);

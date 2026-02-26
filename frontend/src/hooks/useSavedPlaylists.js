@@ -59,13 +59,24 @@ const normalizeSavedPlaylists = (value) => {
 const normalizePlaylistAssignments = (value, validPlaylistIds) => {
     const source = value && typeof value === 'object' ? value : {};
     const out = {};
-    for (const [mediaKey, playlistId] of Object.entries(source)) {
+    for (const [mediaKey, rawValue] of Object.entries(source)) {
         const normalizedMediaKey = normalizeMediaKey(mediaKey);
-        const normalizedPlaylistId = normalizeSavedPlaylistId(playlistId);
-        if (normalizedMediaKey === '' || normalizedPlaylistId === '' || !validPlaylistIds.has(normalizedPlaylistId)) {
+        if (normalizedMediaKey === '') continue;
+
+        // Support both legacy flat string and new array format
+        let ids;
+        if (typeof rawValue === 'string') {
+            ids = rawValue.trim() ? [rawValue.trim()] : [];
+        } else if (Array.isArray(rawValue)) {
+            ids = rawValue.map((v) => normalizeSavedPlaylistId(v)).filter(Boolean);
+        } else {
             continue;
         }
-        out[normalizedMediaKey] = normalizedPlaylistId;
+
+        const valid = ids.filter((id) => validPlaylistIds.has(id));
+        if (valid.length > 0) {
+            out[normalizedMediaKey] = valid;
+        }
     }
     return out;
 };
@@ -367,9 +378,12 @@ export function useSavedPlaylists() {
         }
 
         const nextAssignments = {};
-        for (const [mediaKey, assignedPlaylistId] of Object.entries(current.assignments)) {
-            if (assignedPlaylistId === normalizedPlaylistId) continue;
-            nextAssignments[mediaKey] = assignedPlaylistId;
+        for (const [mediaKey, assignedValue] of Object.entries(current.assignments)) {
+            const ids = Array.isArray(assignedValue) ? assignedValue : (assignedValue ? [assignedValue] : []);
+            const filtered = ids.filter((id) => id !== normalizedPlaylistId);
+            if (filtered.length > 0) {
+                nextAssignments[mediaKey] = filtered;
+            }
         }
 
         try {
@@ -396,12 +410,16 @@ export function useSavedPlaylists() {
         if (!playlistExists) return;
 
         const nextAssignments = { ...current.assignments };
+        const currentIds = Array.isArray(nextAssignments[normalizedMediaKey])
+            ? nextAssignments[normalizedMediaKey]
+            : (nextAssignments[normalizedMediaKey] ? [nextAssignments[normalizedMediaKey]] : []);
+
         if (normalizedPlaylistId === '') {
-            if (!(normalizedMediaKey in nextAssignments)) return;
+            if (currentIds.length === 0) return;
             delete nextAssignments[normalizedMediaKey];
         } else {
-            if (nextAssignments[normalizedMediaKey] === normalizedPlaylistId) return;
-            nextAssignments[normalizedMediaKey] = normalizedPlaylistId;
+            if (currentIds.includes(normalizedPlaylistId)) return;
+            nextAssignments[normalizedMediaKey] = [...currentIds, normalizedPlaylistId];
         }
 
         try {

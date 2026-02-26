@@ -1,5 +1,13 @@
 import { useAppStore } from '../store/appStore';
 import { produce } from 'solid-js/store';
+import { setDownloadStore } from '../store/downloadStore';
+
+let notificationTimer;
+const notify = (message, type = 'success') => {
+    clearTimeout(notificationTimer);
+    setDownloadStore('notification', { message, type });
+    notificationTimer = setTimeout(() => setDownloadStore('notification', null), 3000);
+};
 
 export function useQueueManager() {
     const { state, setState } = useAppStore();
@@ -26,6 +34,7 @@ export function useQueueManager() {
                 s.player.selectedMedia = { ...media };
             }
         }));
+        notify('Added to Queue');
     };
 
     /**
@@ -81,6 +90,7 @@ export function useQueueManager() {
 
     /**
      * Assign a media item to a saved playlist via the playlistAssignments map.
+     * Each media key maps to an array of playlist IDs (multi-playlist support).
      */
     const addToSavedPlaylist = (mediaKey, playlistId) => {
         if (!mediaKey || !playlistId) return;
@@ -90,7 +100,67 @@ export function useQueueManager() {
         );
         if (!playlistExists) return;
 
-        setState('library', 'playlistAssignments', mediaKey, playlistId);
+        setState('library', 'playlistAssignments', mediaKey, (prev) => {
+            const current = Array.isArray(prev) ? prev : (prev ? [prev] : []);
+            if (current.includes(playlistId)) return current;
+            return [...current, playlistId];
+        });
+        notify('Added to Playlist');
+    };
+
+    /**
+     * Remove a media item from a saved playlist.
+     */
+    const removeFromSavedPlaylist = (mediaKey, playlistId) => {
+        if (!mediaKey || !playlistId) return;
+
+        setState('library', 'playlistAssignments', mediaKey, (prev) => {
+            const current = Array.isArray(prev) ? prev : (prev ? [prev] : []);
+            return current.filter((id) => id !== playlistId);
+        });
+        notify('Removed from Playlist');
+    };
+
+    /**
+     * Remove a single item from the queue by index.
+     * If the removed item was currently selected, advance to the next track.
+     */
+    const removeFromQueue = (indexToRemove) => {
+        setState(produce((s) => {
+            const removed = s.player.queue[indexToRemove];
+            s.player.queue.splice(indexToRemove, 1);
+
+            if (s.player.queue.length === 0) {
+                s.player.active = false;
+                s.player.selectedMedia = null;
+            } else if (removed && s.player.selectedMedia?.filepath === removed.filepath) {
+                const nextIndex = Math.min(indexToRemove, s.player.queue.length - 1);
+                s.player.selectedMedia = { ...s.player.queue[nextIndex] };
+            }
+        }));
+    };
+
+    /**
+     * Clear the entire queue and deactivate the player.
+     */
+    const clearQueue = () => {
+        setState('player', {
+            queue: [],
+            selectedMedia: null,
+            active: false,
+        });
+    };
+
+    /**
+     * Move a queue item from one index to another.
+     */
+    const reorderQueue = (fromIndex, toIndex) => {
+        setState(produce((s) => {
+            const [removed] = s.player.queue.splice(fromIndex, 1);
+            if (removed) {
+                s.player.queue.splice(toIndex, 0, removed);
+            }
+        }));
     };
 
     return {
@@ -98,5 +168,9 @@ export function useQueueManager() {
         addPlaylistToQueue,
         playPlaylist,
         addToSavedPlaylist,
+        removeFromSavedPlaylist,
+        removeFromQueue,
+        clearQueue,
+        reorderQueue,
     };
 }
