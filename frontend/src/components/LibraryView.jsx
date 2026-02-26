@@ -1,6 +1,8 @@
 import { For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import Icon from './Icon';
 import Thumbnail from './Thumbnail';
+import SongActions from './SongActions';
+import PlaylistActions from './PlaylistActions';
 import { normalizeLibrary, filterLibrary } from '../utils/libraryModel';
 
 const SECTION_OPTIONS = [
@@ -929,11 +931,11 @@ export default function LibraryView(props) {
                   when={explorerItems().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No media items match this view yet.</div>}
                 >
-                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
                     <For each={explorerItems()}>
                       {(item) => (
-                        <div class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant">
-                          <div class="relative">
+                        <div class="group relative overflow-visible rounded-[2rem] border border-white/5 bg-black/40 transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant transform-gpu">
+                          <div class="relative overflow-hidden rounded-t-[2rem]">
                             <Thumbnail
                               src={item.thumbnailUrl}
                               alt={item.title}
@@ -972,6 +974,12 @@ export default function LibraryView(props) {
                               </div>
                             </div>
                           </div>
+                          {/* Hover-reveal action buttons */}
+                          <div class="absolute bottom-20 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <div class="flex items-center gap-0.5 bg-gray-900/90 backdrop-blur-sm rounded-lg border border-white/10 p-0.5">
+                              <SongActions media={item.raw || item} />
+                            </div>
+                          </div>
                         </div>
                       )}
                     </For>
@@ -984,7 +992,7 @@ export default function LibraryView(props) {
                   when={explorerCreators().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No creators available for this filter set.</div>}
                 >
-                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
                     <For each={explorerCreators()}>
                       {(entry) => (
                         <button
@@ -1014,7 +1022,7 @@ export default function LibraryView(props) {
                   when={explorerAlbums().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No albums available for this artist.</div>}
                 >
-                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
                     <For each={explorerAlbums()}>
                       {(album) => (
                         <button
@@ -1044,15 +1052,14 @@ export default function LibraryView(props) {
                   when={explorerPlaylists().length > 0}
                   fallback={<div class="rounded-3xl border border-white/5 bg-black/20 p-12 text-center text-sm text-gray-500 font-medium">No playlists available for this filter set.</div>}
                 >
-                  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
                     <For each={explorerPlaylists()}>
                       {(playlist) => (
-                        <button
-                          type="button"
+                        <div
+                          class="group relative overflow-visible rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant cursor-pointer transform-gpu"
                           onClick={() => setNavPath({ playlistKey: playlist.key, playlistKind: playlist.kind })}
-                          class="group relative overflow-hidden rounded-[2rem] border border-white/5 bg-black/40 text-left transition-smooth hover:border-accent-primary/50 hover:shadow-vibrant"
                         >
-                          <div class="relative">
+                          <div class="relative overflow-hidden rounded-t-[2rem]">
                             <Thumbnail
                               src={playlist.thumbnailUrl}
                               alt={playlist.name}
@@ -1067,11 +1074,16 @@ export default function LibraryView(props) {
                               {playlist.kind}
                             </div>
                           </div>
-                          <div class="space-y-1 p-5">
-                            <div class="truncate text-base font-black text-white">{playlist.name}</div>
-                            <div class="text-xs font-bold text-gray-500">{playlist.count} item{playlist.count === 1 ? '' : 's'}</div>
+                          <div class="flex items-center justify-between p-5">
+                            <div class="space-y-1 min-w-0">
+                              <div class="truncate text-base font-black text-white">{playlist.name}</div>
+                              <div class="text-xs font-bold text-gray-500">{playlist.count} item{playlist.count === 1 ? '' : 's'}</div>
+                            </div>
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
+                              <PlaylistActions tracks={playlist.items || []} playlistName={playlist.name} />
+                            </div>
                           </div>
-                        </button>
+                        </div>
                       )}
                     </For>
                   </div>
@@ -1084,7 +1096,7 @@ export default function LibraryView(props) {
             <Show when={explorerLandingArtists().length > 0}>
               <div class="space-y-6">
                 <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-primary/80 ml-2">Artists</div>
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
                   <For each={explorerLandingArtists()}>
                     {(artist) => (
                       <button
@@ -1112,7 +1124,7 @@ export default function LibraryView(props) {
             <Show when={explorerLandingVideos().length > 0}>
               <div class="space-y-6">
                 <div class="text-xs font-black uppercase tracking-[0.25em] text-accent-primary/80 ml-2">YouTube Videos</div>
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
                   <For each={explorerLandingVideos()}>
                     {(video) => (
                       <button
@@ -1144,7 +1156,7 @@ export default function LibraryView(props) {
             <Show when={model().podcasts.length > 0}>
               <div class="space-y-6">
                 <div class="text-xs font-black uppercase tracking-[0.25em] text-emerald-500/80 ml-2">Podcasts</div>
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
                   <For each={model().podcasts}>
                     {(podcast) => (
                       <button
