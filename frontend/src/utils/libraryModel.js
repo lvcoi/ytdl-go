@@ -93,7 +93,14 @@ const normalizeItem = (rawItem, savedPlaylistById, playlistAssignments) => {
     metadata.thumbnailURL,
   );
   const mediaKey = firstNonEmpty(rawItem?.relative_path, rawItem?.filename, rawItem?.id);
-  const savedPlaylistId = firstNonEmpty(playlistAssignments[mediaKey], '');
+  const rawAssignment = playlistAssignments[mediaKey];
+  const savedPlaylistIds = Array.isArray(rawAssignment)
+    ? rawAssignment.filter((id) => savedPlaylistById.has(id))
+    : (typeof rawAssignment === 'string' && rawAssignment && savedPlaylistById.has(rawAssignment))
+      ? [rawAssignment]
+      : [];
+  // Primary assignment for backward-compat (dropdowns, single-select contexts)
+  const savedPlaylistId = savedPlaylistIds[0] || '';
   const savedPlaylist = savedPlaylistById.get(savedPlaylistId);
   const timestamp = toTimestamp(rawItem);
   const hasSidecar = Boolean(rawItem?.has_sidecar ?? rawItem?.hasSidecar);
@@ -121,6 +128,7 @@ const normalizeItem = (rawItem, savedPlaylistById, playlistAssignments) => {
     creator,
     album,
     sourcePlaylist,
+    savedPlaylistIds,
     savedPlaylistId: savedPlaylist?.id || '',
     savedPlaylistName: savedPlaylist?.name || 'Unassigned',
     date: firstNonEmpty(rawItem?.date, ''),
@@ -188,7 +196,7 @@ const itemMatchesFilters = (item, filters) => {
   if (filters.playlist && item.sourcePlaylist !== filters.playlist) {
     return false;
   }
-  if (filters.savedPlaylistId && item.savedPlaylistId !== filters.savedPlaylistId) {
+  if (filters.savedPlaylistId && !item.savedPlaylistIds.includes(filters.savedPlaylistId)) {
     return false;
   }
   return true;
@@ -361,13 +369,13 @@ const buildPlaylistGroups = (items, savedPlaylists) => {
   }
 
   for (const item of items) {
-    if (!item.savedPlaylistId || !savedMap.has(item.savedPlaylistId)) {
-      continue;
+    for (const plId of item.savedPlaylistIds) {
+      if (!savedMap.has(plId)) continue;
+      const entry = savedMap.get(plId);
+      entry.items.push(item);
+      entry.latestTimestamp = Math.max(entry.latestTimestamp, item.timestamp);
+      entry.thumbnailUrl = withLatestThumb(entry.thumbnailUrl, item.thumbnailUrl);
     }
-    const entry = savedMap.get(item.savedPlaylistId);
-    entry.items.push(item);
-    entry.latestTimestamp = Math.max(entry.latestTimestamp, item.timestamp);
-    entry.thumbnailUrl = withLatestThumb(entry.thumbnailUrl, item.thumbnailUrl);
   }
 
   const sourceGroups = pushByLatest(Array.from(sourceMap.values()))

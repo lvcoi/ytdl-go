@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Mock window APIs that might not be available in test environment
 Object.defineProperty(window, 'matchMedia', {
