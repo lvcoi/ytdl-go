@@ -16,11 +16,11 @@
 
 ## TL;DR
 
-**ytdl-go** downloads YouTube videos, audio, and playlists — fast. Use it from the **command line** or launch the brand-new **Web UI** (`ytdl-go -web`). Parallel downloads, automatic retries, resume support, ID3 tagging, and an interactive TUI format selector are all built in.
+**ytdl-go** downloads YouTube videos, audio, and playlists — fast. Use it from the **command line** or launch the brand-new **Web UI** (`ytdl-go -web`). Parallel downloads, automatic retries, resume support, ID3 tagging, multi-account profiles, playlist management, and an interactive TUI format selector are all built in.
 
-> **v0.2.0 Beta is out!** This release introduces the Web UI, a customizable dashboard, a media library with built-in player, and real-time download progress — all served from a single binary. The CLI works exactly as before.
+> **v0.2.0 Beta is out!** This release introduces the Web UI with a customizable dashboard, media library with built-in player, real-time download progress, multi-account support, queue & playlist management, and a responsive collapsible sidebar — all served from a single binary. The CLI works exactly as before.
 >
-> 📖 **Full documentation lives on the [wiki](https://lvcoi.github.io/ytdl-go/)** — installation guides, CLI reference, architecture docs, and more.
+> 📖 **Full documentation lives on the [docs site](https://lvcoi.github.io/ytdl-go/) and the [GitHub Wiki](https://github.com/lvcoi/ytdl-go/wiki)** — installation guides, CLI reference, architecture docs, and more.
 
 ---
 
@@ -33,6 +33,9 @@
 | 🎮 **Interactive TUI** | Browse and pick formats visually with `-list-formats` |
 | 🎵 **Audio & Video** | Videos, audio-only, playlists, YouTube Music |
 | 🏷️ **Metadata** | Automatic ID3 tags, JSON sidecars, custom templates |
+| 👤 **Multi-Account** | Per-account state isolation with profile switching |
+| 🎶 **Playlists & Queue** | Create playlists, assign songs to multiple lists, reorder queue |
+| 📱 **Responsive UI** | Collapsible sidebar, gallery/list view modes, mobile-friendly layout |
 | ⚙️ **Automation** | JSON output, quiet mode, custom output paths |
 
 ---
@@ -81,9 +84,13 @@ ytdl-go -web
 
 - **Dashboard** — Customizable widget grid with drag-and-drop layout, recent activity, quick download, and system stats.
 - **Download View** — Paste one or more URLs, pick format & quality, and watch real-time progress over a WebSocket connection.
-- **Media Library** — Browse all downloaded media with thumbnail gallery, search, filters (Music / Videos / Podcasts), and sortable columns.
-- **Built-in Player** — Floating audio/video player with queue support and minimized mode.
-- **Settings** — Configure concurrency, storage paths, and upcoming auth options.
+- **Media Library** — Browse all downloaded media with thumbnail gallery or list view, search, filters (Music / Videos / Podcasts), sortable columns, and hover-reveal actions.
+- **Built-in Player** — Floating audio/video player with queue support (add, remove, reorder, clear) and minimized mode. Queue persists across page refreshes.
+- **Playlists** — Create custom playlists, assign songs to multiple playlists via checkbox UI, and play or queue entire playlists at once.
+- **Multi-Account** — Switch between profiles (e.g. Personal / Work) with per-account state isolation and independent localStorage.
+- **Collapsible Sidebar** — Responsive navigation that auto-collapses on mobile, with hover tooltips in collapsed mode.
+- **Settings** — Configure concurrency, storage paths, network options (cookie usage, PO Token), with nested sub-navigation.
+- **Toast Notifications** — Success/error feedback with 3-second auto-dismiss.
 
 ### Screenshots
 
@@ -125,7 +132,14 @@ ytdl-go -list-formats "https://youtube.com/watch?v=..."
 
 ## 📖 Documentation
 
-Everything beyond this README is on the **[documentation site](https://lvcoi.github.io/ytdl-go/)**:
+Detailed docs are available in two places — pick whichever you prefer:
+
+| Source | Link |
+| --- | --- |
+| 📘 **Docs Site** | **[lvcoi.github.io/ytdl-go](https://lvcoi.github.io/ytdl-go/)** — full documentation with search, navigation, and Material Design theme |
+| 📗 **GitHub Wiki** | **[github.com/lvcoi/ytdl-go/wiki](https://github.com/lvcoi/ytdl-go/wiki)** — same content, accessible directly from the repo |
+
+Both cover:
 
 | Section | What's There |
 | --- | --- |
@@ -166,6 +180,6 @@ ytdl-go stands on the shoulders of these projects:
 
 Made with ❤️ by the ytdl-go team
 
-[License](LICENSE) · [Report Issue](https://github.com/lvcoi/ytdl-go/issues) · [Documentation](https://lvcoi.github.io/ytdl-go/)
+[License](LICENSE) · [Report Issue](https://github.com/lvcoi/ytdl-go/issues) · [Docs Site](https://lvcoi.github.io/ytdl-go/) · [Wiki](https://github.com/lvcoi/ytdl-go/wiki)
 
 </div>
