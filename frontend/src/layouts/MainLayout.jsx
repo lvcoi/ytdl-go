@@ -27,7 +27,7 @@ export default function MainLayout(props) {
         <div class="flex h-screen bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.16),transparent_35%),radial-gradient(circle_at_88%_2%,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,#05070a,#070b12_45%,#05070a)] text-gray-200 overflow-hidden font-sans select-none">
             <Sidebar />
 
-            <main class="flex-1 flex flex-col bg-transparent relative min-w-0 contain-layout contain-paint transform-gpu transition-all duration-300">
+            <main class="flex-1 flex flex-col bg-transparent relative min-w-0 contain-inline-size transform-gpu transition-all duration-300">
                 <Header isAdvanced={isAdvanced()} onToggleAdvanced={toggleAdvanced} />
                 <div class="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
                     {props.children}

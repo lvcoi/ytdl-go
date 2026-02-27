@@ -1,4 +1,4 @@
-import { Router, Route } from '@solidjs/router';
+import { Router, Route, Navigate } from '@solidjs/router';
 import { lazy, onMount } from 'solid-js';
 import MainLayout from './layouts/MainLayout';
 import { useSavedPlaylists } from './hooks/useSavedPlaylists';
@@ -35,6 +35,7 @@ function App() {
       <Route path="/settings">
         <Route path="/" component={Settings} />
         <Route path="/network" component={NetworkSettings} />
+        <Route path="/*" component={() => <Navigate href="/settings" />} />
       </Route>
     </Router>
   );
