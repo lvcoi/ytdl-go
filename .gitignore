@@ -1,4 +1,10 @@
-# Binaries for programs and plugins
+# =============================================================================
+# Go-specific
+# =============================================================================
+
+*USER_IDENTIFIED_ISSUES*
+
+# Binaries
 *.exe
 *.exe~
 *.dll
@@ -7,68 +13,171 @@
 yt
 ytdl-go
 ytdl-go.exe
-# Test binary, built with `go test -c`
+
+# Test binaries
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Coverage and profiling
 *.out
+coverage.txt
+coverage.out
+coverage.html
+*.prof
+*.pprof
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
+# Go workspace and cache
 go.work
-*.code-workspace
-# IDE specific files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+.gocache/
+.gotmp/
+
+# =============================================================================
+# Build & Distribution
+# =============================================================================
 
 # Build artifacts
 build/
-media
 dist/
 bin/
 
+# =============================================================================
+# Dependencies
+# =============================================================================
 
-# OS generated files
-Thumbs.db
+# Go vendor
+# vendor/
+
+# Node.js
+**node_modules/
+module_path.txt
+
+# =============================================================================
+# IDE & Editor Files
+# =============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# IntelliJ
+.idea/
+
+# Vim
+*.swp
+*.swo
+
+# General editor files
+*~
+
+# =============================================================================
+# AI & Development Tools
+# =============================================================================
+
+# AI assistants and tools
+.ai/
+**.ai/
+*.ai
+AI/
+**AI/
+chatgpt/
+**chatgpt/
+copilot/
+**copilot/
+claude/
+**claude/
+gemini/
+**gemini/
+.cursor/
+**.cursor/
+aider/
+**aider/
+.aider/
+**.aider/
+continue/
+**continue/
+.continue/
+**.continue/
+codeium/
+**codeium/
+.codeium/
+**.codeium/
+.openai/
+**.openai/
+.anthropic/
+**.anthropic/
+.google-ai/
+**.google-ai/
+llm/
+**llm/
+prompts/
+**prompts/
+
+# AI cache and session files
+.ai-cache/
+**.ai-cache/
+.ai-history/
+**.ai-history/
+.ai-session/
+**.ai-session/
+*.ai-session
+.ai-config/
+**.ai-config/
+*.ai-config
+
+# Development tools
+.agents/
+.claude/
+**.claude/
+.devcontainer/
+**.devcontainer/
+.windsurf/
+**windsurf/
+conductor/
+**.antigravity/
+.gemini/
+plans/
+**plans/
+
+# AI assistant markdown files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+spec.md
+*refactor*.md
+*overhaul*.md
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+
+# macOS
+.DS_Store
 .Spotlight-V100
 .Trashes
 
-# Log files
-*.log
+# Windows
+Thumbs.db
 
-# Temporary files
-*.tmp
-*.temp
-test_convert.go
-
-# Cache directories
-.cache/
-*.cache
+# =============================================================================
+# Configuration & Secrets
+# =============================================================================
 
 # Environment files
 .env
 .env.local
 .env.*.local
 
-# Coverage reports
-coverage.txt
-coverage.out
-coverage.html
+# GitHub credentials
+gha-creds-*.json
 
-# Profiling data
-*.prof
-*.pprof
+# =============================================================================
+# Project-specific
+# =============================================================================
 
-# Downloaded content (common when testing)
+# Downloaded content (testing)
 downloads/
 music/
 videos/
+media/
 *.mp4
 *.mp3
 *.m4a
@@ -77,10 +186,205 @@ videos/
 *.avi
 *.mov
 
-# Documentation build
+# Documentation
 docs/_build/
 site/
+*.geminiignore
+USER_IDENTIFIED_ISSUES.md
+
+# Logs and temporary files
+*.log
+*log*
+*.tmp
+*.temp
+test_convert.go
+
+# Cache
+.cache/
+*.cache
 
 # Backup files
 *.bak
 *.backup
+
+# Local archives
+.task-archive/
+
+# =============================================================================
+# Security & Analysis
+# =============================================================================
+
+# CodeQL
+*codeql-custom-queries-go
+*codeql-custom-queries-go/
+*codeql-custom-queries-go.lock.yml
+
+# =============================================================================
+# Python
+# =============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+requirements.txt
+requirements-dev.txt
+requirements-docs.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# uv
+uv.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# =============================================================================
+# Zensical
+# =============================================================================
+
+# Zensical configuration files
+zensical.toml
+zensical.yml
+.zensical/
+*.zensical
+
+# Zensical build artifacts
+.zensical-build/
+zensical-build/
+
+# Zensical cache
+.zensical-cache/
+
+# =============================================================================
+# Security & Analysis
+# =============================================================================
+.venv/
+.python-version

@@ -1,0 +1,121 @@
+import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
+import Icon from './Icon';
+
+// Base layout constants
+const GRID_COLS = 16;
+const ROW_HEIGHT = 80; // px
+const GAP = 12; // px
+
+export function Grid(props) {
+    let gridRef;
+
+    // Use measured row height for square cells; fall back to default before measurement
+    const rowHeight = () => props.rowHeight || ROW_HEIGHT;
+    const tileSize = () => rowHeight() + GAP;
+
+    return (
+        <div 
+            ref={(el) => {
+                gridRef = el;
+                if (props.ref) props.ref(el);
+            }}
+            class={`relative w-full${props.isEditMode ? ' select-none' : ''}`}
+            style={{
+                display: 'grid',
+                'grid-template-columns': `repeat(${GRID_COLS}, 1fr)`,
+                'grid-auto-rows': `${rowHeight()}px`,
+                gap: `${GAP}px`,
+                'min-height': props.totalRows ? `${props.totalRows * tileSize()}px` : 'auto'
+            }}
+        >
+            {/* Grid Lines Overlay */}
+            <Show when={props.isEditMode}>
+                <div 
+                    class="dashboard-grid-lines absolute inset-0 pointer-events-none z-0 rounded-3xl"
+                    style={{
+                        'background-size': `${tileSize()}px ${tileSize()}px`,
+                        'background-position': `0 0`
+                    }}
+                />
+            </Show>
+            
+            {/* Ghost Preview */}
+            <Show when={props.ghost}>
+                <div 
+                    class="z-0 bg-accent-primary/20 border-2 border-accent-primary/50 rounded-[2rem] transition-all duration-200 pointer-events-none"
+                    style={{
+                        'grid-column': `${props.ghost.x + 1} / span ${props.ghost.width}`,
+                        'grid-row': `${props.ghost.y + 1} / span ${props.ghost.height}`
+                    }}
+                />
+            </Show>
+            
+            {/* Grid Content */}
+            {props.children}
+        </div>
+    );
+}
+
+export function GridItem(props) {
+    const handleResizeStart = (direction, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (props.onResizeStart) {
+            props.onResizeStart(props.widgetId, direction, e);
+        }
+    };
+
+    const handleRemove = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (props.onRemove) {
+            props.onRemove(props.widgetId);
+        }
+    };
+
+    return (
+        <div
+            class={`${props.class || ''} relative z-10`}
+            style={{
+                'grid-column': `${(props.x || 0) + 1} / span ${props.width || props.span || 1}`,
+                'grid-row': `${(props.y || 0) + 1} / span ${props.height || 1}`,
+                transition: 'grid-column 0.25s ease, grid-row 0.25s ease, grid-column-end 0.25s ease, grid-row-end 0.25s ease, transform 0.1s ease',
+                ...(props.style || {})
+            }}
+            onMouseDown={props.onMouseDown}
+        >
+            {/* Task 2: Content wrapper — pointer-events blocked in edit mode */}
+            <div class={`h-full${props.isEditMode ? ' pointer-events-none' : ''}`}>
+                {props.children}
+            </div>
+
+            {/* Task 9: Trash button — outside pointer-events-none wrapper */}
+            <Show when={props.isEditMode}>
+                <button
+                    onClick={handleRemove}
+                    class="absolute top-3 right-3 z-30 p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                    title="Remove widget"
+                    aria-label="Remove widget"
+                >
+                    <Icon name="trash-2" class="w-3.5 h-3.5" />
+                </button>
+            </Show>
+            
+            {/* Resize Handles - Only visible in edit mode */}
+            <Show when={props.isEditMode}>
+                {/* Corners */}
+                <div role="button" tabindex="0" aria-label="Resize northwest" class="absolute -top-1.5 -left-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('nw', e)} />
+                <div role="button" tabindex="0" aria-label="Resize northeast" class="absolute -top-1.5 -right-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('ne', e)} />
+                <div role="button" tabindex="0" aria-label="Resize southwest" class="absolute -bottom-1.5 -left-1.5 w-4 h-4 cursor-nesw-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('sw', e)} />
+                <div role="button" tabindex="0" aria-label="Resize southeast" class="absolute -bottom-1.5 -right-1.5 w-4 h-4 cursor-nwse-resize z-20 hover:bg-white/20 rounded-full" onMouseDown={(e) => handleResizeStart('se', e)} />
+
+                {/* Edges */}
+                <div role="button" tabindex="0" aria-label="Resize top" class="absolute top-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('n', e)} />
+                <div role="button" tabindex="0" aria-label="Resize bottom" class="absolute bottom-0 left-2 right-2 h-1.5 cursor-ns-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('s', e)} />
+                <div role="button" tabindex="0" aria-label="Resize left" class="absolute left-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('w', e)} />
+                <div role="button" tabindex="0" aria-label="Resize right" class="absolute right-0 top-2 bottom-2 w-1.5 cursor-ew-resize z-20 hover:bg-white/20" onMouseDown={(e) => handleResizeStart('e', e)} />
+            </Show>
+        </div>
+    );
+}
+

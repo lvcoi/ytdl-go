@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	youtube "github.com/lvcoi/ytdl-lib/v2"
 )
 
 // Options describes CLI behavior for a download run.
 type Options struct {
 	OutputTemplate      string
+	OutputDir           string
 	AudioOnly           bool
 	InfoOnly            bool
 	ListFormats         bool
@@ -26,6 +27,12 @@ type Options struct {
 	Timeout             time.Duration
 	ProgressLayout      string
 	LogLevel            string
+	Renderer            ProgressRenderer  `json:"-"`
+	OnDuplicate         DuplicatePolicy   `json:"on-duplicate,omitempty"`
+	DuplicatePrompter   DuplicatePrompter `json:"-"`
+	DuplicateSession    *DuplicateSession `json:"-"`
+	UseCookies          bool
+	PoToken             string
 }
 
 type outputContext struct {
@@ -43,6 +50,7 @@ type outputContext struct {
 type downloadResult struct {
 	bytes       int64
 	outputPath  string
+	format      *youtube.Format
 	retried     bool
 	hadProgress bool
 	skipped     bool
@@ -114,7 +122,7 @@ func Process(ctx context.Context, url string, opts Options) error {
 // multiple concurrent downloads. If manager is nil, a new one is created.
 func ProcessWithManager(ctx context.Context, url string, opts Options, manager *ProgressManager) error {
 	var ownedManager *ProgressManager
-	if manager == nil {
+	if manager == nil && opts.Renderer == nil {
 		ownedManager = NewProgressManager(opts)
 		if ownedManager != nil {
 			ownedManager.Start(ctx)
@@ -161,11 +169,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return err
 	}
 
-	savedClient := youtube.DefaultClient
-	defer func() { youtube.DefaultClient = savedClient }()
-	youtube.DefaultClient = youtube.AndroidClient
-
-	client := newClient(opts)
+	client := newClientForType("android", opts)
 	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
 		return wrapFetchError(err, "fetching video metadata")
@@ -249,7 +253,7 @@ func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle
 	tui.TransitionToProgress()
 	defer tui.Stop()
 
-	client := newClient(opts)
+	client := newClientForType("android", opts)
 	printer := NewSeamlessPrinter(opts, tui)
 
 	ctxInfo := outputContext{}

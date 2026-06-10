@@ -1,0 +1,487 @@
+import { createContext, createEffect, useContext } from 'solid-js';
+import { createStore, reconcile } from 'solid-js/store';
+
+const APP_STATE_STORAGE_KEY_PREFIX = 'ytdl-go:app-state:v1:';
+const LEGACY_STORAGE_KEY = 'ytdl-go:app-state:v1';
+const VALID_TABS = new Set(['download', 'library', 'settings', 'dashboard']);
+const VALID_DUPLICATE_POLICIES = new Set(['prompt', 'overwrite', 'skip', 'rename']);
+const VALID_LIBRARY_SECTIONS = new Set(['artists', 'channels', 'playlists', 'all_media']);
+const VALID_LIBRARY_VIEW_MODES = new Set(['gallery', 'list', 'detail']);
+const VALID_LIBRARY_TYPE_FILTERS = new Set(['all', 'audio', 'video']);
+const VALID_LIBRARY_SORT_KEYS = new Set([
+  'newest',
+  'oldest',
+  'creator_asc',
+  'creator_desc',
+  'collection_asc',
+  'collection_desc',
+  'playlist_asc',
+  'playlist_desc',
+]);
+const MAX_SAVED_PLAYLIST_NAME_LENGTH = 80;
+
+export const MAX_JOBS = 32;
+export const MAX_TIMEOUT_SECONDS = 24 * 60 * 60;
+
+const defaultSettings = {
+  output: '{title}.{ext}',
+  quality: 'best',
+  jobs: 1,
+  timeout: 180,
+  format: '',
+  audioOnly: false,
+  onDuplicate: 'prompt',
+  useCookies: true,
+  poTokenExtension: false,
+};
+
+const emptyLibraryNavPath = {
+  creatorType: '',
+  creatorName: '',
+  albumName: '',
+  playlistKey: '',
+  playlistKind: '',
+};
+
+const emptyLibraryFilters = {
+  query: '',
+  creator: '',
+  collection: '',
+  playlist: '',
+  savedPlaylistId: '',
+};
+
+const createDefaultState = () => ({
+  ui: {
+    activeTab: 'dashboard',
+    isAdvanced: false,
+    isSidebarCollapsed: false,
+    activeAccount: 'Personal',
+  },
+  settings: { ...defaultSettings },
+  library: {
+    downloads: [],
+    section: 'artists',
+    viewMode: 'gallery',
+    typeFilter: 'all',
+    navPath: { ...emptyLibraryNavPath },
+    filters: { ...emptyLibraryFilters },
+    sortKey: 'newest',
+    savedPlaylists: [],
+    playlistAssignments: {},
+    ui: {
+      advancedFiltersOpen: false,
+      metadataBannerDismissed: false,
+    },
+  },
+  player: {
+    active: false,
+    selectedMedia: null,
+    minimized: false,
+    queue: [],
+  },
+  dashboard: {
+    widgets: [
+      { id: 'quick-download', type: 'quick-download', col: 1, row: 1, colSpan: 4, rowSpan: 2 },
+      { id: 'recent-downloads', type: 'recent-downloads', col: 5, row: 1, colSpan: 8, rowSpan: 4 },
+      { id: 'system-stats', type: 'system-stats', col: 1, row: 3, colSpan: 4, rowSpan: 2 },
+      { id: 'storage', type: 'storage', col: 1, row: 5, colSpan: 4, rowSpan: 2 },
+    ]
+  },
+  download: {
+    urlInput: '',
+    isDownloading: false,
+    jobStatus: null,
+    progressTasks: {},
+    logMessages: [],
+    duplicateQueue: [],
+    duplicateError: '',
+  },
+});
+
+const AppStoreContext = createContext();
+let hasLoggedStorageReadError = false;
+
+const getPersistedState = (state) => ({
+  ui: {
+    activeTab: state.ui.activeTab,
+    isAdvanced: state.ui.isAdvanced,
+    isSidebarCollapsed: state.ui.isSidebarCollapsed,
+    activeAccount: state.ui.activeAccount,
+  },
+  settings: {
+    ...state.settings,
+  },
+  library: {
+    section: state.library.section,
+    viewMode: state.library.viewMode,
+    typeFilter: state.library.typeFilter,
+    navPath: {
+      ...state.library.navPath,
+    },
+    filters: {
+      query: state.library.filters.query,
+      creator: state.library.filters.creator,
+      collection: state.library.filters.collection,
+      playlist: state.library.filters.playlist,
+      savedPlaylistId: state.library.filters.savedPlaylistId,
+    },
+    sortKey: state.library.sortKey,
+    savedPlaylists: state.library.savedPlaylists,
+    playlistAssignments: state.library.playlistAssignments,
+    ui: {
+      advancedFiltersOpen: state.library.ui.advancedFiltersOpen,
+      metadataBannerDismissed: state.library.ui.metadataBannerDismissed,
+    },
+  },
+  download: {
+    urlInput: state.download.urlInput,
+    activeJobId: state.download.activeJobId,
+  },
+  player: {
+    queue: state.player.queue,
+    selectedMedia: state.player.selectedMedia,
+  },
+  dashboard: {
+    widgets: state.dashboard.widgets,
+  },
+});
+
+const toString = (value, fallback) => (typeof value === 'string' ? value : fallback);
+const toBoolean = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
+
+const normalizeSavedPlaylistName = (value) => (
+  toString(value, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_SAVED_PLAYLIST_NAME_LENGTH)
+);
+
+const toBoundedPositiveInteger = (value, fallback, max) => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  const normalized = Math.trunc(parsed);
+  if (normalized <= 0) {
+    return fallback;
+  }
+  return Math.min(normalized, max);
+};
+
+const sanitizeSettings = (rawSettings) => {
+  const raw = rawSettings && typeof rawSettings === 'object' ? rawSettings : {};
+
+  const onDuplicate = toString(raw.onDuplicate, defaultSettings.onDuplicate);
+  return {
+    output: toString(raw.output, defaultSettings.output),
+    quality: toString(raw.quality, defaultSettings.quality),
+    jobs: toBoundedPositiveInteger(raw.jobs, defaultSettings.jobs, MAX_JOBS),
+    timeout: toBoundedPositiveInteger(raw.timeout, defaultSettings.timeout, MAX_TIMEOUT_SECONDS),
+    format: toString(raw.format, defaultSettings.format),
+    audioOnly: toBoolean(raw.audioOnly, defaultSettings.audioOnly),
+    onDuplicate: VALID_DUPLICATE_POLICIES.has(onDuplicate) ? onDuplicate : defaultSettings.onDuplicate,
+    useCookies: toBoolean(raw.useCookies, defaultSettings.useCookies),
+    poTokenExtension: toBoolean(raw.poTokenExtension, defaultSettings.poTokenExtension),
+  };
+};
+
+const sanitizeLibraryFilters = (rawFilters, validSavedPlaylistIds = new Set()) => {
+  const raw = rawFilters && typeof rawFilters === 'object' ? rawFilters : {};
+  const savedPlaylistId = toString(raw.savedPlaylistId, '').trim();
+  return {
+    query: toString(raw.query, ''),
+    creator: toString(raw.creator, ''),
+    collection: toString(raw.collection, ''),
+    playlist: toString(raw.playlist, ''),
+    savedPlaylistId: validSavedPlaylistIds.has(savedPlaylistId) ? savedPlaylistId : '',
+  };
+};
+
+const sanitizeSavedPlaylists = (rawPlaylists) => {
+  if (!Array.isArray(rawPlaylists)) {
+    return [];
+  }
+  const seenIds = new Set();
+  const out = [];
+  for (const entry of rawPlaylists) {
+    const value = entry && typeof entry === 'object' ? entry : {};
+    const id = toString(value.id, '').trim();
+    const name = normalizeSavedPlaylistName(value.name);
+    if (id === '' || name === '' || seenIds.has(id)) {
+      continue;
+    }
+    seenIds.add(id);
+    out.push({
+      id,
+      name,
+      createdAt: toString(value.createdAt, ''),
+      updatedAt: toString(value.updatedAt, ''),
+    });
+  }
+  return out;
+};
+
+const sanitizePlaylistAssignments = (rawAssignments, validSavedPlaylistIds) => {
+  const raw = rawAssignments && typeof rawAssignments === 'object' ? rawAssignments : {};
+  const out = {};
+  for (const [mediaKey, value] of Object.entries(raw)) {
+    const normalizedMediaKey = String(mediaKey || '').trim();
+    if (normalizedMediaKey === '') continue;
+
+    // Migrate legacy flat string → array, or validate existing array
+    let ids;
+    if (typeof value === 'string') {
+      ids = value.trim() ? [value.trim()] : [];
+    } else if (Array.isArray(value)) {
+      ids = value.map((v) => toString(v, '').trim()).filter(Boolean);
+    } else {
+      continue;
+    }
+
+    const valid = ids.filter((id) => validSavedPlaylistIds.has(id));
+    if (valid.length > 0) {
+      out[normalizedMediaKey] = valid;
+    }
+  }
+  return out;
+};
+
+const sanitizeLibraryNavPath = (rawNavPath) => {
+  const raw = rawNavPath && typeof rawNavPath === 'object' ? rawNavPath : {};
+  const creatorType = toString(raw.creatorType, '').trim().toLowerCase();
+  const playlistKind = toString(raw.playlistKind, '').trim().toLowerCase();
+
+  return {
+    creatorType: creatorType === 'artist' || creatorType === 'channel' ? creatorType : '',
+    creatorName: toString(raw.creatorName, ''),
+    albumName: toString(raw.albumName, ''),
+    playlistKey: toString(raw.playlistKey, ''),
+    playlistKind: playlistKind === 'source' || playlistKind === 'saved' ? playlistKind : '',
+  };
+};
+
+const sanitizeLibraryUiState = (rawUiState) => {
+  const raw = rawUiState && typeof rawUiState === 'object' ? rawUiState : {};
+  return {
+    advancedFiltersOpen: toBoolean(raw.advancedFiltersOpen, false),
+    metadataBannerDismissed: toBoolean(raw.metadataBannerDismissed, false),
+  };
+};
+
+const sanitizeLibrary = (rawLibrary) => {
+  const raw = rawLibrary && typeof rawLibrary === 'object' ? rawLibrary : {};
+
+  const section = toString(raw.section, 'artists');
+  const viewMode = toString(raw.viewMode, 'gallery');
+  const sortKey = toString(raw.sortKey, 'newest');
+  const savedPlaylists = sanitizeSavedPlaylists(raw.savedPlaylists);
+  const validSavedPlaylistIds = new Set(savedPlaylists.map((playlist) => playlist.id));
+
+  const requestedTypeFilter = toString(raw.typeFilter, '').trim().toLowerCase();
+  const legacyActiveMediaType = toString(raw.activeMediaType, '').trim().toLowerCase();
+  let typeFilter = 'all';
+  if (VALID_LIBRARY_TYPE_FILTERS.has(requestedTypeFilter)) {
+    typeFilter = requestedTypeFilter;
+  } else if (VALID_LIBRARY_TYPE_FILTERS.has(legacyActiveMediaType)) {
+    typeFilter = legacyActiveMediaType;
+  }
+
+  return {
+    section: VALID_LIBRARY_SECTIONS.has(section) ? section : 'artists',
+    viewMode: VALID_LIBRARY_VIEW_MODES.has(viewMode) ? viewMode : 'gallery',
+    typeFilter,
+    navPath: sanitizeLibraryNavPath(raw.navPath),
+    filters: sanitizeLibraryFilters(raw.filters, validSavedPlaylistIds),
+    sortKey: VALID_LIBRARY_SORT_KEYS.has(sortKey) ? sortKey : 'newest',
+    savedPlaylists,
+    playlistAssignments: sanitizePlaylistAssignments(raw.playlistAssignments, validSavedPlaylistIds),
+    ui: sanitizeLibraryUiState(raw.ui),
+  };
+};
+
+const sanitizeDashboardWidgets = (rawWidgets) => {
+  if (!Array.isArray(rawWidgets)) {
+    return null;
+  }
+  const out = [];
+  for (const entry of rawWidgets) {
+    const w = entry && typeof entry === 'object' ? entry : {};
+    const id = toString(w.id, '').trim();
+    const type = toString(w.type, '').trim();
+    const col = typeof w.col === 'number' ? Math.trunc(w.col) : Number(w.col);
+    const row = typeof w.row === 'number' ? Math.trunc(w.row) : Number(w.row);
+    const colSpan = typeof w.colSpan === 'number' ? Math.trunc(w.colSpan) : Number(w.colSpan);
+    const rowSpan = typeof w.rowSpan === 'number' ? Math.trunc(w.rowSpan) : Number(w.rowSpan);
+    if (
+      id === '' || type === '' ||
+      !Number.isFinite(col) || col < 1 ||
+      !Number.isFinite(row) || row < 1 ||
+      !Number.isFinite(colSpan) || colSpan < 1 ||
+      !Number.isFinite(rowSpan) || rowSpan < 1
+    ) {
+      continue;
+    }
+    out.push({ id, type, col, row, colSpan, rowSpan });
+  }
+  return out.length > 0 ? out : null;
+};
+
+const readPersistedState = (accountName = 'Personal') => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const storageKey = `${APP_STATE_STORAGE_KEY_PREFIX}${accountName}`;
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw);
+  } catch (error) {
+    if (!hasLoggedStorageReadError) {
+      console.warn('Failed to read persisted app state from localStorage:', error);
+      hasLoggedStorageReadError = true;
+    }
+    return null;
+  }
+};
+
+const migrateLegacyState = (accountName) => {
+  if (typeof window === 'undefined' || accountName !== 'Personal') return;
+  try {
+    const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyRaw) {
+      const newKey = `${APP_STATE_STORAGE_KEY_PREFIX}Personal`;
+      // Only migrate if the new key doesn't already have data
+      if (!window.localStorage.getItem(newKey)) {
+        window.localStorage.setItem(newKey, legacyRaw);
+      }
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.warn('Failed to migrate legacy app state:', e);
+  }
+};
+
+const getInitialState = (accountName = 'Personal') => {
+  migrateLegacyState(accountName);
+  const baseState = createDefaultState();
+  const persisted = readPersistedState(accountName);
+  if (!persisted || typeof persisted !== 'object') {
+    return { ...baseState, ui: { ...baseState.ui, activeAccount: accountName } };
+  }
+
+  const activeTab = VALID_TABS.has(persisted?.ui?.activeTab)
+    ? persisted.ui.activeTab
+    : baseState.ui.activeTab;
+  const isAdvanced = typeof persisted?.ui?.isAdvanced === 'boolean'
+    ? persisted.ui.isAdvanced
+    : baseState.ui.isAdvanced;
+  const isSidebarCollapsed = typeof persisted?.ui?.isSidebarCollapsed === 'boolean'
+    ? persisted.ui.isSidebarCollapsed
+    : baseState.ui.isSidebarCollapsed;
+
+  const persistedSettings = sanitizeSettings(persisted.settings);
+  const persistedLibrary = sanitizeLibrary(persisted.library);
+  const persistedUrlInput = typeof persisted?.download?.urlInput === 'string'
+    ? persisted.download.urlInput
+    : baseState.download.urlInput;
+  const persistedActiveJobId = typeof persisted?.download?.activeJobId === 'string'
+    ? persisted.download.activeJobId
+    : '';
+
+  const persistedDashboardWidgets = sanitizeDashboardWidgets(persisted?.dashboard?.widgets)
+    ?? baseState.dashboard.widgets;
+
+  const persistedQueue = Array.isArray(persisted?.player?.queue)
+    ? persisted.player.queue
+    : baseState.player.queue;
+  const persistedSelectedMedia = persisted?.player?.selectedMedia ?? baseState.player.selectedMedia;
+
+  return {
+    ...baseState,
+    ui: {
+      activeTab,
+      isAdvanced,
+      isSidebarCollapsed,
+      activeAccount: accountName,
+    },
+    settings: {
+      ...persistedSettings,
+    },
+    library: {
+      ...baseState.library,
+      section: persistedLibrary.section,
+      viewMode: persistedLibrary.viewMode,
+      typeFilter: persistedLibrary.typeFilter,
+      navPath: persistedLibrary.navPath,
+      filters: persistedLibrary.filters,
+      sortKey: persistedLibrary.sortKey,
+      savedPlaylists: persistedLibrary.savedPlaylists,
+      playlistAssignments: persistedLibrary.playlistAssignments,
+      ui: persistedLibrary.ui,
+    },
+    player: {
+      ...baseState.player,
+      queue: persistedQueue,
+      selectedMedia: persistedSelectedMedia,
+      active: persistedQueue.length > 0,
+    },
+    download: {
+      ...baseState.download,
+      urlInput: persistedUrlInput,
+      activeJobId: persistedActiveJobId,
+    },
+    dashboard: {
+      widgets: persistedDashboardWidgets,
+    },
+  };
+};
+
+export function AppStoreProvider(props) {
+  const [state, setState] = createStore(getInitialState('Personal'));
+  let hasLoggedStorageWriteError = false;
+
+  createEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const storageKey = `${APP_STATE_STORAGE_KEY_PREFIX}${state.ui.activeAccount}`;
+      window.localStorage.setItem(storageKey, JSON.stringify(getPersistedState(state)));
+      hasLoggedStorageWriteError = false;
+    } catch (error) {
+      if (!hasLoggedStorageWriteError) {
+        console.warn('Failed to persist app state to localStorage:', error);
+        hasLoggedStorageWriteError = true;
+      }
+    }
+  });
+
+  // Hydrate state automatically when the account is switched
+  createEffect((prevAccount) => {
+    const currentAccount = state.ui.activeAccount;
+    if (prevAccount && prevAccount !== currentAccount) {
+        const newState = getInitialState(currentAccount);
+        setState(reconcile(newState));
+    }
+    return currentAccount;
+  }, state.ui.activeAccount);
+
+  return (
+    <AppStoreContext.Provider value={{ state, setState }}>
+      {props.children}
+    </AppStoreContext.Provider>
+  );
+}
+
+export function useAppStore() {
+  const context = useContext(AppStoreContext);
+  if (!context) {
+    throw new Error('useAppStore must be used within an AppStoreProvider');
+  }
+  return context;
+}

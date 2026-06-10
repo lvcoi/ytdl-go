@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
 const extractorName = "kkdai/youtube"
@@ -118,11 +118,14 @@ func buildItemMetadata(video *youtube.Video, format *youtube.Format, ctxInfo out
 	return metadata
 }
 
-func writeSidecar(outputPath string, metadata ItemMetadata) error {
+func writeSidecar(outputPath, baseDir string, metadata ItemMetadata) error {
 	if outputPath == "" {
 		return nil
 	}
-	path := sidecarPath(outputPath)
+	path, err := sidecarPath(outputPath, baseDir)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return wrapCategory(CategoryFilesystem, fmt.Errorf("creating sidecar directory: %w", err))
 	}
@@ -142,8 +145,23 @@ func writeSidecar(outputPath string, metadata ItemMetadata) error {
 	return nil
 }
 
-func sidecarPath(outputPath string) string {
-	return outputPath + ".json"
+func finalizeDownloadMetadata(outputPath, baseDir string, metadata ItemMetadata, audioOnly bool, printer *Printer) error {
+	if outputPath == "" {
+		return nil
+	}
+	// Only embed tags for audio-only downloads to avoid unnecessary remuxing for video files
+	if audioOnly {
+		embedAudioTags(metadata, outputPath, printer)
+	}
+
+	if err := writeSidecar(outputPath, baseDir, metadata); err != nil {
+		return err
+	}
+	return nil
+}
+
+func sidecarPath(outputPath, baseDir string) (string, error) {
+	return artifactPath(outputPath, ".json", baseDir)
 }
 
 func bestThumbnailURL(thumbnails youtube.Thumbnails) string {

@@ -93,6 +93,10 @@ func newPrinter(opts Options, manager *ProgressManager) *Printer {
 		renderer:        renderer,
 		manager:         manager,
 	}
+	if opts.Renderer != nil {
+		printer.renderer = opts.Renderer
+		printer.progressEnabled = true
+	}
 	return printer
 }
 

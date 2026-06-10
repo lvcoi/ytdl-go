@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --color-accent-primary: #06b6d4;
+  --color-accent-secondary: #10b981;
+  --color-accent-vibrant: #f43f5e;
+
+  --color-bg-base: #060910;
+  --color-bg-surface: #0b111a;
+  --color-bg-surface-soft: #0d1420;
+
+  --background-image-vibrant-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+  --background-image-surface-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+
+  --shadow-vibrant: 0 4px 20px -2px rgba(6, 182, 212, 0.3);
+  --shadow-inner-soft: inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+@layer base {
+  :root {
+    --bg-base: #060910;
+    --bg-surface: #0b111a;
+    --bg-surface-soft: #0d1420;
+    --accent-primary: #06b6d4;
+    --accent-secondary: #10b981;
+  }
+
+  body {
+    background: 
+        radial-gradient(circle at 14% 6%, rgba(6, 182, 212, 0.15), transparent 34%),
+        radial-gradient(circle at 84% 0%, rgba(16, 185, 129, 0.12), transparent 30%),
+        linear-gradient(180deg, #05070a 0%, var(--bg-base) 42%, #05070a 100%);
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+}
+
+/* Enhanced Glassmorphism */
+.glass {
+    background: rgba(11, 17, 26, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-vibrant {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Motion Primitives */
+.transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.5);
+}
+
+/* Resize Cursors */
+.cursor-n-resize { cursor: n-resize; }
+.cursor-s-resize { cursor: s-resize; }
+.cursor-e-resize { cursor: e-resize; }
+.cursor-w-resize { cursor: w-resize; }
+.cursor-ne-resize { cursor: ne-resize; }
+.cursor-nw-resize { cursor: nw-resize; }
+.cursor-se-resize { cursor: se-resize; }
+.cursor-sw-resize { cursor: sw-resize; }
+.cursor-grabbing { cursor: grabbing; }
+.cursor-move { cursor: move; }
+
+/* Dashboard Widget Styles */
+.widget-dragging {
+    opacity: 0.7;
+    transform: scale(1.02);
+    z-index: 1000;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.widget-resizing {
+    z-index: 999;
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+}
+
+.resize-handle {
+    background: rgba(139, 92, 246, 0.3);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(139, 92, 246, 0.5);
+    transition: all 0.2s ease;
+}
+
+.resize-handle:hover {
+    background: rgba(139, 92, 246, 0.5);
+    border-color: rgba(139, 92, 246, 0.7);
+}
+
+/* Grid overlay for drag feedback */
+.grid-overlay {
+    pointer-events: none;
+    border: 2px dashed rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 2rem;
+    transition: all 0.2s ease;
+    z-index: 1000;
+}
+
+/* 16-Column Grid Pattern — one line per tile, tiled via background-size set in Grid.jsx */
+.dashboard-grid-lines {
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.15) 0px, rgba(255, 255, 255, 0.15) 1px, transparent 1px, transparent 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0px, rgba(255, 255, 255, 0.15) 1px, transparent 1px, transparent 100%);
+}

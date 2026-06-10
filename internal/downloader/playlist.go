@@ -6,17 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kkdai/youtube/v2"
+	"github.com/lvcoi/ytdl-lib/v2"
 )
 
-func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer, isMusicURL bool) error {
-	savedClient := youtube.DefaultClient
-	defer func() {
-		youtube.DefaultClient = savedClient
-	}()
+var fetchMusicPlaylistEntriesFn = fetchMusicPlaylistEntries
 
-	youtube.DefaultClient = youtube.WebClient
-	playlistClient := newClient(opts)
+func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer, isMusicURL bool) error {
+	playlistClient := newClientForType("web", opts)
 	playlist, err := playlistClient.GetPlaylistContext(ctx, url)
 	if err != nil {
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
@@ -46,19 +42,11 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
 	}
 
-	albumMeta := map[string]musicEntryMeta{}
-	if strings.Contains(opts.OutputTemplate, "{album}") {
-		var err error
-		albumMeta, err = fetchMusicPlaylistEntries(ctx, playlist.ID, opts)
-		if err != nil {
-			return wrapCategory(CategoryNetwork, fmt.Errorf("fetching album metadata: %w", err))
-		}
-	}
+	albumMeta := resolveMusicPlaylistAlbumMeta(ctx, playlist.ID, opts, isMusicURL, printer)
 
 	printer.Log(LogInfo, fmt.Sprintf("playlist: %s (%d videos)", playlist.Title, len(playlist.Videos)))
 
-	youtube.DefaultClient = youtube.AndroidClient
-	videoClient := newClient(opts)
+	videoClient := newClientForType("android", opts)
 	type playlistOutcome struct {
 		ok      bool
 		failed  bool
@@ -207,13 +195,27 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	return nil
 }
 
+func resolveMusicPlaylistAlbumMeta(ctx context.Context, playlistID string, opts Options, isMusicURL bool, printer *Printer) map[string]musicEntryMeta {
+	if !isMusicURL {
+		return map[string]musicEntryMeta{}
+	}
+
+	albumMeta, err := fetchMusicPlaylistEntriesFn(ctx, playlistID, opts)
+	if err != nil {
+		if printer != nil {
+			printer.Log(LogWarn, fmt.Sprintf("warning: album metadata enrichment unavailable for playlist %s: %v", playlistID, err))
+		}
+		return map[string]musicEntryMeta{}
+	}
+	return albumMeta
+}
+
 func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts Options, _ *Printer) error {
 	if len(playlist.Videos) == 0 {
 		return nil
 	}
 
-	youtube.DefaultClient = youtube.AndroidClient
-	client := newClient(opts)
+	client := newClientForType("android", opts)
 
 	for i, entry := range playlist.Videos {
 		if entry == nil || entry.ID == "" {

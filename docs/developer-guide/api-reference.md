@@ -1,0 +1,254 @@
+# API Reference
+
+JSON contract between the `ytdl-go` frontend and the Go backend server.
+
+**Base URL:** `/api`
+
+## 1. Start Download
+
+Starts an async download job.
+
+- **URL:** `/download`
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+- **Max Body:** 1 MiB
+
+### Request Body
+
+```json
+{
+  "urls": ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+  "options": {
+    "output": "{title}.{ext}",
+    "audio": false,
+    "quality": "best",
+    "format": "",
+    "jobs": 1,
+    "timeout": 180,
+    "on-duplicate": "prompt"
+  }
+}
+```
+
+Key option fields:
+
+| Field | Type | Default | Notes |
+| ----- | ---- | ------- | ----- |
+| `options.output` | `string` | `{title}.{ext}` | No absolute paths or `..`. |
+| `options.audio` | `boolean` | `false` | Audio-only mode. |
+| `options.quality` | `string` | `best` | `best`, `worst`, `720p`, `128k`, etc. |
+| `options.format` | `string` | `""` | Preferred container (`mp4`, `webm`, etc). |
+| `options.jobs` | `number` | `1` | Concurrent jobs. |
+| `options.timeout` | `number` | `180` | Timeout in seconds. |
+| `options.on-duplicate` | `string` | `prompt` | `prompt`, `overwrite`, `skip`, `rename`, `*_all`. |
+
+### Success Response
+
+```json
+{
+  "status": "queued",
+  "jobId": "job_1",
+  "message": "Download started for 1 item(s)."
+}
+```
+
+### Error Response
+
+```json
+{
+  "type": "error",
+  "status": "error",
+  "error": "invalid JSON payload"
+}
+```
+
+## 2. Download Progress Stream (SSE)
+
+Streams progress and state events for a job.
+
+- **URL:** `/download/progress?id={jobId}`
+- **Method:** `GET`
+- **Content-Type:** `text/event-stream`
+- **Optional Query Param:** `since` (event sequence number to replay from)
+  - `since=0` replays all retained events for the job.
+
+Each SSE `data:` line is JSON. Event types include:
+
+- `snapshot` (initial state on connect/reconnect)
+- `status` (`queued`, `running`, `complete`, `error`)
+- `register`
+- `progress`
+- `finish`
+- `log`
+- `duplicate`
+- `duplicate-resolved`
+- `done`
+
+Most events now include envelope fields for replay-safe clients:
+
+- `jobId` — owning job id
+- `seq` — monotonically increasing event sequence
+- `at` — RFC3339 timestamp
+
+`done` includes terminal state (`status` / `message`), optional `exitCode`, `error`, and `stats`.
+
+`snapshot` always describes the job's **current** state at subscription time, even when `since` is provided.
+
+## 3. Duplicate Prompt Response
+
+Submits a duplicate-file decision for a pending prompt.
+
+- **URL:** `/download/duplicate-response`
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+
+### Request Body
+
+```json
+{
+  "jobId": "job_1",
+  "promptId": "dup_2",
+  "choice": "overwrite"
+}
+```
+
+## 4. Server Status
+
+- **URL:** `/status`
+- **Method:** `GET`
+
+### Success Response - (server status)
+
+```json
+{
+  "active_downloads": 1,
+  "uptime": "2m31s"
+}
+```
+
+## 5. Media Listing
+
+Lists downloaded media with pagination.
+
+- **URL:** `/media/`
+- **Method:** `GET`
+- **Query Params:**
+  - `offset` (default `0`)
+  - `limit` (default `200`, max `500`)
+
+### Success Response - (media listing)
+
+```json
+{
+  "items": [
+    {
+      "id": "file.mp4",
+      "title": "file",
+      "artist": "Unknown Artist",
+      "album": "Unknown Album",
+      "size": "12.5 MB",
+      "size_bytes": 13107200,
+      "date": "2026-02-07",
+      "modified_at": "2026-02-07T18:55:12Z",
+      "type": "video",
+      "filename": "video/file.mp4",
+      "relative_path": "video/file.mp4",
+      "folder": "video",
+      "source_url": "https://www.youtube.com/watch?v=abc123",
+      "thumbnail_url": "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+      "playlist": {
+        "id": "PL123",
+        "title": "Road Trip",
+        "url": "https://www.youtube.com/playlist?list=PL123",
+        "index": 1,
+        "count": 10
+      },
+      "has_sidecar": true,
+      "metadata": {
+        "id": "abc123",
+        "title": "file",
+        "artist": "Unknown Artist",
+        "album": "Unknown Album",
+        "thumbnail_url": "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+        "source_url": "https://www.youtube.com/watch?v=abc123",
+        "release_date": "2026-02-07",
+        "duration_seconds": 215,
+        "output": "video/file.mp4",
+        "status": "ok"
+      }
+    }
+  ],
+  "next_offset": null
+}
+```
+
+- `next_offset` is `null` when there are no more results.
+- `has_sidecar=true` indicates metadata was loaded from a sidecar (`<media-file>.json`) written during download.
+- Library UI grouping and thumbnail rendering primarily use sidecar-backed fields (`artist`, `album`, `thumbnail_url`, `playlist`, `metadata.*`).
+- Legacy files without sidecars still appear in results with fallback metadata (`has_sidecar=false`).
+
+## 6. Media File Serve
+
+Serves a media file from the media directory.
+
+- **URL:** `/media/{filename}`
+- **Method:** `GET`
+
+Path traversal and symlink escape are rejected.
+
+## 7. Saved Playlists State
+
+Reads or replaces the saved-playlist state used by the Library tab.
+
+- **URL:** `/library/playlists`
+- **Methods:** `GET`, `PUT`
+- **Content-Type (`PUT`):** `application/json`
+
+### Payload Shape - (saved playlists)
+
+```json
+{
+  "playlists": [
+    {
+      "id": "saved-123",
+      "name": "Road Trip",
+      "createdAt": "2026-02-07T12:00:00Z",
+      "updatedAt": "2026-02-07T12:00:00Z"
+    }
+  ],
+  "assignments": {
+    "video/file.mp4": "saved-123"
+  }
+}
+```
+
+Notes:
+
+- `playlists[].id` and `playlists[].name` are required.
+- Invalid/duplicate entries are normalized server-side.
+- `assignments` values must reference an existing playlist id.
+
+## 8. Legacy Saved Playlists Migration
+
+One-time migration endpoint for moving legacy localStorage playlists into backend storage.
+
+- **URL:** `/library/playlists/migrate`
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+- **Body:** same shape as section 7 payload
+
+### Success Response - (saved playlists migration)
+
+```json
+{
+  "playlists": [
+    { "id": "saved-123", "name": "Road Trip" }
+  ],
+  "assignments": {
+    "video/file.mp4": "saved-123"
+  },
+  "migrated": true
+}
+```
+
+If backend storage already has playlist data, migration is skipped and `migrated` is `false`.
