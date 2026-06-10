@@ -1,0 +1,5 @@
+# .eslintignore
+internal/web/assets/assets/
+node_modules/
+dist/
+build/
