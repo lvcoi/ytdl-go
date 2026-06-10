@@ -1,4 +1,9 @@
 module.exports = {
+  ignorePatterns: [
+    'internal/web/assets/app.js',
+    'internal/web/assets/assets/**/*.js',
+    'frontend/node_modules/',
+  ],
   env: {
     browser: true,
     node: true,
@@ -7,7 +12,10 @@ module.exports = {
   extends: ['eslint:recommended'],
   parserOptions: {
     ecmaVersion: 'latest',
-    sourceType: 'module'
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: true
+    }
   },
   rules: {
     'no-undef': 'error',
