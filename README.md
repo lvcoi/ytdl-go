@@ -1,5 +1,5 @@
 <div align="center">
-<img src="img/ytdl-Gopher.png" alt="ytdl-gopher" width="200">
+<img src="img/ytdl-Gopher.png" alt="ytdl-gopher" width="500">
 
 # ytdl-go
 
