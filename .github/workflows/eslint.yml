@@ -38,16 +38,16 @@ jobs:
       - name: Run ESLint
         env:
           SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
-        run: >-
-          npx eslint .
-          --config .eslintrc.js
-          --ext .js,.jsx,.ts,.tsx
-          --ignore-pattern "node_modules/"
-          --ignore-pattern "dist/"
-          --ignore-pattern "build/"
-          --ignore-pattern "*.min.js"
-          --format @microsoft/eslint-formatter-sarif
-          --output-file eslint-results.sarif
+        run: |
+          npx eslint . \
+            --config .eslintrc.js \
+            --ext .js,.jsx,.ts,.tsx \
+            --ignore-pattern "node_modules/" \
+            --ignore-pattern "dist/" \
+            --ignore-pattern "build/" \
+            --ignore-pattern "*.min.js" \
+            --format @microsoft/eslint-formatter-sarif \
+            --output-file eslint-results.sarif
 
       - name: Upload analysis results to GitHub
         uses: github/codeql-action/upload-sarif@v3
