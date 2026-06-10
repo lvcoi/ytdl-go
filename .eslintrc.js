@@ -1,14 +1,19 @@
 module.exports = {
   env: {
+    browser: true,
     node: true,
-    es2021: true,
+    es2021: true
   },
-  extends: 'eslint:recommended',
+  extends: ['eslint:recommended'],
   parserOptions: {
     ecmaVersion: 'latest',
-    sourceType: 'module',
+    sourceType: 'module'
   },
   rules: {
-    // Add your rules here
-  },
+    'no-undef': 'error',
+    'no-unused-vars': 'warn',
+    'no-empty': 'warn',
+    'no-cond-assign': 'error',
+    'no-prototype-builtins': 'warn'
+  }
 };
