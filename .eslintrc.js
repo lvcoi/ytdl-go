@@ -14,6 +14,7 @@ module.exports = {
     'no-unused-vars': 'warn',
     'no-empty': 'warn',
     'no-cond-assign': 'error',
-    'no-prototype-builtins': 'warn'
+    'no-prototype-builtins': 'warn',
+    'no-constant-condition': 'warn'  // Add this line
   }
 };
