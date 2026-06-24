@@ -16,7 +16,7 @@ const firstNonEmpty = (...values) => {
   return '';
 };
 
-const normalizeMediaType = (value, creator) => {
+const normalizeMediaType = (value) => {
   const lowered = String(value || '').toLowerCase();
   // If the backend explicitly says 'podcast'
   if (lowered === 'podcast') return 'Podcast';
@@ -66,7 +66,7 @@ const withLatestThumb = (current, candidate) => {
 
 const normalizeItem = (rawItem, savedPlaylistById, playlistAssignments) => {
   const metadata = metadataFor(rawItem);
-  const type = normalizeMediaType(rawItem?.type, rawItem?.artist || metadata.artist || metadata.author);
+  const type = normalizeMediaType(rawItem?.type);
   const title = firstNonEmpty(rawItem?.title, metadata.title, 'Untitled');
   const creator = firstNonEmpty(
     rawItem?.artist,

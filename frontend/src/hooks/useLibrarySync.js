@@ -18,7 +18,7 @@ const shouldSyncLibraryForTerminalDownload = (status, stats) => {
 };
 
 export function useLibrarySync() {
-    const { state, setState } = useAppStore();
+    const { setState } = useAppStore();
 
     let mediaListAbortController = null;
     let mediaListRequestToken = 0;

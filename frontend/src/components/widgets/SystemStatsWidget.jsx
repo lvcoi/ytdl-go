@@ -1,7 +1,7 @@
 import { createMemo, Show } from 'solid-js';
 import { useAppStore } from '../../store/appStore';
 
-export default function SystemStatsWidget({ rowSpan, colSpan }) {
+export default function SystemStatsWidget({ rowSpan }) {
   const { state } = useAppStore();
 
   const isDownloading = createMemo(() => state.download.isDownloading);

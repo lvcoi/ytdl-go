@@ -1,7 +1,7 @@
 import { createMemo, For, Show } from 'solid-js';
 import { useAppStore } from '../../store/appStore';
 
-export default function RecentDownloadsWidget({ rowSpan, colSpan }) {
+export default function RecentDownloadsWidget({ rowSpan }) {
   const { state } = useAppStore();
 
   const downloads = createMemo(() => {
