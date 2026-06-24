@@ -6,17 +6,7 @@ const {
 const globals = require("globals");
 const js = require("@eslint/js");
 
-const {
-    FlatCompat,
-} = require("@eslint/eslintrc");
-
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
-});
-
-module.exports = defineConfig([{
+module.exports = defineConfig([js.configs.recommended, {
     languageOptions: {
         globals: {
             ...globals.browser,
@@ -32,9 +22,6 @@ module.exports = defineConfig([{
             },
         },
     },
-
-    extends: compat.extends("eslint:recommended"),
-
     rules: {
         "no-undef": "error",
         "no-unused-vars": "warn",
@@ -48,5 +35,5 @@ module.exports = defineConfig([{
     "internal/web/assets/assets/**/*.js",
     "frontend/node_modules/",
 ]), globalIgnores(
-    ["internal/web/assets/assets/", "**/node_modules/", "**/dist/", "**/build/"],
+    ["internal/web/assets/assets/", "**/node_modules/", "**/dist/", "**/build/", "**/*.md"],
 )]);

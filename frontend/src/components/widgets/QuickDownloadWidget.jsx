@@ -1,6 +1,6 @@
 import { createSignal } from 'solid-js';
 
-export default function QuickDownloadWidget({ rowSpan, colSpan }) {
+export default function QuickDownloadWidget() {
   const [url, setUrl] = createSignal('');
   const [format, setFormat] = createSignal('best');
 
