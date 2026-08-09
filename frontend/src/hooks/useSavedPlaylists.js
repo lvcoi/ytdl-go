@@ -117,7 +117,7 @@ const responseErrorMessage = async (response, fallbackMessage) => {
         if (payload && typeof payload.error === 'string' && payload.error.trim() !== '') {
             return payload.error.trim();
         }
-    } catch (error) {
+    } catch {
         // Ignore JSON parse issues and use fallback.
     }
     return fallbackMessage;
@@ -231,7 +231,7 @@ export function useSavedPlaylists() {
         if (typeof window === 'undefined') return false;
         try {
             return window.localStorage.getItem(SAVED_PLAYLISTS_MIGRATION_KEY) === '1';
-        } catch (error) {
+        } catch {
             return false;
         }
     };
@@ -240,7 +240,7 @@ export function useSavedPlaylists() {
         if (typeof window === 'undefined') return;
         try {
             window.localStorage.setItem(SAVED_PLAYLISTS_MIGRATION_KEY, '1');
-        } catch (error) {
+        } catch {
             // Ignore
         }
     };

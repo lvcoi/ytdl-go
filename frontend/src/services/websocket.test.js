@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import wsService from './websocket';
-import { downloadStore, setDownloadStore } from '../store/downloadStore';
 
 // Mock the store functions to prevent side effects during testing
 vi.mock('../store/downloadStore', () => ({

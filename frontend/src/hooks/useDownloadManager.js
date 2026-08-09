@@ -6,9 +6,6 @@ import {
     normalizeDownloadStatus,
 } from '../utils/downloadStatus';
 
-const reconnectDelaysMs = [1000, 2000, 4000, 8000, 10000];
-
-const maxReconnectAttempts = 5;
 const maxVisibleLogs = 80;
 const acceptedLogLevels = new Set(['debug', 'info', 'warn', 'error']);
 
