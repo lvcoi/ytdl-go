@@ -1,6 +1,6 @@
 module github.com/lvcoi/ytdl-go
 
-go 1.24.2
+go 1.24
 
 toolchain go1.24.13
 
