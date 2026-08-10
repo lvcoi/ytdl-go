@@ -11,7 +11,8 @@
   "dependencies": {
     "@solidjs/router": "^0.15.4",
     "lucide-solid": "^0.575.0",
-    "solid-js": "^1.9.4"
+    "solid-js": "^1.9.4",
+    "@eslint/js": "^8.57.0"
   },
   "devDependencies": {
     "@solidjs/testing-library": "^0.8.9",
