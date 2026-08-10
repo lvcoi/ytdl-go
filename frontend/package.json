@@ -22,7 +22,7 @@
     "tailwindcss": "^4.0.7",
     "vite": "^8.1.0",
     "vite-plugin-solid": "^2.11.12",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
     "@eslint/js": "^8.10.0",
     "eslint": "^8.10.0",
     "globals": "^13.0.0"
