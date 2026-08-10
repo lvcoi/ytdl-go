@@ -24,5 +24,10 @@ jobs:
       
       - name: Build documentation
         run: zensical build --clean
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
       
       - uses: actions/deploy-pages@v4
