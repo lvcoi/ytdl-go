@@ -19,16 +19,17 @@ jobs:
           python-version: '3.11'
       - uses: actions/configure-pages@v4
       
-      - name: Install zensical
-        run: pip install zensical
-      
       - name: Build documentation
         run: zensical build --clean
+
+      - name: Verify build output
+        run: if [ ! -d "./build" ] || [ -z "$(ls -A ./build)" ]; then 
+          echo "Error Build directory is empty or doesnt exist" 
+          exit 1; fi ; echo "Build successful. Contents:"; ls -la ./build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: github-pages
-          path: ./build
-          
-      - uses: actions/deploy-pages@v4
+        name: github-pages
+        path: ./build- name: Install zensical
+        run: pip install zensical
