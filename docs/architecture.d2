@@ -1,0 +1,139 @@
+direction: down
+
+title: "ytdl-go — Complete Architecture (v0.3.0)" {near: top-center; shape: text}
+
+users: Users {
+  cli user: CLI user {shape: person}
+  web user: Web user {shape: person}
+}
+
+entry: Entry Points {
+  main: "main.go\nflag parsing & validation\n25+ CLI flags (audio, quality, subs,\nsponsorblock, cookies, proxy, live, update)"
+  update: "--update / --version\nself-update via GitHub Releases"
+  webui: Web UI (SolidJS + Tailwind v4) {
+    view dashboard: Dashboard
+    view download: Download + Media Options panel
+    view library: Media Library + Player
+    view settings: Network Settings
+    embed: "built by Vite -> internal/web/assets\nembedded via go:embed (single binary)" {shape: page}
+  }
+}
+
+app: internal/app {
+  run: "app.Run\nworker pool (-jobs)\nresults + exit codes"
+}
+
+downloader: internal/downloader {
+  process: "Process / ProcessWithManager\nURL normalize, YouTube Music detect,\nJSON result emission"
+  playlist: "processPlaylist\n--playlist-items, --match-filter\n--sleep-interval, archive skips"
+  video: "downloadVideo\nformat selection (itag/quality),\nchunked stream + resume, 403 retry,\nffmpeg audio fallback"
+  direct: "processDirect\nHLS / DASH / raw file URLs"
+  live: "downloadLiveHLS\n--live recording\n(poll manifest until EXT-X-ENDLIST)"
+  segments: "segments / adaptive / dash\nparallel segment downloads\n(.part + .resume.json)"
+  output: "output template engine (path.go)\n{title} {channel} {upload_date}\n{duration_string} {autonumber} ..."
+  duplicate: "duplicate handling\nskip / rename / overwrite / prompt"
+  tui: "progress + interactive TUI\n(Bubble Tea format selector)"
+  postprocess: "postProcessVideo pipeline" {
+    audio: "--audio-format / --audio-quality\nconvert via ffmpeg" {shape: step}
+    sponsorblock: "SponsorBlock\n--sponsorblock-mark (chapters)\n--sponsorblock-remove (cuts)" {shape: step}
+    captions: "captions.go\n--write-subs --embed-subs\ntimedtext -> WebVTT" {shape: step}
+    thumbs: "thumbnails.go\n--write-thumbnail --embed-thumbnail\n(ID3v2 APIC / attached_pic)" {shape: step}
+    tags: "tags.go\nID3v2 + ffmpeg metadata" {shape: step}
+  }
+  archive: "download archive (selection.go)\nyoutube <id> lines, archive.txt"
+  filters: "playlistItemSelector + matchFilter\n(archive.go / selection.go)"
+}
+
+clients: HTTP client stack {
+  proxy: "proxyBaseTransport\n--proxy http/https/socks5"
+  retry: "retryTransport\n5xx / 429 backoff"
+  sleep: "sleepTransport\n--sleep-requests (API throttling)"
+  cookies: "staticCookieJar\n--cookies file\n--cookies-from-browser\n(chrome/edge/brave DPAPI + AES-GCM, firefox sqlite)"
+  po: "bgTransport\nPO Token placeholder\n(bgutils.js via goja)"
+  lib: "youtube.Client (lvcoi/ytdl-lib v2)\nplayer API, formats, streams,\nplaylists, transcripts" {shape: package}
+}
+
+web: internal/web server {
+  api: REST API {
+    dl: "POST /api/download\nWebOption -> downloader.Options\nincl. all new options"
+    media: "/api/media\nlist / serve / delete"
+    playlists: "/api/playlists\ncrud + assignments"
+  }
+  jobs: "job tracker + WebSocket hub\nreal-time progress, logs,\nduplicate prompts"
+  watcher: "media watcher (fsnotify)\nindexes new files live"
+}
+
+db: internal/db {
+  sqlite: "SQLite catalog\n(modernc.org/sqlite, pure Go)\nmedia library, saved playlists" {shape: cylinder}
+}
+
+ext: External {
+  youtube: "YouTube / YT Music\nplayer, streams, timedtext,\nHLS/DASH manifests" {shape: cloud}
+  sb: "SponsorBlock API\nsponsor.ajay.app" {shape: cloud}
+  gh: "GitHub Releases\nlatest version + assets" {shape: cloud}
+  ffmpeg: "ffmpeg\nmux, convert, chapters,\ncover art, subtitles" {shape: package}
+  browsers: "local browser profiles\nCookies sqlite, Local State (DPAPI)" {shape: stored_data}
+}
+
+artifacts: Media output {
+  files: "media folder\naudio/ | video/ | playlist/ | data/" {shape: page}
+  sidecars: ".json metadata sidecars\n.vtt subtitles\nthumbnail images" {shape: page}
+}
+
+ci: Release CI (GitHub Actions) {
+  win: "release-windows.yml\nytdl-go-windows-amd64.exe"
+  mac: "release-macos.yml\nytdl-go-darwin-arm64"
+  lin: "release-linux.yml\nytdl-go-linux-amd64"
+  note: "npm build -> go:embed -> go build\n-> attach to GitHub Release" {shape: text}
+}
+
+users.cli user -> entry.main
+users.web user -> entry.webui: browser
+entry.main -> app.run: urls + Options
+entry.webui.embed -> web: served by
+entry.main -> entry.update: -U
+
+web.api.dl -> app.run: spawn job
+web.jobs -> users.web user: WebSocket
+
+app.run -> downloader.process
+downloader.process -> downloader.playlist: playlist URL
+downloader.process -> downloader.video: video URL
+downloader.process -> downloader.direct: non-YouTube URL
+downloader.playlist -> downloader.video: entries
+downloader.video -> downloader.segments: adaptive / no progressive
+downloader.video -> downloader.live: live detected
+downloader.playlist -> downloader.filters
+downloader.playlist -> downloader.archive
+downloader.playlist -> downloader.output
+downloader.video -> downloader.duplicate
+downloader.video -> downloader.tui: -list-formats
+downloader.video -> downloader.postprocess: after download
+
+downloader.video -> clients: streams
+downloader.direct -> clients
+downloader.live -> clients
+downloader.playlist -> clients: metadata
+downloader.postprocess.captions -> clients: timedtext
+clients -> ext.youtube
+clients -> ext.browsers: --cookies-from-browser
+downloader.postprocess.sponsorblock -> ext.sb
+downloader.postprocess.audio -> ext.ffmpeg
+downloader.postprocess.tags -> ext.ffmpeg
+downloader.postprocess.sponsorblock -> ext.ffmpeg
+downloader.tui -> clients: GetVideoContext
+
+entry.update -> ext.gh: version + asset download
+ci.win -> ext.gh: release asset
+ci.mac -> ext.gh
+ci.lin -> ext.gh
+
+downloader.video -> artifacts.files
+downloader.segments -> artifacts.files
+downloader.postprocess -> artifacts.sidecars
+downloader.archive -> artifacts.sidecars: archive.txt
+web.watcher -> artifacts.files: watch
+web.watcher -> db: upsert
+web.api.media -> db
+web.api.playlists -> db
+db <- artifacts.files: scan paths

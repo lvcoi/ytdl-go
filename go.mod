@@ -1,6 +1,6 @@
 module github.com/lvcoi/ytdl-go
 
-go 1.24
+go 1.24.2
 
 toolchain go1.24.13
 
@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/lvcoi/ytdl-lib/v2 v2.10.5-fork.3
 	github.com/u2takey/ffmpeg-go v0.5.0
@@ -31,7 +32,6 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
 	github.com/google/uuid v1.6.0 // indirect

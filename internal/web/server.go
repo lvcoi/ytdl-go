@@ -116,6 +116,28 @@ type WebOption struct {
 	OnDuplicate         string            `json:"on-duplicate"`
 	UseCookies          bool              `json:"use-cookies"`
 	PoToken             string            `json:"po-token"`
+
+	// yt-dlp inspired options
+	Proxy              string `json:"proxy,omitempty"`
+	LimitRate          string `json:"limit-rate,omitempty"`
+	SleepRequests      int    `json:"sleep-requests,omitempty"`   // seconds between API calls
+	SleepInterval      int    `json:"sleep-interval,omitempty"`   // seconds between playlist downloads
+	MaxSleepInterval   int    `json:"max-sleep-interval,omitempty"` // seconds
+	WriteThumbnail     bool   `json:"write-thumbnail,omitempty"`
+	EmbedThumbnail     bool   `json:"embed-thumbnail,omitempty"`
+	AudioFormat        string `json:"audio-format,omitempty"`
+	AudioQuality       string `json:"audio-quality,omitempty"`
+	WriteSubs          bool   `json:"write-subs,omitempty"`
+	WriteAutoSubs      bool   `json:"write-auto-subs,omitempty"`
+	SubLangs           string `json:"sub-langs,omitempty"`
+	EmbedSubs          bool   `json:"embed-subs,omitempty"`
+	SponsorblockMark   string `json:"sponsorblock-mark,omitempty"`
+	SponsorblockRemove string `json:"sponsorblock-remove,omitempty"`
+	PlaylistItems      string `json:"playlist-items,omitempty"`
+	MatchFilter        string `json:"match-filter,omitempty"`
+	DownloadArchive    string `json:"download-archive,omitempty"`
+	BreakOnExisting    bool   `json:"break-on-existing,omitempty"`
+	Live               bool   `json:"live,omitempty"`
 }
 
 type DuplicateResponseRequest struct {
@@ -283,6 +305,35 @@ func parseDownloadRequest(w http.ResponseWriter, r *http.Request) (*DownloadRequ
 		OnDuplicate:         onDuplicate,
 		UseCookies:          req.Options.UseCookies,
 		PoToken:             req.Options.PoToken,
+
+		Proxy:               req.Options.Proxy,
+		LimitRate:           req.Options.LimitRate,
+		SleepRequests:       time.Duration(req.Options.SleepRequests) * time.Second,
+		SleepInterval:       time.Duration(req.Options.SleepInterval) * time.Second,
+		MaxSleepInterval:    time.Duration(req.Options.MaxSleepInterval) * time.Second,
+		WriteThumbnail:      req.Options.WriteThumbnail,
+		EmbedThumbnail:      req.Options.EmbedThumbnail,
+		AudioFormat:         req.Options.AudioFormat,
+		AudioQuality:        req.Options.AudioQuality,
+		WriteSubs:           req.Options.WriteSubs,
+		WriteAutoSubs:       req.Options.WriteAutoSubs,
+		SubLangs:            req.Options.SubLangs,
+		EmbedSubs:           req.Options.EmbedSubs,
+		SponsorblockMark:    req.Options.SponsorblockMark,
+		SponsorblockRemove:  req.Options.SponsorblockRemove,
+		PlaylistItems:       req.Options.PlaylistItems,
+		MatchFilter:         req.Options.MatchFilter,
+		DownloadArchive:     req.Options.DownloadArchive,
+		BreakOnExisting:     req.Options.BreakOnExisting,
+		Live:                req.Options.Live,
+	}
+
+	// The proxy is process-wide; apply it only when the request specifies one
+	// so an omitted field never clears a proxy configured at startup.
+	if opts.Proxy != "" {
+		if err := downloader.ConfigureProxy(opts.Proxy); err != nil {
+			return nil, downloader.Options{}, 0, &requestError{http.StatusBadRequest, err.Error()}
+		}
 	}
 
 	if err := validateWebOutputTemplate(opts.OutputTemplate); err != nil {

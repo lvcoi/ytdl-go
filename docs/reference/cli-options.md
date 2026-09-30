@@ -11,6 +11,9 @@ All command-line flags available in ytdl-go.
 - [Output Control Flags](#output-control-flags)
 - [Metadata Flags](#metadata-flags)
 - [Advanced Flags](#advanced-flags)
+- [Subtitles & SponsorBlock](#subtitles--sponsorblock)
+- [Download Archive & Filtering](#download-archive--filtering)
+- [Live Streams & Updates](#live-streams--updates)
 - [Flag Combinations](#flag-combinations)
 
 ## Input/Output Flags
@@ -37,6 +40,17 @@ Specifies the output path or template for downloaded files. Supports placeholder
 | `{playlist_id}` or `{playlist-id}` | Playlist ID | `PLxxx...` |
 | `{index}` | Video index in playlist (1-based) | `1`, `2`, `3` |
 | `{count}` | Total videos in playlist | `25` |
+| `{upload_date}` | Upload date (YYYYMMDD) | `20240115` |
+| `{upload_year}` | Upload year | `2024` |
+| `{channel}` / `{channel_id}` / `{channel_handle}` | Channel name, ID, or @handle | `Artist Name` |
+| `{view_count}` | View count | `1234567` |
+| `{duration}` | Duration in seconds | `212` |
+| `{duration_string}` | Duration as H:MM:SS | `3:32` |
+| `{resolution}` | Video resolution (WxH) | `1920x1080` |
+| `{fps}` | Frames per second | `30` |
+| `{vcodec}` / `{acodec}` | Video/audio codec | `avc1`, `mp4a` |
+| `{bitrate}` | Average bitrate | `1920005` |
+| `{autonumber}` | Per-run sequential counter | `1`, `2`, `3` |
 
 **Path Behavior:**
 - Output paths/templates must be *relative* (absolute paths are rejected)
@@ -592,6 +606,145 @@ When running the frontend dev server (`npm run dev`), align the proxy target wit
 
 ```bash
 VITE_API_PROXY_TARGET=http://127.0.0.1:3001 npm run dev
+```
+
+## Subtitles & SponsorBlock
+
+### `--write-subs` / `--write-auto-subs` / `--sub-langs` / `--embed-subs`
+
+Download YouTube caption tracks as WebVTT files, including auto-generated ones.
+
+```bash
+# English manual subtitles
+ytdl-go --write-subs [URL]
+
+# Auto-generated subtitles, all languages
+ytdl-go --write-auto-subs --sub-langs all [URL]
+
+# Multiple languages
+ytdl-go --write-subs --sub-langs "en,de,ja" [URL]
+
+# Embed the best track into the media container (mp4/mkv/webm)
+ytdl-go --write-subs --embed-subs [URL]
+```
+
+### `--sponsorblock-mark` / `--sponsorblock-remove`
+
+Use the [SponsorBlock](https://sponsor.ajay.app) community database to add chapter markers or cut segments out of the finished file (stream-copy cuts via ffmpeg).
+
+```bash
+# Mark sponsor segments as chapters
+ytdl-go --sponsorblock-mark sponsor,selfpromo [URL]
+
+# Cut out sponsor segments, self-promotion, and interaction reminders
+ytdl-go --sponsorblock-remove sponsor,selfpromo,interaction [URL]
+```
+
+Valid categories: `sponsor`, `selfpromo`, `interaction`, `intro`, `outro`, `preview`, `music_offtopic`, `filler`, `poi_highlight`, `chapter`.
+
+## Download Archive & Filtering
+
+### `--download-archive` / `--break-on-existing`
+
+Track downloaded video IDs in a plain text file (yt-dlp compatible, one `youtube <id>` per line). Existing entries are skipped.
+
+```bash
+ytdl-go --download-archive archive.txt [PLAYLIST_URL]
+
+# Stop the playlist walk at the first already-downloaded entry
+ytdl-go --download-archive archive.txt --break-on-existing [PLAYLIST_URL]
+```
+
+### `--playlist-items`
+
+Download only selected playlist entries (1-based, `~` negates):
+
+```bash
+ytdl-go --playlist-items 1:5,8 [PLAYLIST_URL]      # first five plus #8
+ytdl-go --playlist-items "~3" [PLAYLIST_URL]       # everything except #3
+```
+
+### `--match-filter`
+
+Only download entries passing all conditions (chained with `&`):
+
+```bash
+# Shorter than 10 minutes and at least 1000 views
+ytdl-go --match-filter "duration<600&view_count>1000" [PLAYLIST_URL]
+
+# Title contains a keyword
+ytdl-go --match-filter "title*=acoustic" [PLAYLIST_URL]
+```
+
+Numeric fields: `duration`, `view_count`. String fields: `title`, `author`, `id` (with `=` exact, `*=` contains, `!=` negated).
+
+## Live Streams & Updates
+
+### `--live`
+
+Record an ongoing YouTube live stream from its HLS manifest. Recording stops automatically when the stream ends (`#EXT-X-ENDLIST`) or on Ctrl+C. Live videos are detected automatically even without `--live`.
+
+```bash
+ytdl-go --live [LIVE_URL]
+```
+
+Note: `--live` records from the moment of invocation; past broadcast content is not captured (`--live-from-start` is not supported).
+
+### `--update` (`-U` style) / `--version`
+
+```bash
+ytdl-go --version   # print the current version
+ytdl-go --update    # check GitHub releases and self-update the binary
+```
+
+`--update` compares against the latest GitHub release of `lvcoi/ytdl-go`, downloads the matching platform asset, and replaces the running binary (the old one is kept as `<binary>.old` until the swap succeeds).
+
+## Proxy & Rate Limiting
+
+### `--proxy` / `--limit-rate` / `--sleep-interval` / `--sleep-requests`
+
+```bash
+# Route all traffic through a SOCKS5 or HTTP proxy
+ytdl-go --proxy socks5://127.0.0.1:1080 [URL]
+
+# Cap the download rate
+ytdl-go --limit-rate 2M [URL]
+
+# Be gentle with long playlists (429 protection)
+ytdl-go --sleep-requests 750ms --sleep-interval 2s --max-sleep-interval 5s [PLAYLIST_URL]
+```
+
+### `--cookies` / `--cookies-from-browser`
+
+Access age-restricted, private, or members-only content by supplying login cookies:
+
+```bash
+# From an exported cookies.txt (Netscape format)
+ytdl-go --cookies cookies.txt [URL]
+
+# Directly from the local browser profile (chrome, edge, brave, firefox)
+ytdl-go --cookies-from-browser firefox
+ytdl-go --cookies-from-browser "chrome:Profile 2"
+```
+
+Notes:
+- Chromium browsers on Windows are decrypted via DPAPI (Local State key + AES-GCM).
+- Chrome 127+ app-bound cookie encryption (v20) is not supported; export a cookies.txt instead.
+- Firefox cookies are read from `cookies.sqlite` (copied to a temp file, so the browser may stay open).
+
+### `--write-thumbnail` / `--embed-thumbnail`
+
+```bash
+ytdl-go --write-thumbnail [URL]                       # save <output>.jpg/png next to the file
+ytdl-go -audio --embed-thumbnail [URL]                # embed cover art (mp3/m4a/mp4/mkv)
+```
+
+### `--audio-format` / `--audio-quality`
+
+```bash
+ytdl-go -audio --audio-format mp3 [URL]               # convert to MP3
+ytdl-go -audio --audio-format opus --audio-quality 160k [URL]
+ytdl-go -audio --audio-format mp3 --audio-quality 0 [URL]   # VBR highest
 ```
 
 ## Flag Combinations

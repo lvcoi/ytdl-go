@@ -323,6 +323,25 @@ export function useDownloadManager() {
                         "on-duplicate": state.settings.onDuplicate,
                         "use-cookies": state.settings.useCookies,
                         "po-token": state.settings.poTokenExtension ? "true" : "", // Placeholder logic as actual token may come from extension
+                        // yt-dlp inspired options
+                        "audio-format": state.settings.audioFormat,
+                        "audio-quality": state.settings.audioQuality,
+                        "write-thumbnail": state.settings.writeThumbnail,
+                        "embed-thumbnail": state.settings.embedThumbnail,
+                        "write-subs": state.settings.writeSubs,
+                        "write-auto-subs": state.settings.writeAutoSubs,
+                        "sub-langs": state.settings.subLangs,
+                        "embed-subs": state.settings.embedSubs,
+                        "sponsorblock-mark": state.settings.sponsorblockMark,
+                        "sponsorblock-remove": state.settings.sponsorblockRemove,
+                        "playlist-items": state.settings.playlistItems,
+                        "match-filter": state.settings.matchFilter,
+                        "download-archive": state.settings.downloadArchive,
+                        "break-on-existing": state.settings.breakOnExisting,
+                        "limit-rate": state.settings.limitRate,
+                        proxy: state.settings.proxy,
+                        "sleep-requests": state.settings.sleepRequests,
+                        live: state.settings.live,
                     }
 
                 })

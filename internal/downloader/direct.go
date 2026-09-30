@@ -43,11 +43,11 @@ func processDirect(ctx context.Context, rawURL string, opts Options, printer *Pr
 	case "hls":
 		video.HLSManifestURL = info.URL
 		ctxInfo := outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}
-		return downloadHLS(ctx, newClient(opts), video, opts, ctxInfo, printer, printer.Prefix(1, 1, info.Title))
+		return downloadHLS(ctx, newClientWithOptions(opts), video, opts, ctxInfo, printer, printer.Prefix(1, 1, info.Title))
 	case "dash":
 		video.DASHManifestURL = info.URL
 		ctxInfo := outputContext{SourceURL: info.URL, MetaOverrides: opts.MetaOverrides}
-		return downloadDASH(ctx, newClient(opts), video, opts, ctxInfo, printer, printer.Prefix(1, 1, info.Title))
+		return downloadDASH(ctx, newClientWithOptions(opts), video, opts, ctxInfo, printer, printer.Prefix(1, 1, info.Title))
 	default:
 		return downloadDirectFile(ctx, info, opts, printer)
 	}

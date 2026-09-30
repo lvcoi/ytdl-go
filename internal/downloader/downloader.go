@@ -33,6 +33,34 @@ type Options struct {
 	DuplicateSession    *DuplicateSession `json:"-"`
 	UseCookies          bool
 	PoToken             string
+
+	// yt-dlp inspired feature flags
+	Proxy               string        `json:"proxy,omitempty"`              // http/https/socks5 proxy URL
+	WriteThumbnail      bool          `json:"write-thumbnail,omitempty"`
+	EmbedThumbnail      bool          `json:"embed-thumbnail,omitempty"`
+	AudioFormat         string        `json:"audio-format,omitempty"`       // mp3, opus, m4a, aac, flac, wav, best
+	AudioQuality        string        `json:"audio-quality,omitempty"`      // e.g. "160k", "0" (VBR q)
+	WriteSubs           bool          `json:"write-subs,omitempty"`
+	WriteAutoSubs       bool          `json:"write-auto-subs,omitempty"`
+	SubLangs            string        `json:"sub-langs,omitempty"`          // comma separated, "all" for everything
+	EmbedSubs           bool          `json:"embed-subs,omitempty"`
+	SponsorblockMark    string        `json:"sponsorblock-mark,omitempty"`   // comma separated categories
+	SponsorblockRemove  string        `json:"sponsorblock-remove,omitempty"` // comma separated categories
+	PlaylistItems       string        `json:"playlist-items,omitempty"`      // e.g. "1:5,8,10:12"
+	MatchFilter         string        `json:"match-filter,omitempty"`        // e.g. "duration<600&view_count>1000"
+	DownloadArchive     string        `json:"download-archive,omitempty"`
+	BreakOnExisting     bool          `json:"break-on-existing,omitempty"`
+	LimitRate           string        `json:"limit-rate,omitempty"`          // e.g. "500K", "2M"
+	SleepInterval       time.Duration `json:"sleep-interval,omitempty"`
+	MaxSleepInterval    time.Duration `json:"max-sleep-interval,omitempty"`
+	SleepRequests       time.Duration `json:"sleep-requests,omitempty"`
+	CookiesFile         string        `json:"cookies-file,omitempty"`
+	CookiesFromBrowser  string        `json:"cookies-from-browser,omitempty"` // chrome, edge, brave, firefox
+	Live                bool          `json:"live,omitempty"`
+	LiveSegmentInterval time.Duration `json:"-"` // poll interval for live manifests (0=auto)
+
+	// Session-scoped helpers (not serialized)
+	ArchiveSession *downloadArchive `json:"-"`
 }
 
 type outputContext struct {
@@ -45,6 +73,7 @@ type outputContext struct {
 	SourceURL     string
 	PlaylistURL   string
 	MetaOverrides map[string]string
+	Autonumber    int // per-run sequential number for {autonumber}
 }
 
 type downloadResult struct {
@@ -169,7 +198,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 		return err
 	}
 
-	client := newClientForType("android", opts)
+	client := newClientTypeForType("android", opts)
 	video, err := client.GetVideoContext(ctx, url)
 	if err != nil {
 		return wrapFetchError(err, "fetching video metadata")
@@ -183,6 +212,7 @@ func ProcessWithManager(ctx context.Context, url string, opts Options, manager *
 	}
 
 	ctxInfo := outputContext{}
+	ctxInfo.Autonumber = nextAutonumber()
 	prefix := printer.Prefix(1, 1, video.Title)
 	result, err := downloadVideo(ctx, client, video, opts, ctxInfo, printer, prefix)
 	if err != nil {
@@ -253,7 +283,7 @@ func renderFormats(video *youtube.Video, opts Options, playlistID, playlistTitle
 	tui.TransitionToProgress()
 	defer tui.Stop()
 
-	client := newClientForType("android", opts)
+	client := newClientTypeForType("android", opts)
 	printer := NewSeamlessPrinter(opts, tui)
 
 	ctxInfo := outputContext{}

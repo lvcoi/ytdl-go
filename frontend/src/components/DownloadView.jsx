@@ -7,6 +7,7 @@ import {
   normalizeDownloadStatus,
 } from '../utils/downloadStatus';
 import ActiveDownloads from './ActiveDownloads';
+import AdvancedMediaOptions from './AdvancedMediaOptions';
 
 const normalizeStatus = normalizeDownloadStatus;
 const statusTone = (status) => {
@@ -280,6 +281,8 @@ export default function DownloadView(props = {}) {
                 </select>
               </div>
             </div>
+
+            <AdvancedMediaOptions />
           </Show>
         </div>
 

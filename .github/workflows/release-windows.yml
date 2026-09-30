@@ -1,0 +1,62 @@
+name: Release (Windows)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-windows:
+    name: Build & publish Windows binary
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build frontend (embeds into internal/web/assets)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build binary
+        shell: pwsh
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          $arch = (go env GOARCH)
+          go build -trimpath -ldflags "-s -w" -o "ytdl-go-windows-$arch.exe" .
+          Write-Host "Built ytdl-go-windows-$arch.exe"
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $arch = (go env GOARCH)
+          ./ytdl-go-windows-$arch.exe --version
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ytdl-go-windows-*.exe
+          fail_on_unmatched_files: true

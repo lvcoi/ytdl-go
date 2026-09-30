@@ -14,6 +14,7 @@ type HLSManifest struct {
 	Encrypted bool
 	KeyMethod string
 	KeyURI    string
+	HasEndlist bool // #EXT-X-ENDLIST seen: stream is finished (VOD or ended live)
 }
 
 type HLSVariant struct {
@@ -42,6 +43,11 @@ func ParseHLSManifest(data []byte) (HLSManifest, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "#EXT-X-ENDLIST") {
+			manifest.HasEndlist = true
 			continue
 		}
 

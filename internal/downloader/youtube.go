@@ -186,6 +186,46 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 	}()
 
 	result = downloadResult{}
+
+	// Download archive: skip videos already recorded
+	if opts.DownloadArchive != "" {
+		if opts.ArchiveSession == nil {
+			if archive, archiveErr := newDownloadArchive(opts.DownloadArchive); archiveErr != nil {
+				return result, archiveErr
+			} else {
+				opts.ArchiveSession = archive
+			}
+		}
+		if opts.ArchiveSession.contains(video.ID) {
+			if opts.BreakOnExisting {
+				return result, wrapCategory(CategoryUnsupported, fmt.Errorf("video %s already in download archive (--break-on-existing)", video.ID))
+			}
+			result.skipped = true
+			result.outputPath = ""
+			return result, nil
+		}
+	}
+
+	// Live streams: explicit --live or auto-detection (no duration + HLS manifest)
+	if opts.Live || isLiveVideo(video) {
+		if video.HLSManifestURL != "" {
+			result, err = downloadLiveHLS(ctx, client, video, opts, ctxInfo, printer, prefix)
+			outputPath = result.outputPath
+			if err == nil {
+				if postErr := postProcessVideo(ctx, client, video, outputPath, opts, printer); postErr != nil {
+					return result, postErr
+				}
+				if recErr := opts.recordArchive(video.ID); recErr != nil {
+					return result, recErr
+				}
+			}
+			return result, err
+		}
+		if opts.Live {
+			return result, wrapCategory(CategoryUnsupported, fmt.Errorf("--live requested but no HLS manifest is available for this video"))
+		}
+	}
+
 	format, err = selectFormat(video, opts)
 	if err != nil {
 		if errorCategory(err) == CategoryUnsupported {
@@ -242,6 +282,18 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 	if !opts.Quiet || opts.Renderer != nil {
 		progress = newProgressWriter(size, printer, prefix)
 		writer = io.MultiWriter(file, progress)
+	}
+	if limitErr := func() error {
+		limited, err := applyRateLimit(ctx, writer, opts)
+		if err != nil {
+			return err
+		}
+		if limited != nil {
+			writer = limited
+		}
+		return nil
+	}(); limitErr != nil {
+		return result, limitErr
 	}
 	result.hadProgress = progress != nil
 
@@ -309,8 +361,26 @@ func downloadVideo(ctx context.Context, client YouTubeClient, video *youtube.Vid
 		return result, err
 	}
 
+	// Post-processing: audio conversion, SponsorBlock, subtitles, thumbnails
+	if err := postProcessVideo(ctx, client, video, outputPath, opts, printer); err != nil {
+		return result, err
+	}
+
+	// Record in download archive on success
+	if recErr := opts.recordArchive(video.ID); recErr != nil {
+		return result, recErr
+	}
+
 	result.bytes = written
 	return result, nil
+}
+
+// recordArchive records a video ID in the archive session, if configured.
+func (o *Options) recordArchive(id string) error {
+	if o.ArchiveSession == nil {
+		return nil
+	}
+	return o.ArchiveSession.record(id)
 }
 
 func isUnexpectedStatus(err error, code int) bool {

@@ -28,6 +28,8 @@ func main() {
 	var webAddr string
 	var serverHost string
 	var serverPort int
+	var updateSelf bool
+	var printVersion bool
 
 	flag.StringVar(&opts.OutputTemplate, "o", "{title}.{ext}", "output path or template (supports {title}, {artist}, {album}, {id}, {ext}, {quality}, {playlist_title}, {playlist_id}, {index}, {count})")
 	flag.StringVar(&opts.OutputDir, "output-dir", "", "base output directory for security enforcement (prevents directory traversal)")
@@ -46,6 +48,30 @@ func main() {
 	flag.DurationVar(&opts.Timeout, "timeout", 3*time.Minute, "per-request timeout")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "suppress progress output (errors still shown)")
 	flag.StringVar(&opts.LogLevel, "log-level", "info", "log level: debug, info, warn, error")
+	flag.StringVar(&opts.CookiesFile, "cookies", "", "Netscape format cookies.txt file (for age-restricted/login content)")
+	flag.StringVar(&opts.CookiesFromBrowser, "cookies-from-browser", "", "load cookies from browser: chrome, edge, brave, firefox (optionally ':profile')")
+	flag.BoolVar(&opts.WriteThumbnail, "write-thumbnail", false, "write the thumbnail image next to the output file")
+	flag.BoolVar(&opts.EmbedThumbnail, "embed-thumbnail", false, "embed the thumbnail as cover art (mp3/m4a/mp4/mkv)")
+	flag.StringVar(&opts.AudioFormat, "audio-format", "", "target audio format for -audio: mp3, opus, m4a, aac, flac, wav, best (default best)")
+	flag.StringVar(&opts.AudioQuality, "audio-quality", "", "audio quality for --audio-format (e.g. 160k, or 0-9 VBR)")
+	flag.BoolVar(&opts.WriteSubs, "write-subs", false, "write subtitle files (.vtt)")
+	flag.BoolVar(&opts.WriteAutoSubs, "write-auto-subs", false, "write auto-generated subtitle files")
+	flag.StringVar(&opts.SubLangs, "sub-langs", "", "subtitle languages to download (comma separated, \"all\" for everything; default en)")
+	flag.BoolVar(&opts.EmbedSubs, "embed-subs", false, "embed subtitles into the media container")
+	flag.StringVar(&opts.SponsorblockMark, "sponsorblock-mark", "", "SponsorBlock categories to mark as chapters (e.g. sponsor,selfpromo)")
+	flag.StringVar(&opts.SponsorblockRemove, "sponsorblock-remove", "", "SponsorBlock categories to cut out (e.g. sponsor,selfpromo,interaction)")
+	flag.StringVar(&opts.PlaylistItems, "playlist-items", "", "playlist entries to download, e.g. 1:5,8,10:12 (1-based, ~ negates)")
+	flag.StringVar(&opts.MatchFilter, "match-filter", "", "only download matching entries, e.g. duration<600&view_count>1000")
+	flag.StringVar(&opts.DownloadArchive, "download-archive", "", "file recording downloaded video IDs; existing entries are skipped")
+	flag.BoolVar(&opts.BreakOnExisting, "break-on-existing", false, "stop when an entry is already in the download archive")
+	flag.StringVar(&opts.LimitRate, "limit-rate", "", "maximum download rate, e.g. 500K or 2M")
+	flag.DurationVar(&opts.SleepInterval, "sleep-interval", 0, "sleep at least this long between playlist downloads")
+	flag.DurationVar(&opts.MaxSleepInterval, "max-sleep-interval", 0, "sleep a random time up to this long between playlist downloads")
+	flag.DurationVar(&opts.SleepRequests, "sleep-requests", 0, "sleep between YouTube API requests (429 rate-limit protection)")
+	flag.StringVar(&opts.Proxy, "proxy", "", "use the specified HTTP/HTTPS/SOCKS5 proxy, e.g. socks5://127.0.0.1:1080")
+	flag.BoolVar(&opts.Live, "live", false, "record a live stream from the HLS manifest (auto-detected when the video is live)")
+	flag.BoolVar(&updateSelf, "update", false, "check GitHub for a newer release and self-update")
+	flag.BoolVar(&printVersion, "version", false, "print the version and exit")
 	flag.BoolVar(&web, "web", false, "launch the web UI server")
 	flag.StringVar(&webAddr, "web-addr", "", "web server address (overrides host/port)")
 	flag.StringVar(&serverHost, "host", "0.0.0.0", "web server host")
@@ -57,6 +83,31 @@ func main() {
 	}
 
 	opts.MetaOverrides = meta.Values()
+
+	if printVersion {
+		fmt.Printf("ytdl-go %s\n", downloader.AppVersion)
+		return
+	}
+
+	// Configure process-wide proxy before any network activity.
+	if opts.Proxy != "" {
+		if err := downloader.ConfigureProxy(opts.Proxy); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(downloader.ExitCode(err))
+		}
+	}
+
+	// Self-update: check GitHub releases and replace the binary if newer.
+	if updateSelf {
+		fmt.Printf("ytdl-go %s: checking for updates...\n", downloader.AppVersion)
+		message, err := downloader.SelfUpdate(context.Background(), 5*time.Minute)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "update failed: %v\n", err)
+			os.Exit(downloader.ExitCode(err))
+		}
+		fmt.Println(message)
+		return
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

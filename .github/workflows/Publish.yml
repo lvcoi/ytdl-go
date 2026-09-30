@@ -1,0 +1,54 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - uses: actions/configure-pages@v4
+
+      - name: Install zensical
+        run: pip install zensical
+
+      - name: Build documentation
+        run: zensical build --clean
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "./build" ] || [ -z "$(ls -A ./build)" ]; then
+            echo "Error: Build directory is empty or doesn't exist"
+            exit 1
+          fi
+          echo "Build successful. Contents:"
+          ls -la ./build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

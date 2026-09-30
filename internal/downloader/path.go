@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lvcoi/ytdl-lib/v2"
 )
@@ -52,6 +53,44 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 	artist = sanitize(artist)
 	album = sanitizeOptional(album)
 
+	// yt-dlp style extended fields
+	uploadDate := ""
+	uploadYear := ""
+	if !video.PublishDate.IsZero() {
+		uploadDate = video.PublishDate.Format("20060102")
+		uploadYear = strconv.Itoa(video.PublishDate.Year())
+	}
+	viewCount := ""
+	if video.Views > 0 {
+		viewCount = strconv.Itoa(video.Views)
+	}
+	duration := ""
+	durationString := ""
+	if video.Duration > 0 {
+		duration = strconv.FormatInt(int64(video.Duration.Seconds()), 10)
+		durationString = formatDurationString(video.Duration)
+	}
+	resolution := ""
+	if format.Width > 0 && format.Height > 0 {
+		resolution = fmt.Sprintf("%dx%d", format.Width, format.Height)
+	}
+	fps := ""
+	if format.FPS > 0 {
+		fps = strconv.Itoa(format.FPS)
+	}
+	vcodec := sanitizeOptional(formatVideoCodec(format))
+	acodec := sanitizeOptional(formatAudioCodec(format))
+	bitrate := ""
+	if b := bitrateForFormat(format); b > 0 {
+		bitrate = strconv.Itoa(b)
+	}
+	autonumber := ""
+	if ctxInfo.Autonumber > 0 {
+		autonumber = strconv.Itoa(ctxInfo.Autonumber)
+	}
+	channelID := sanitizeOptional(video.ChannelID)
+	channelHandle := sanitizeOptional(video.ChannelHandle)
+
 	replacer := strings.NewReplacer(
 		"{title}", title,
 		"{artist}", artist,
@@ -65,6 +104,22 @@ func resolveOutputPath(template string, video *youtube.Video, format *youtube.Fo
 		"{playlist-id}", playlistID,
 		"{index}", index,
 		"{count}", total,
+		// extended yt-dlp style fields
+		"{upload_date}", uploadDate,
+		"{upload_year}", uploadYear,
+		"{channel}", artist,
+		"{channel_id}", channelID,
+		"{channel_handle}", channelHandle,
+		"{view_count}", viewCount,
+		"{views}", viewCount,
+		"{duration}", duration,
+		"{duration_string}", durationString,
+		"{resolution}", resolution,
+		"{fps}", fps,
+		"{vcodec}", vcodec,
+		"{acodec}", acodec,
+		"{bitrate}", bitrate,
+		"{autonumber}", autonumber,
 	)
 	path := replacer.Replace(template)
 	path = filepath.Clean(path)
@@ -275,4 +330,76 @@ func bitrateForFormat(f *youtube.Format) int {
 		return f.AverageBitrate
 	}
 	return 0
+}
+
+// formatDurationString renders a duration as H:MM:SS or M:SS.
+func formatDurationString(d time.Duration) string {
+	total := int64(d.Seconds())
+	hours := total / 3600
+	minutes := (total % 3600) / 60
+	seconds := total % 60
+	if hours > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
+	}
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
+}
+
+// mimeCodecs extracts the "codecs=" parameter from a mime type string such
+// as "video/mp4; codecs=avc1.640028, opus".
+func mimeCodecs(mime string) []string {
+	idx := strings.Index(strings.ToLower(mime), "codecs=")
+	if idx < 0 {
+		return nil
+	}
+	rest := mime[idx+len("codecs="):]
+	if strings.HasPrefix(rest, "\"") {
+		end := strings.Index(rest[1:], "\"")
+		if end < 0 {
+			return nil
+		}
+		rest = rest[1 : end+1]
+	} else {
+		if end := strings.IndexAny(rest, "; \""); end >= 0 {
+			rest = rest[:end]
+		}
+	}
+	var out []string
+	for _, c := range strings.Split(rest, ",") {
+		if c = strings.TrimSpace(c); c != "" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// formatVideoCodec returns the video codec from a format's mime type.
+func formatVideoCodec(f *youtube.Format) string {
+	if f == nil || strings.HasPrefix(strings.ToLower(f.MimeType), "audio/") {
+		return ""
+	}
+	for _, c := range mimeCodecs(f.MimeType) {
+		lower := strings.ToLower(c)
+		if strings.HasPrefix(lower, "avc") || strings.HasPrefix(lower, "vp") ||
+			strings.HasPrefix(lower, "h264") || strings.HasPrefix(lower, "hevc") ||
+			strings.HasPrefix(lower, "av01") || strings.HasPrefix(lower, "h26") {
+			return strings.SplitN(c, ".", 2)[0]
+		}
+	}
+	return ""
+}
+
+// formatAudioCodec returns the audio codec from a format's mime type.
+func formatAudioCodec(f *youtube.Format) string {
+	if f == nil {
+		return ""
+	}
+	for _, c := range mimeCodecs(f.MimeType) {
+		lower := strings.ToLower(c)
+		if strings.HasPrefix(lower, "mp4a") || strings.HasPrefix(lower, "opus") ||
+			strings.HasPrefix(lower, "vorbis") || strings.HasPrefix(lower, "ec-3") ||
+			strings.HasPrefix(lower, "ac-3") || strings.HasPrefix(lower, "flac") {
+			return strings.SplitN(c, ".", 2)[0]
+		}
+	}
+	return ""
 }

@@ -12,7 +12,7 @@ import (
 var fetchMusicPlaylistEntriesFn = fetchMusicPlaylistEntries
 
 func processPlaylist(ctx context.Context, url string, opts Options, printer *Printer, isMusicURL bool) error {
-	playlistClient := newClientForType("web", opts)
+	playlistClient := newClientTypeForType("web", opts)
 	playlist, err := playlistClient.GetPlaylistContext(ctx, url)
 	if err != nil {
 		return wrapAccessError(fmt.Errorf("fetching playlist: %w", err))
@@ -42,16 +42,97 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 		return wrapCategory(CategoryUnsupported, errors.New("playlist has no videos"))
 	}
 
+	// --playlist-items selection
+	itemSelector, err := parsePlaylistItems(opts.PlaylistItems)
+	if err != nil {
+		return wrapCategory(CategoryInvalidURL, err)
+	}
+	if itemSelector != nil {
+		filtered := make([]*youtube.PlaylistEntry, 0, len(playlist.Videos))
+		for i, entry := range playlist.Videos {
+			if itemSelector.includes(i + 1) {
+				filtered = append(filtered, entry)
+			}
+		}
+		printer.Log(LogInfo, fmt.Sprintf("playlist-items: %d of %d entries selected", len(filtered), len(playlist.Videos)))
+		playlist.Videos = filtered
+		if len(filtered) == 0 {
+			return wrapCategory(CategoryUnsupported, errors.New("no playlist entries match --playlist-items"))
+		}
+	}
+
+	// --match-filter
+	filter, err := parseMatchFilter(opts.MatchFilter)
+	if err != nil {
+		return wrapCategory(CategoryInvalidURL, err)
+	}
+
+	// --download-archive session
+	var archive *downloadArchive
+	if opts.DownloadArchive != "" {
+		archive, err = newDownloadArchive(opts.DownloadArchive)
+		if err != nil {
+			return err
+		}
+		opts.ArchiveSession = archive
+	}
+
 	albumMeta := resolveMusicPlaylistAlbumMeta(ctx, playlist.ID, opts, isMusicURL, printer)
 
 	printer.Log(LogInfo, fmt.Sprintf("playlist: %s (%d videos)", playlist.Title, len(playlist.Videos)))
 
-	videoClient := newClientForType("android", opts)
+	videoClient := newClientTypeForType("android", opts)
 	type playlistOutcome struct {
 		ok      bool
 		failed  bool
 		skipped bool
 		bytes   int64
+		broken  bool
+	}
+
+	applyMatchFilter := func(i int, entry *youtube.PlaylistEntry, video *youtube.Video) bool {
+		if filter == nil {
+			return true
+		}
+		ok, reason := filter.matches(filterVideoInfo{
+			ID:        video.ID,
+			Title:     video.Title,
+			Author:    video.Author,
+			Duration:  video.Duration.Seconds(),
+			ViewCount: video.Views,
+		})
+		if !ok {
+			printer.ItemSkipped(printer.Prefix(i+1, len(playlist.Videos), entryTitle(entry)), reason)
+		}
+		return ok
+	}
+
+	applyArchiveSkip := func(i int, entry *youtube.PlaylistEntry) bool {
+		if archive == nil || entry == nil || entry.ID == "" {
+			return false
+		}
+		if archive.contains(entry.ID) {
+			prefix := printer.Prefix(i+1, len(playlist.Videos), entryTitle(entry))
+			if opts.BreakOnExisting {
+				printer.ItemResult(prefix, downloadResult{}, wrapCategory(CategoryUnsupported, fmt.Errorf("entry %s already in download archive (--break-on-existing)", entry.ID)))
+				return true // treat as "break"
+			}
+			printer.ItemSkipped(prefix, "already in download archive")
+			if opts.JSON {
+				emitJSONResult(jsonResult{
+					Type:          "item",
+					Status:        "skip",
+					PlaylistID:    playlist.ID,
+					PlaylistTitle: playlist.Title,
+					Index:         i + 1,
+					ID:            entry.ID,
+					Title:         entryTitle(entry),
+					Error:         "already in download archive",
+				})
+			}
+			return true
+		}
+		return false
 	}
 
 	handleEntry := func(i int, entry *youtube.PlaylistEntry) playlistOutcome {
@@ -91,6 +172,28 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 				})
 			}
 			return playlistOutcome{failed: true}
+		}
+
+		if applyArchiveSkip(i, entry) {
+			if opts.BreakOnExisting && archive.contains(entry.ID) {
+				return playlistOutcome{skipped: true, broken: true}
+			}
+			return playlistOutcome{skipped: true}
+		}
+		if !applyMatchFilter(i, entry, video) {
+			if opts.JSON {
+				emitJSONResult(jsonResult{
+					Type:          "item",
+					Status:        "skip",
+					PlaylistID:    playlist.ID,
+					PlaylistTitle: playlist.Title,
+					Index:         i + 1,
+					ID:            entry.ID,
+					Title:         entryTitle(entry),
+					Error:         "filtered",
+				})
+			}
+			return playlistOutcome{skipped: true}
 		}
 
 		meta := albumMeta[entry.ID]
@@ -173,9 +276,18 @@ func processPlaylist(ctx context.Context, url string, opts Options, printer *Pri
 	// 2. Properly clean up connections after each download
 	// 3. Prevent zombie processes from accumulating
 	for i, entry := range playlist.Videos {
+		if i > 0 && opts.SleepInterval > 0 {
+			if sleepErr := opts.sleepBeforePlaylistEntry(ctx); sleepErr != nil {
+				break
+			}
+		}
 		outcome := handleEntry(i, entry)
 		if outcome.skipped {
 			skipped++
+			if outcome.broken {
+				printer.Log(LogInfo, "stopping playlist: --break-on-existing triggered")
+				break
+			}
 			continue
 		}
 		if outcome.failed {
@@ -215,7 +327,7 @@ func listPlaylistFormats(ctx context.Context, playlist *youtube.Playlist, opts O
 		return nil
 	}
 
-	client := newClientForType("android", opts)
+	client := newClientTypeForType("android", opts)
 
 	for i, entry := range playlist.Videos {
 		if entry == nil || entry.ID == "" {
